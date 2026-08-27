@@ -1,0 +1,38 @@
+import React from 'react';
+import { LOCALES, useI18n } from '../i18n';
+import MeifioMark from './MeifioMark';
+
+const MEIFIO_HOME = 'https://dengf.github.io/meifio-blog/';
+
+export default function Header() {
+  const { t, locale, setLocale } = useI18n();
+
+  return (
+    <header className="app-header">
+      <div className="app-brand">
+        <h1 className="app-title">{t('app.title')}</h1>
+        <a className="app-byline" href={MEIFIO_HOME}>
+          {t('app.byline').split('{logo}').flatMap((part, i) =>
+            i === 0 ? [part] : [<MeifioMark key="mark" />, part],
+          )}
+        </a>
+      </div>
+
+      <div className="app-regions" role="group" aria-label={t('app.language')}>
+        {LOCALES.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            className={l.id === locale ? 'app-region active' : 'app-region'}
+            aria-pressed={l.id === locale}
+            title={l.name}
+            lang={l.id}
+            onClick={() => setLocale(l.id)}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
+    </header>
+  );
+}

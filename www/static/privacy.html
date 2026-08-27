@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Postcard Maker</title>
+  <meta name="description" content="Postcard Maker collects nothing. Your photo and everything you add to it are processed in your browser and never leave your device.">
+  <link rel="canonical" href="https://dengf.github.io/postcard_maker/privacy.html">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <meta name="theme-color" content="#0f1720">
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      background: #0f1720;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.65;
+    }
+    main { max-width: 40rem; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    h2 { font-size: 1.05rem; margin: 36px 0 8px; }
+    p, li { color: #c6d2df; }
+    .updated { color: #5c6b7d; font-size: 0.85rem; margin: 0 0 32px; }
+    .lede {
+      background: #341522;
+      border: 1px solid #6b2f47;
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-weight: 600;
+      color: #e6edf3;
+    }
+    code {
+      background: #161e2b;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    a { color: #e07ea3; }
+    footer { margin-top: 48px; border-top: 1px solid #223; padding-top: 16px; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated 28 August 2026</p>
+
+    <p class="lede">
+      Postcard Maker has no server, no accounts, and no analytics. Your
+      photo is never uploaded, and nothing you write on it is transmitted
+      anywhere.
+    </p>
+
+    <h2>What we collect</h2>
+    <p>
+      Nothing. There is no account to create, no form that submits
+      anywhere, and no tracking or analytics of any kind — no cookies, no
+      pixels, no third-party scripts.
+    </p>
+
+    <h2>How the photo is processed</h2>
+    <p>
+      Cropping, filters, and image encoding are compiled from Rust to
+      WebAssembly and run inside your browser. Your photo — whether taken
+      with your camera or chosen from your device — never leaves it. The
+      greeting message and any stickers you place are drawn onto the image
+      locally as well, using your browser's own canvas.
+    </p>
+
+    <h2>Your unfinished postcard</h2>
+    <p>
+      The photo and settings for a postcard you haven't finished yet are
+      saved to your browser's <code>IndexedDB</code> storage so a reload
+      doesn't lose your work. It is local to that browser on that device,
+      not synced or backed up anywhere. Clearing your browser's site data
+      deletes it permanently, and we have no copy.
+    </p>
+
+    <h2>Sharing or saving the finished postcard</h2>
+    <p>
+      "Share" hands the finished image to your device's own share sheet or
+      mail client — we never see who you send it to, or the message you
+      write. "Save image" downloads the file straight to your device. Both
+      actions happen entirely between your browser and your device.
+    </p>
+
+    <h2>Hosting</h2>
+    <p>
+      The site is served as static files by GitHub Pages. Like any web
+      server, GitHub's infrastructure handles the network requests needed
+      to deliver the page and may log technical details such as IP
+      addresses. That is standard web hosting and is outside our control;
+      it is covered by
+      <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's
+      privacy statement</a>. We receive no data from it and have no access
+      to those logs.
+    </p>
+    <p>
+      Beyond loading the page itself, the app makes no network requests.
+      You can verify this in your browser's developer tools: open the
+      Network tab, make a postcard, and watch it stay empty.
+    </p>
+
+    <h2>Children</h2>
+    <p>
+      The app is a general-purpose creative tool and is not directed at
+      children. Since no data is collected from anyone, none is collected
+      from children either.
+    </p>
+
+    <h2>Changes</h2>
+    <p>
+      If this policy ever changes, the revised version will be published
+      here with a new date above. Because the app collects nothing, any
+      change that introduced data collection would be a significant one
+      and called out in the app itself.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions or corrections:
+      <a href="https://github.com/dengf/postcard_maker/issues">open an
+      issue on GitHub</a>.
+    </p>
+
+    <footer>
+      <a href="./">&larr; Back to the app</a>
+    </footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+[package]
+name = "postcard-calc"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+postcard-core.workspace = true
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+
+[dev-dependencies]

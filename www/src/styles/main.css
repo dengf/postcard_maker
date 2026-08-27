@@ -1,0 +1,383 @@
+/* Token system, ported from the other meifio tools' dark/light split, but
+   with the brand's own plum (#B01243, the mark's blossom colour) as the
+   accent -- budget_planner and mortgage_calculator kept the blue/green
+   accent mortgage_calculator started with rather than take on a bigger
+   brand decision than either app asked for; a brand-new tool has no such
+   inherited palette to preserve. */
+:root {
+  --bg: #0f1720;
+  --panel: #131c26;
+  --panel-alt: #161e2b;
+  --surface: #0f1720;
+  --ink: #e6edf3;
+  --muted: #9fb0c3;
+  --muted-2: #5c6b7d;
+  --byline: #9aa7b4;
+  --line: #223;
+  --line-soft: #1a2433;
+  --input-border: #2a3546;
+
+  --accent: #d1436a;
+  --accent-ink: #fff7f9;
+  --positive: #7ee787;
+  --positive-ink: #0f1720;
+  --positive-bg: #16311f;
+  --positive-border: #2f6b3f;
+  --negative: #ff8a8a;
+  --negative-bg: #331a1a;
+  --negative-border: #6b3030;
+  --gold: #d9b46a;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f8f6f5;
+    --panel: #ffffff;
+    --panel-alt: #f3eef0;
+    --surface: #ffffff;
+    --ink: #241a1e;
+    --muted: #6b5860;
+    --muted-2: #9c8a91;
+    --byline: #8a747d;
+    --line: #e6dade;
+    --line-soft: #efe6e9;
+    --input-border: #d9c9cf;
+
+    --accent: #b01243;
+    --accent-ink: #ffffff;
+    --positive: #1f7a3d;
+    --positive-ink: #ffffff;
+    --positive-bg: #e4f3e8;
+    --positive-border: #b8ddc2;
+    --negative: #b3261e;
+    --negative-bg: #fbeae9;
+    --negative-border: #e7b7b3;
+    --gold: #8a6a2c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 24px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.45rem; }
+.app-title { font-size: 1.3rem; font-weight: 700; margin: 0; }
+.app-byline {
+  display: flex;
+  align-items: center;
+  gap: 0.32em;
+  font-size: 0.82rem;
+  color: var(--byline);
+  text-decoration: none;
+}
+.app-byline:hover, .app-byline:focus-visible { color: var(--ink); }
+.meifio-mark { width: auto; display: block; color: var(--ink); vertical-align: middle; }
+
+.app-regions { display: flex; gap: 2px; background: var(--panel-alt); padding: 3px; border-radius: 8px; }
+.app-region {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.app-region.active { background: var(--accent); color: var(--accent-ink); }
+
+.app-main { padding: 24px 0 64px; display: flex; flex-direction: column; gap: 24px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.panel h2 { margin: 0; font-size: 1.05rem; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+label.btn { cursor: pointer; }
+.btn.secondary { background: var(--panel-alt); color: var(--ink); }
+.btn.ghost { background: transparent; color: var(--muted); padding: 6px 10px; }
+.btn.danger { background: transparent; color: var(--negative); padding: 6px 10px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Camera capture -- ported verbatim from budget_planner's CameraCapture.jsx
+   companion CSS. A live viewfinder takes the whole screen the way a
+   native camera app does. */
+.camera-live { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; }
+.camera-video { flex: 1; width: 100%; min-height: 0; object-fit: cover; background: #000; }
+.camera-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px calc(20px + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.7);
+}
+.camera-controls .btn.secondary { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.camera-shutter {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid var(--accent);
+  padding: 0;
+}
+.camera-shutter:active { background: var(--accent); }
+
+/* Intro screen */
+.intro { display: flex; flex-direction: column; gap: 6px; text-align: center; padding: 32px 0; }
+.intro-lede { font-size: 1.05rem; margin: 0; color: var(--muted); }
+.intro-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+.intro-hint { margin: 12px auto 0; max-width: 420px; font-size: 0.82rem; color: var(--muted-2); }
+
+/* Template picker */
+.template-options { display: flex; gap: 10px; flex-wrap: wrap; }
+.template-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid var(--input-border);
+  background: var(--panel-alt);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.template-option.active { border-color: var(--accent); color: var(--accent); }
+.template-swatch { border: 1.5px solid currentColor; border-radius: 3px; }
+
+/* Editor layout: preview on top, controls below on narrow screens; side by
+   side once there's room. */
+.editor-layout { display: flex; flex-direction: column; gap: 20px; }
+@media (min-width: 720px) {
+  .editor-layout { flex-direction: row; align-items: flex-start; }
+  .editor-preview-col { flex: 1.1; position: sticky; top: 16px; }
+  .editor-controls-col { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+}
+
+.postcard-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--panel-alt);
+  background-repeat: no-repeat;
+  touch-action: none;
+  cursor: grab;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  /* Lets the message text and sticker sizes scale with the frame's own
+     box (`cqw`/`cqmin` in PostcardCanvas.jsx) rather than the viewport --
+     the frame's rendered size varies with the sidebar layout breakpoint. */
+  container-type: size;
+}
+.postcard-frame:active { cursor: grabbing; }
+.postcard-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
+}
+.postcard-message {
+  position: absolute;
+  white-space: pre-wrap;
+  overflow: hidden;
+  pointer-events: none;
+  line-height: 1.3;
+}
+.postcard-stamp-guide {
+  position: absolute;
+  border: 1.5px dashed rgba(255, 255, 255, 0.55);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.postcard-sticker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+}
+.postcard-sticker:active { cursor: grabbing; }
+.postcard-sticker svg { display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)); }
+.postcard-sticker-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: var(--negative);
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.slider-field { display: flex; flex-direction: column; gap: 4px; }
+.slider-field-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); }
+.slider-field input[type='range'] { width: 100%; accent-color: var(--accent); }
+
+.filter-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-option {
+  border: 2px solid var(--input-border);
+  background: var(--panel-alt);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.filter-option.active { border-color: var(--accent); color: var(--accent); }
+
+.text-field textarea {
+  width: 100%;
+  min-height: 72px;
+  background: var(--surface);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 10px;
+  font-size: 0.95rem;
+  resize: vertical;
+  font-family: inherit;
+}
+.text-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+.text-option-group { display: flex; flex-direction: column; gap: 6px; }
+.text-option-label { font-size: 0.78rem; color: var(--muted); }
+.text-option-buttons { display: flex; gap: 6px; }
+.text-option-buttons button {
+  border: 2px solid var(--input-border);
+  background: var(--panel-alt);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.text-option-buttons button.active { border-color: var(--accent); color: var(--accent); }
+.text-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--input-border);
+  cursor: pointer;
+  padding: 0;
+}
+.text-color-swatch.active { border-color: var(--accent); }
+.text-option-note { font-size: 0.76rem; color: var(--muted-2); margin: 0; }
+
+.sticker-palette { display: flex; gap: 8px; flex-wrap: wrap; }
+.sticker-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--panel-alt);
+  padding: 6px;
+  cursor: pointer;
+}
+.sticker-button svg { width: 100%; height: 100%; display: block; }
+
+.share-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.share-hint { font-size: 0.82rem; color: var(--muted); margin: 0; }
+
+.toast-region {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 16px; pointer-events: none; z-index: 100;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 12px;
+  max-width: 480px; width: 100%;
+  background: var(--negative-bg); border: 1px solid var(--negative-border);
+  color: var(--negative); border-radius: 10px; padding: 12px 14px;
+  font-size: 0.88rem; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.toast-message { flex: 1; }
+.toast-dismiss {
+  border: none; background: transparent; color: inherit; cursor: pointer;
+  font-size: 1.1rem; line-height: 1; padding: 2px 4px; flex: none;
+}
+.update-toast { background: var(--panel-alt); border-color: var(--line); color: var(--ink); }
+.update-toast .btn { flex: none; padding: 6px 12px; font-size: 0.82rem; }
+
+.confirm-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 200;
+}
+.confirm-dialog {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px; max-width: 360px; width: 100%;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.confirm-message { margin: 0; font-size: 0.95rem; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.confirm-actions .btn.danger { background: var(--negative); color: #fff; padding: 10px 16px; }
+
+.error {
+  background: var(--negative-bg);
+  border: 1px solid var(--negative-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--negative);
+  font-size: 0.88rem;
+}

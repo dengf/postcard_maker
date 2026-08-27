@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Turn a photo into a postcard, right in your browser — crop, filter, write a greeting, decorate it, then email or save. Nothing is uploaded.">
+  <title>Postcard Maker — a meifio app</title>
+  <link rel="canonical" href="https://dengf.github.io/postcard_maker/">
+
+  <link rel="alternate" hreflang="en" href="https://dengf.github.io/postcard_maker/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://dengf.github.io/postcard_maker/?lang=zh-Hans">
+  <link rel="alternate" hreflang="zh-Hant" href="https://dengf.github.io/postcard_maker/?lang=zh-Hant">
+  <link rel="alternate" hreflang="x-default" href="https://dengf.github.io/postcard_maker/">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#0f1720">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="meifio">
+  <meta property="og:title" content="Postcard Maker — a meifio app">
+  <meta property="og:description" content="Turn a photo into a postcard — crop, filter, write a greeting, decorate it, then email or save. No accounts, no tracking, no server.">
+  <meta property="og:url" content="https://dengf.github.io/postcard_maker/">
+  <meta property="og:image" content="https://dengf.github.io/postcard_maker/icon-512.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Postcard Maker — a meifio app">
+  <meta name="twitter:description" content="Turn a photo into a postcard — crop, filter, write a greeting, decorate it, then email or save. No accounts, no tracking, no server.">
+  <meta name="twitter:image" content="https://dengf.github.io/postcard_maker/icon-512.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Postcard Maker",
+    "url": "https://dengf.github.io/postcard_maker/",
+    "applicationCategory": "PhotoApplication",
+    "operatingSystem": "Any",
+    "description": "Crop a photo to a postcard template, apply a filter, add a greeting message and stickers, then email or save the finished postcard. All image processing runs client-side in WebAssembly.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "featureList": [
+      "Take a photo or choose one from your device",
+      "Postcard crop templates (landscape, square, portrait)",
+      "Photo filters: grayscale, sepia, vintage",
+      "Greeting message in English, Simplified or Traditional Chinese",
+      "Decorative stickers",
+      "Share directly to Mail/Messages, or save the image"
+    ]
+  }
+  </script>
+  <style>
+    body { margin: 0; padding: 0; background-color: #0f1720; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    #root { min-height: 100vh; }
+    .loading { display: flex; justify-content: center; align-items: center; height: 100vh; font-size: 1.2rem; color: #7ee787; }
+  </style>
+</head>
+<body>
+  <div id="root"><div class="loading">Loading&hellip;</div></div>
+</body>
+</html>

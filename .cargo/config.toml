@@ -1,0 +1,10 @@
+# Wasm SIMD (the "simd128" MVP proposal, stable and supported by every
+# evergreen browser since 2021-2022) is opt-in at compile time. This
+# app's filters are plain per-pixel float loops (see
+# `postcard-calc/src/filters.rs`) -- exactly the shape LLVM's
+# auto-vectorizer can turn into SIMD instructions when the target feature
+# is enabled, with no source change required. Scoped to the wasm32 target
+# only -- native `cargo test`/`clippy`/`fmt` (which build for the host)
+# never see this and are unaffected.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

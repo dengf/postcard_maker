@@ -1,0 +1,14 @@
+/target
+
+# Node / webpack
+www/node_modules/
+www/dist/
+www/pkg/
+
+# wasm-pack
+crates/postcard-wasm/pkg/
+crates/postcard-wasm/target/
+
+.DS_Store
+__pycache__/
+*.pyc

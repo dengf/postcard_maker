@@ -1,0 +1,40 @@
+# Postcard Maker - workspace configuration
+#
+# Same layering as meifio's other tools: a dependency-free domain-types
+# crate at the bottom, pure image-processing logic in the middle, a
+# hexagonal persistence port + redb adapter for the one in-progress draft,
+# and a thin wasm-bindgen crate on top that only translates JS <-> Rust and
+# never contains algorithm logic itself. One target: the browser. No
+# server, no account, nothing uploaded -- see CLAUDE.md.
+
+[workspace]
+members = [
+    "crates/postcard-core",
+    "crates/postcard-calc",
+    "crates/postcard-wasm",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Feng Deng", "Dongmei Tang"]
+license = "MIT"
+
+[workspace.dependencies]
+postcard-core = { path = "crates/postcard-core" }
+postcard-calc = { path = "crates/postcard-calc" }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[profile.release]
+# Size, not speed -- same rationale as the other tools: even a filter pass
+# over a multi-megapixel photo is a one-shot operation on export, not a
+# hot loop, and the wasm binary is most of the download.
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

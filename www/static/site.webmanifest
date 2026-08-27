@@ -1,0 +1,14 @@
+{
+  "name": "Postcard Maker — a meifio app",
+  "short_name": "Postcard",
+  "description": "Turn a photo into a postcard, right in your browser. Runs entirely on your device.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f1720",
+  "theme_color": "#0f1720",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
