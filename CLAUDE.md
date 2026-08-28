@@ -51,6 +51,24 @@ implementation would be a real bug.
   (`export.js`): draw the Rust-filtered bitmap as the base layer, then
   text, then stickers, then `canvas.toBlob()`. `postcard-wasm`'s contract
   stays "pixels in, filtered pixels out."
+- **"Auto" text color (`autoTextColor.js`) is genuine WCAG contrast math,
+  and it still lives in JS.** It picks whichever of the four color
+  swatches contrasts most strongly against the photo behind the message
+  box — a real algorithm, not copy, so by the letter of the rule above it
+  might look like `postcard-calc`'s job. It stays in JS because the input
+  it needs (already-composited pixels, or a live CSS-filtered
+  approximation of them) only exists on a `<canvas>`/`<img>` at the exact
+  point text is about to be drawn — the same boundary as text rendering
+  and sticker placement just above, not a new exception to it. Two
+  callers, one shared pure-math core: `export.js`'s `drawMessage` samples
+  the *real* composited canvas (exact, since the true pixels are already
+  there); `PostcardOverlay.jsx`'s live preview can only approximate,
+  same "preview approximates, export is authoritative" split as the CSS
+  filter. `CollageEditor.jsx` shares that same overlay with no single
+  photo to sample while editing, so its live preview falls back to a
+  fixed color — `export.js`'s `renderCollage` still resolves 'auto'
+  exactly at export regardless, since it samples the real canvas the
+  same way `renderPostcard` does.
 
 ### A real, non-obvious UX interaction
 

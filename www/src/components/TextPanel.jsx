@@ -88,6 +88,13 @@ export default function TextPanel({
         <div className="text-option-group">
           <span className="text-option-label">{t('text.color')}</span>
           <div className="text-option-buttons">
+            <button
+              type="button"
+              className={textColor === 'auto' ? 'active' : ''}
+              onClick={() => onTextColorChange('auto')}
+            >
+              {t('text.color.auto')}
+            </button>
             {COLORS.map((c) => (
               <button
                 key={c}

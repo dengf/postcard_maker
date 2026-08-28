@@ -4,7 +4,12 @@ import { suggestVibe } from '../vibe';
 import { buildCandidates } from '../vibeSuggestions';
 import { captionFor } from '../vibeCaptions';
 
-const VISIBLE_COUNT = 3;
+// 2, not 3: every vibe has exactly 3 look variants (see
+// vibeSuggestions.js), and the single most common outcome is one matched
+// vibe -- a pool of 3. Showing 2 up front always leaves at least one
+// candidate for "Try other ideas" to shuffle into, even in that
+// overwhelmingly common case; showing all 3 up front never would.
+const VISIBLE_COUNT = 2;
 
 /**
  * "Suggest a look" -- see CLAUDE.md for the full architecture. Never
@@ -12,7 +17,7 @@ const VISIBLE_COUNT = 3;
  * if the analysis is slow, fails, or has nothing to suggest.
  *
  * Shows up to `VISIBLE_COUNT` look candidates at once (built from the
- * model's own top matched vibes plus each vibe's alternate look), with a
+ * model's own top matched vibes plus each vibe's alternate looks), with a
  * "Try other ideas" button that rotates the window over the rest of the
  * candidate pool rather than re-running the model -- classification only
  * ever runs once per tap.

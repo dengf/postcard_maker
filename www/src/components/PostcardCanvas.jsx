@@ -106,6 +106,9 @@ export default function PostcardCanvas({
         fontScale={fontScale}
         textColor={textColor}
         textAlign={textAlign}
+        photoUrl={photoUrl}
+        crop={crop}
+        cssFilter={frameStyle.filter}
         stickers={stickers}
         onStickerMove={onStickerMove}
         onStickerRemove={onStickerRemove}

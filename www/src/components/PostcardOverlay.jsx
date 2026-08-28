@@ -2,8 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { FONT_STACKS } from '../fonts';
 import { fitFontSize, getMeasureContext } from '../fitText';
+import { bestContrastColor, sampleFrameColor } from '../autoTextColor';
 import StickerIcon from './StickerIcon';
 import { stickerById } from '../stickers';
+
+// Used when 'auto' is selected but there's nothing to sample yet (no
+// photo loaded, or the shared collage overlay -- see `useAutoTextColor`)
+// -- the same dark-ink swatch `renderBackSide` falls back to.
+const AUTO_COLOR_FALLBACK = '#241a1e';
 
 /**
  * The stamp guide, greeting message and stickers layered over a card --
@@ -25,8 +31,12 @@ export default function PostcardOverlay({
   stickers,
   onStickerMove,
   onStickerRemove,
+  photoUrl,
+  crop,
+  cssFilter,
 }) {
   const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
+  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry);
 
   return (
     <>
@@ -50,7 +60,7 @@ export default function PostcardOverlay({
             top: `${geometry.messageArea.y * 100}%`,
             width: `${geometry.messageArea.w * 100}%`,
             height: `${geometry.messageArea.h * 100}%`,
-            color: textColor,
+            color: resolvedTextColor,
             textAlign,
             fontFamily: FONT_STACKS[font] ?? FONT_STACKS.system,
             fontSize: `${fittedSize}px`,
@@ -114,6 +124,74 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
   }, [frameRef, geometry, message, font, fontScale]);
 
   return size;
+}
+
+/**
+ * Resolves 'auto' to a real hex color by sampling the photo behind the
+ * message box; passes any other value straight through untouched. Only
+ * an *approximation* of what export will pick (see `autoTextColor.js`'s
+ * own doc comment for why) -- close enough to preview, not authoritative.
+ *
+ * `photoUrl`/`crop`/`cssFilter` are optional: `CollageEditor.jsx` shares
+ * this same overlay across an entire collage with no single photo to
+ * sample, so when they're missing (or nothing's loaded yet) this just
+ * falls back to a fixed dark-ink color rather than sampling nothing --
+ * `export.js`'s `renderCollage` still resolves 'auto' correctly against
+ * the real composited pixels regardless, since it samples the canvas
+ * directly rather than going through this hook.
+ */
+function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry) {
+  const [resolved, setResolved] = useState(textColor);
+  const imgRef = useRef(null);
+
+  useEffect(() => {
+    if (textColor !== 'auto') {
+      setResolved(textColor);
+      return undefined;
+    }
+    if (!photoUrl || !crop || !geometry) {
+      setResolved(AUTO_COLOR_FALLBACK);
+      return undefined;
+    }
+
+    let cancelled = false;
+    let raf = null;
+
+    const recompute = () => {
+      raf = null;
+      if (cancelled) return;
+      const img = imgRef.current;
+      if (!img || !img.complete || img.naturalWidth === 0) return;
+      try {
+        const avg = sampleFrameColor(img, crop, cssFilter, geometry.messageArea);
+        setResolved(bestContrastColor(avg));
+      } catch {
+        setResolved(AUTO_COLOR_FALLBACK);
+      }
+    };
+    const schedule = () => {
+      if (raf === null) raf = requestAnimationFrame(recompute);
+    };
+
+    let img = imgRef.current;
+    if (!img || img.src !== photoUrl) {
+      img = new Image();
+      img.onload = schedule;
+      img.src = photoUrl;
+      imgRef.current = img;
+    }
+    schedule();
+
+    return () => {
+      cancelled = true;
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
+    // fields are the real dependency, not its object identity, which
+    // changes on every pan/zoom dispatch.
+  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, geometry]);
+
+  return resolved;
 }
 
 function StickerOverlay({ sticker, frameRef, onMove, onRemove }) {

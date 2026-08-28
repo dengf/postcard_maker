@@ -2,6 +2,7 @@ import { FONT_STACKS } from './fonts';
 import { fitFontSize } from './fitText';
 import { stickerById, stickerDataUrl } from './stickers';
 import { wrapText } from './wordwrap';
+import { averageColor, bestContrastColor } from './autoTextColor';
 
 /**
  * The one-time "flatten to final image" step -- see CLAUDE.md for why
@@ -151,7 +152,8 @@ export async function renderBackSide({
   canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#f4ede0';
+  const backgroundColor = '#f4ede0';
+  ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, canvasW, canvasH);
 
   const marginX = canvasW * 0.06;
@@ -175,7 +177,11 @@ export async function renderBackSide({
     // someone go bigger/smaller deliberately.
     const fontSize = lineGap * 0.55 * fontScale;
     ctx.font = `${fontSize}px ${FONT_STACKS[font] ?? FONT_STACKS.system}`;
-    ctx.fillStyle = textColor;
+    // No photo on this side to sample -- the background is always the
+    // same flat `backgroundColor` above, so 'auto' has one fixed answer
+    // (in practice always the dark ink swatch) rather than needing a
+    // pixel sample like the front's `drawMessage` does.
+    ctx.fillStyle = textColor === 'auto' ? bestContrastColor([244, 237, 224]) : textColor;
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
     const lines = wrapText(ctx, message, canvasW - marginX * 2);
@@ -241,7 +247,16 @@ function drawMessage(ctx, canvas, { message, font, fontScale = 1, textColor, tex
   // what was shown while editing, not a separate fixed formula.
   const fontSize = fitFontSize(ctx, message, w, h, { fontFamily }) * fontScale;
   ctx.font = `${fontSize}px ${fontFamily}`;
-  ctx.fillStyle = textColor;
+  // 'auto' is resolved here, not earlier -- this is the one point in the
+  // whole export pipeline with the real, final composited pixels already
+  // on the canvas (the base photo, drawn before this function runs), so
+  // sampling `getImageData` here is exact, not the CSS-filter
+  // approximation the live preview has to use instead. See
+  // `autoTextColor.js`.
+  ctx.fillStyle =
+    textColor === 'auto'
+      ? bestContrastColor(averageColor(ctx.getImageData(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)))))
+      : textColor;
   ctx.textBaseline = 'top';
   ctx.textAlign = textAlign;
 
