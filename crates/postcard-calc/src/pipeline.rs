@@ -2,10 +2,37 @@ use std::io::Cursor;
 
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::png::PngEncoder;
-use image::{ImageEncoder, ImageReader};
+use image::{DynamicImage, ImageDecoder, ImageEncoder, ImageReader};
 use postcard_core::{Adjustments, ExportFormat, Filter, PostcardError, PostcardResult, Rect};
 
 use crate::{crop, filters};
+
+/// Decodes `bytes` and normalizes it to the orientation a browser would
+/// *display* it in. A phone photo commonly carries an EXIF orientation
+/// tag; browsers auto-rotate for display (and `<img>.naturalWidth` /
+/// `naturalHeight` -- what the crop UI drags against -- reflect that
+/// corrected size), but the `image` crate's plain `.decode()` does not.
+/// Skipping this step means a 90/270-degree-rotated photo decodes here
+/// with width and height *swapped* relative to what the browser showed,
+/// silently turning a perfectly valid crop into `CropOutOfBounds` --
+/// exactly the failure mode this fixes. Shared by [`process_photo`] and
+/// `vibe::run_inference` (both independently re-decode the same bytes),
+/// so both agree with the browser on which way is "up," not just this
+/// one.
+pub(crate) fn decode_oriented(bytes: &[u8]) -> PostcardResult<DynamicImage> {
+    let mut decoder = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| PostcardError::UnreadableImage(e.to_string()))?
+        .into_decoder()
+        .map_err(|e| PostcardError::UnreadableImage(e.to_string()))?;
+    let orientation = decoder
+        .orientation()
+        .unwrap_or(image::metadata::Orientation::NoTransforms);
+    let mut decoded = DynamicImage::from_decoder(decoder)
+        .map_err(|e| PostcardError::UnreadableImage(e.to_string()))?;
+    decoded.apply_orientation(orientation);
+    Ok(decoded)
+}
 
 /// Decode -> crop -> filter -> resize -> encode, in that fixed order.
 /// This is the entire contract with `postcard-wasm`: pixels in, a
@@ -24,11 +51,7 @@ pub fn process_photo(
         return Err(PostcardError::EmptyImage);
     }
 
-    let decoded = ImageReader::new(Cursor::new(bytes))
-        .with_guessed_format()
-        .map_err(|e| PostcardError::UnreadableImage(e.to_string()))?
-        .decode()
-        .map_err(|e| PostcardError::UnreadableImage(e.to_string()))?;
+    let decoded = decode_oriented(bytes)?;
 
     let (image_w, image_h) = (decoded.width(), decoded.height());
     crop::validate(image_w, image_h, crop_rect)?;
@@ -96,6 +119,37 @@ mod tests {
         out
     }
 
+    /// Splices a minimal EXIF APP1 segment carrying just an Orientation
+    /// tag right after `jpeg`'s SOI marker -- the `image` crate's own
+    /// encoder has no API to write one, so this hand-builds the same
+    /// bytes a real camera/phone would embed, to actually exercise
+    /// `decode_oriented`'s EXIF path rather than assume it works.
+    fn with_exif_orientation(jpeg: &[u8], orientation: u16) -> Vec<u8> {
+        let mut tiff = Vec::new();
+        tiff.extend_from_slice(b"II"); // little-endian
+        tiff.extend_from_slice(&42u16.to_le_bytes());
+        tiff.extend_from_slice(&8u32.to_le_bytes()); // IFD0 offset
+        tiff.extend_from_slice(&1u16.to_le_bytes()); // one entry
+        tiff.extend_from_slice(&0x0112u16.to_le_bytes()); // Orientation tag
+        tiff.extend_from_slice(&3u16.to_le_bytes()); // type SHORT
+        tiff.extend_from_slice(&1u32.to_le_bytes()); // count
+        tiff.extend_from_slice(&orientation.to_le_bytes());
+        tiff.extend_from_slice(&[0, 0]); // pad SHORT value to 4 bytes
+        tiff.extend_from_slice(&0u32.to_le_bytes()); // no next IFD
+
+        let mut payload = b"Exif\0\0".to_vec();
+        payload.extend_from_slice(&tiff);
+
+        let mut app1 = vec![0xFF, 0xE1];
+        app1.extend_from_slice(&(u16::try_from(payload.len() + 2).unwrap()).to_be_bytes());
+        app1.extend_from_slice(&payload);
+
+        let mut out = jpeg[..2].to_vec(); // SOI
+        out.extend_from_slice(&app1);
+        out.extend_from_slice(&jpeg[2..]);
+        out
+    }
+
     #[test]
     fn empty_bytes_is_reported_before_decoding() {
         let err = process_photo(
@@ -130,6 +184,54 @@ mod tests {
             ExportFormat::Png,
         );
         assert!(matches!(err, Err(PostcardError::UnreadableImage(_))));
+    }
+
+    #[test]
+    fn decode_oriented_swaps_dimensions_for_a_90_degree_rotation() {
+        // Raw pixels are 200x100 (landscape); Orientation 6 means "rotate
+        // 90 clockwise to display" -- a browser would report this photo
+        // as 100x200 (portrait), and the crop UI drags against that.
+        let bytes = with_exif_orientation(&fixture_jpeg(200, 100), 6);
+        let decoded = decode_oriented(&bytes).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (100, 200));
+    }
+
+    #[test]
+    fn decode_oriented_leaves_an_unrotated_photo_unchanged() {
+        let bytes = with_exif_orientation(&fixture_jpeg(200, 100), 1);
+        let decoded = decode_oriented(&bytes).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (200, 100));
+    }
+
+    #[test]
+    fn decode_oriented_defaults_to_unrotated_with_no_exif_at_all() {
+        let bytes = fixture_jpeg(200, 100);
+        let decoded = decode_oriented(&bytes).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (200, 100));
+    }
+
+    #[test]
+    fn a_crop_valid_only_against_the_rotated_size_is_accepted() {
+        // The regression this guards: a crop the JS crop UI considers
+        // valid (against the browser's rotated 100x200 view) must not be
+        // rejected here just because the *raw* bytes decode as 200x100 --
+        // see `decode_oriented`'s own doc comment for why this class of
+        // bug reads as `CropOutOfBounds` if the rotation is skipped.
+        let bytes = with_exif_orientation(&fixture_jpeg(200, 100), 6);
+        let out = process_photo(
+            &bytes,
+            Rect {
+                x: 0,
+                y: 150,
+                w: 50,
+                h: 40,
+            }, // y+h=190: out of bounds for raw 100 height, fine for 200
+            Adjustments::default(),
+            Filter::None,
+            0,
+            ExportFormat::Png,
+        );
+        assert!(out.is_ok(), "{out:?}");
     }
 
     #[test]

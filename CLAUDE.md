@@ -196,6 +196,21 @@ facts, not estimates:
 
 ## Verification traps specific to this repo
 
+- **The browser and `image` (Rust) can disagree about a photo's own
+  width/height — always decode through `pipeline::decode_oriented`, never
+  a bare `ImageReader::decode()`/`image::load_from_memory`.** A phone
+  photo commonly carries an EXIF orientation tag; browsers auto-rotate
+  for display (`<img>.naturalWidth`/`naturalHeight` — what the crop UI
+  drags against — reflect that correction), but `image`'s own decode does
+  not apply it. Skip the correction and a 90/270-degree-rotated photo
+  decodes here with width and height *swapped* relative to what the
+  browser showed, silently turning a perfectly valid crop into
+  `CropOutOfBounds` — a real bug that shipped and was reported before
+  being caught (`pipeline.rs`'s own tests hand-splice a real EXIF
+  orientation tag into a fixture JPEG to actually exercise this, not just
+  assert the API compiles). `vibe::run_inference` shares the same helper
+  for the same reason: classifying a sideways photo would otherwise
+  undermine "Suggest a look" for the same common case.
 - **`npm run build` does not rebuild the wasm.** It's webpack-only; run
   `npm run build:wasm` first, or you're testing the previous `pkg/`.
 - **`cargo check --workspace`/`cargo test --workspace` never proves the

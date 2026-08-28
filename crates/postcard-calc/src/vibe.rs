@@ -234,8 +234,12 @@ pub fn run_inference(model_bytes: &[u8], photo_bytes: &[u8]) -> PostcardResult<V
     let model = Model::load(model_bytes.to_vec())
         .map_err(|e| PostcardError::VibeModelLoadFailed(e.to_string()))?;
 
-    let decoded = image::load_from_memory(photo_bytes)
-        .map_err(|e| PostcardError::UnreadableImage(e.to_string()))?;
+    // Same orientation fix as `pipeline::process_photo` -- classifying a
+    // sideways photo (because this decode skipped the EXIF rotation a
+    // browser would apply) feeds MobileNet an image it was never trained
+    // to see upright, undermining "Suggest a look" for the very common
+    // case of a photo straight off a phone camera.
+    let decoded = crate::pipeline::decode_oriented(photo_bytes)?;
     let chw = preprocess(&decoded);
     let size = INPUT_SIZE as usize;
     let input: Tensor<f32> = Tensor::from_data(&[1, 3, size, size], chw);
