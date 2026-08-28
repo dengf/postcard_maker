@@ -19,7 +19,14 @@ describe('groupCaptionFor', () => {
     expect(groupCaptionFor(1)).toBeNull();
   });
 
-  it('returns a caption key at or above the threshold', () => {
-    expect(groupCaptionFor(2)).toBe('group.caption');
+  it('returns one of the caption pool keys at or above the threshold', () => {
+    expect(groupCaptionFor(2)).toMatch(/^group\.caption\.\d+$/);
+    expect(groupCaptionFor(6)).toMatch(/^group\.caption\.\d+$/);
+  });
+
+  it('draws from more than one caption over many calls', () => {
+    const seen = new Set();
+    for (let i = 0; i < 200; i += 1) seen.add(groupCaptionFor(2));
+    expect(seen.size).toBeGreaterThan(1);
   });
 });

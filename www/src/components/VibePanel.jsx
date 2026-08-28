@@ -38,8 +38,7 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
   const [phase, setPhase] = useState('idle'); // idle | loading | result | empty
   const [candidates, setCandidates] = useState([]);
   const [cursor, setCursor] = useState(0);
-  const [topVibe, setTopVibe] = useState(null);
-  const [faceCount, setFaceCount] = useState(0);
+  const [caption, setCaption] = useState(null);
   // 0..1 while the ~10MB model downloads, or null before any progress
   // has arrived yet (nothing to show) -- see `vibe.js`'s own doc comment
   // for why this exists: on a slow connection this download can be the
@@ -83,8 +82,12 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
       }
       setCandidates(allCandidates);
       setCursor(0);
-      setTopVibe(matches[0]?.vibe ?? null);
-      setFaceCount(result?.faceCount ?? 0);
+      // Picked once per suggestion run, not on every re-render -- rolling
+      // a fresh random caption on every shuffle/dismiss re-render would
+      // change the displayed line for reasons that have nothing to do
+      // with the caption itself.
+      const topVibe = matches[0]?.vibe ?? null;
+      setCaption((topVibe ? captionFor(topVibe) : null) ?? groupCaptionFor(result?.faceCount ?? 0));
       setPhase('result');
     } catch (err) {
       onError({ text: err?.message ?? String(err) });
@@ -110,10 +113,6 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
 
   const dismiss = () => setPhase('idle');
 
-  // Vibe's own caption wins when there is one; a group caption is the
-  // fallback for the case that's likeliest to have no vibe at all --
-  // people, with nothing else in frame the classifier recognizes.
-  const caption = (topVibe ? captionFor(topVibe) : null) ?? groupCaptionFor(faceCount);
   const useCaption = () => {
     if (caption) onSetMessage(t(caption));
   };

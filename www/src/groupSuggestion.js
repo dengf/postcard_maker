@@ -14,7 +14,20 @@
  * failure than saying nothing.
  */
 
+import { pickCaption } from './vibeCaptions';
+
 const THRESHOLD = 2;
+
+const GROUP_CAPTIONS = [
+  'group.caption.0',
+  'group.caption.1',
+  'group.caption.2',
+  'group.caption.3',
+  'group.caption.4',
+  'group.caption.5',
+  'group.caption.6',
+  'group.caption.7',
+];
 
 export function suggestGroup(faceCount) {
   if (faceCount < THRESHOLD) return null;
@@ -22,5 +35,5 @@ export function suggestGroup(faceCount) {
 }
 
 export function groupCaptionFor(faceCount) {
-  return faceCount >= THRESHOLD ? 'group.caption' : null;
+  return faceCount >= THRESHOLD ? pickCaption(GROUP_CAPTIONS) : null;
 }
