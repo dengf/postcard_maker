@@ -86,6 +86,14 @@ export default function DoodleLayer({ strokes, drawMode, strokeColor, strokeWidt
 
   const onPointerDown = (e) => {
     if (!drawMode) return;
+    // This layer sits inside `.postcard-frame`, which has its own
+    // onPointerDown/Move/Up for panning the photo. Without stopping
+    // propagation here, the very same gesture that draws a stroke also
+    // bubbles up and pans the photo underneath it at the same time --
+    // exactly the "picture moves while drawing" bug this fixes.
+    // `StickerOverlay` in `PostcardOverlay.jsx` already does this for
+    // the identical reason; this layer had simply been missing it.
+    e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     drawingRef.current = { color: strokeColor, width: strokeWidth, points: [toNormalized(e)] };
     redraw();
@@ -93,12 +101,14 @@ export default function DoodleLayer({ strokes, drawMode, strokeColor, strokeWidt
 
   const onPointerMove = (e) => {
     if (!drawMode || !drawingRef.current) return;
+    e.stopPropagation();
     drawingRef.current.points.push(toNormalized(e));
     redraw();
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e) => {
     if (!drawMode || !drawingRef.current) return;
+    e.stopPropagation();
     const stroke = drawingRef.current;
     drawingRef.current = null;
     if (stroke.points.length > 1) onAddStroke(stroke);
