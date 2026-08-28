@@ -425,6 +425,35 @@ label.btn { cursor: pointer; }
 }
 .vibe-caption .text-option-note { margin: 0; }
 
+/* "Suggest a look"'s loading bar -- see VibePanel.jsx. A determinate
+   fill while the model download reports real progress; an indeterminate
+   sliding bar when it can't (no Content-Length, or the brief classify-
+   only step afterward) so the control still visibly reads as "working,"
+   not stalled. */
+.vibe-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--panel-alt);
+  overflow: hidden;
+}
+.vibe-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.2s ease-out;
+}
+.vibe-progress-fill.indeterminate {
+  width: 40%;
+  animation: vibe-progress-slide 1.2s ease-in-out infinite;
+}
+@keyframes vibe-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vibe-progress-fill.indeterminate { animation: none; width: 100%; opacity: 0.5; }
+}
+
 /* Doodle layer -- fills the same box as the postcard-frame it's layered
    over (see PostcardCanvas.jsx/CollageEditor.jsx, both render it as the
    last child of .postcard-frame). */

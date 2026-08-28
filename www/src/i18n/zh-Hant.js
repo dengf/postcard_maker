@@ -39,6 +39,7 @@ export default {
 
   'vibe.suggest': '智慧推薦風格',
   'vibe.analyzing': '正在分析照片…',
+  'vibe.analyzingProgress': '正在下載智慧推薦引擎…{percent}%',
   'vibe.apply': '套用',
   'vibe.dismiss': '略過',
   'vibe.shuffle': '換一批',

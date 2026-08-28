@@ -32,12 +32,42 @@ function loadWasm() {
 }
 
 // Fetched once per worker lifetime -- a second "Suggest a look" tap in
-// the same session shouldn't re-download the model.
-function loadModel() {
+// the same session shouldn't re-download the model. `onProgress` only
+// ever fires for whichever call is in flight when the real download
+// happens; a tap that arrives after the model's already cached resolves
+// straight away with nothing to report, which is correct -- there's
+// nothing left to download.
+function loadModel(onProgress) {
   if (!modelBytesPromise) {
     modelBytesPromise = fetch(MODEL_PATH).then(async (res) => {
       if (!res.ok) throw new Error(`could not fetch ${MODEL_PATH}: ${res.status}`);
-      return new Uint8Array(await res.arrayBuffer());
+      const total = Number(res.headers.get('Content-Length'));
+      // No streaming body, or the server didn't send a length (e.g. a
+      // compressed response) -- fall back to an all-at-once download
+      // with no progress, same as before this existed.
+      if (!res.body || !total) {
+        return new Uint8Array(await res.arrayBuffer());
+      }
+      const reader = res.body.getReader();
+      const chunks = [];
+      let received = 0;
+      for (;;) {
+        // eslint-disable-next-line no-await-in-loop -- inherently
+        // sequential: each chunk depends on the stream position left by
+        // the last.
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        onProgress?.(received / total);
+      }
+      const bytes = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return bytes;
     });
   }
   return modelBytesPromise;
@@ -46,7 +76,10 @@ function loadModel() {
 self.onmessage = async (event) => {
   const { id, photoBytes } = event.data;
   try {
-    const [wasm, model] = await Promise.all([loadWasm(), loadModel()]);
+    const [wasm, model] = await Promise.all([
+      loadWasm(),
+      loadModel((fraction) => self.postMessage({ id, progress: fraction })),
+    ]);
     const result = wasm.suggest_vibe(model, photoBytes);
     self.postMessage({ id, ok: true, result });
   } catch (error) {

@@ -39,6 +39,7 @@ export default {
 
   'vibe.suggest': 'Suggest a look',
   'vibe.analyzing': 'Analyzing your photo…',
+  'vibe.analyzingProgress': 'Downloading suggestion engine… {percent}%',
   'vibe.apply': 'Apply',
   'vibe.dismiss': 'Dismiss',
   'vibe.shuffle': 'Try other ideas',

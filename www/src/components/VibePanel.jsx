@@ -29,11 +29,18 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
   const [candidates, setCandidates] = useState([]);
   const [cursor, setCursor] = useState(0);
   const [topVibe, setTopVibe] = useState(null);
+  // 0..1 while the ~10MB model downloads, or null before any progress
+  // has arrived yet (nothing to show) -- see `vibe.js`'s own doc comment
+  // for why this exists: on a slow connection this download can be the
+  // entire wait, and a static "Analyzing…" label with nothing else
+  // moving reads as stuck rather than working.
+  const [progress, setProgress] = useState(null);
 
   const runSuggest = async () => {
     setPhase('loading');
+    setProgress(null);
     try {
-      const result = await suggestVibe(photoBytes);
+      const result = await suggestVibe(photoBytes, setProgress);
       if (result?.error) {
         onError(result.error_message ?? { text: result.error });
         setPhase('idle');
@@ -84,8 +91,28 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
   return (
     <div className="panel vibe-panel">
       <button type="button" className="btn secondary" onClick={runSuggest} disabled={phase === 'loading'}>
-        {phase === 'loading' ? t('vibe.analyzing') : t('vibe.suggest')}
+        {phase === 'loading'
+          ? progress != null
+            ? t('vibe.analyzingProgress', { percent: Math.round(progress * 100) })
+            : t('vibe.analyzing')
+          : t('vibe.suggest')}
       </button>
+
+      {phase === 'loading' && (
+        <div
+          className="vibe-progress-track"
+          role="progressbar"
+          aria-label={t('vibe.analyzing')}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress != null ? Math.round(progress * 100) : undefined}
+        >
+          <div
+            className={progress != null ? 'vibe-progress-fill' : 'vibe-progress-fill indeterminate'}
+            style={progress != null ? { width: `${Math.max(6, progress * 100)}%` } : undefined}
+          />
+        </div>
+      )}
 
       {phase === 'result' && visible.length > 0 && (
         <div className="vibe-results">
