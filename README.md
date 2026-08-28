@@ -44,9 +44,11 @@ stay empty.
   lazily loaded only when tapped) suggests a filter and sticker matching
   what's in the photo — beach, mountain, water, architecture, winter,
   food, or a pet. A second, much smaller on-device model counts faces to
-  suggest a warm "you're together" look for photos of people, which the
+  suggest a warm look and caption for photos of people, which the
   classifier structurally can't recognize on its own (ImageNet has almost
-  no "person" classes). A third check reads the photo's own brightness/
+  no "person" classes) — a solo portrait and a group of two or more each
+  get their own tone, rather than one generic "you're together" that only
+  makes sense for a group. A third check reads the photo's own brightness/
   contrast/saturation to suggest an exposure fix on any photo at all, no
   recognition needed. See `CLAUDE.md` for the real findings behind all
   three.

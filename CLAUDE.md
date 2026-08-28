@@ -225,13 +225,22 @@ separate lazy-load step.
   against real photos with known face counts before being trusted: exact
   matches on a 4-person and a 5-person photo, a plausible 47 on a
   ~50-person crowd photo.
-- **2+ faces unlocks one deliberately generic suggestion** (`www/src/
-  groupSuggestion.js`): a "you're together" look and caption, never a
-  guess at *who* these people are to each other. This mirrors
-  `exposureSuggestion.js`'s role exactly -- the two things in "Suggest a
-  look" that still have something to offer when the vibe classifier finds
-  nothing, neither needing object recognition (one reads pixel
-  statistics, the other reads a face count).
+- **Two tiers by face count, not one** (`www/src/groupSuggestion.js`): 2+
+  faces gets a "you're together" look and caption; exactly 1 face gets its
+  own "solo shot" look and caption, distinct in tone (no "we"/"together"
+  phrasing for a photo of one person). Originally this only handled 2+,
+  which meant a solo portrait -- one person, on their own trip, arguably
+  the single most common postcard photo -- fell through every path with
+  nothing to offer: not a group, and the vibe classifier has almost no
+  "person" classes to match against either. A real, reported gap, not a
+  hypothetical one; closed by adding the solo tier rather than lowering
+  the group threshold, since "you're together" literally doesn't parse
+  for a photo of one person. Neither tier guesses *who* the people are to
+  each other, same reasoning as before. This mirrors `exposureSuggestion.
+  js`'s role exactly -- the two things in "Suggest a look" that still have
+  something to offer when the vibe classifier finds nothing, neither
+  needing object recognition (one reads pixel statistics, the other reads
+  a face count).
 - **Face-detection failures are silent, not surfaced**, unlike vibe
   classification failures: if the model fails to load or run for any
   reason, `vibeWorker.js` treats it as "0 faces" and the rest of "Suggest
