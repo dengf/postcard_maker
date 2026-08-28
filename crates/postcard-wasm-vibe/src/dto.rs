@@ -8,11 +8,20 @@
 use postcard_core::Message;
 use serde::Serialize;
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VibeMatchDto {
+    pub vibe: String,
+    pub confidence: f32,
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestVibeResult {
-    pub vibe: Option<String>,
-    pub confidence: Option<f32>,
+    /// Zero or more distinct vibes the photo matched, most confident
+    /// first -- see `postcard_calc::vibe::classify_top_vibes`. Empty
+    /// means "no suggestion worth showing", not a failure.
+    pub matches: Vec<VibeMatchDto>,
     pub error: Option<String>,
     pub error_message: Option<Message>,
 }

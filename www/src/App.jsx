@@ -272,7 +272,12 @@ function AppShell({ wasmModule }) {
                 onAdjustmentsChange={(a) => dispatch({ type: 'SET_ADJUSTMENTS', adjustments: a })}
                 onReset={() => dispatch({ type: 'RESET_ADJUSTMENTS' })}
               />
-              <VibePanel photoBytes={photo.bytes} onApply={applyVibe} onError={setError} />
+              <VibePanel
+                photoBytes={photo.bytes}
+                onApply={applyVibe}
+                onSetMessage={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
+                onError={setError}
+              />
               <TextPanel
                 message={message}
                 onMessageChange={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}

@@ -106,6 +106,25 @@ facts, not estimates:
   Architecture, Winter, Food, Pet) reflects what this specific model can
   actually see, curated by hand against the real class list — see that
   module's own doc comment before ever expanding the category set.
+- **Multiple candidates, not one verdict.** `classify_top_vibes` (Rust)
+  returns up to 3 *distinct* vibes ranked by confidence, deduped across
+  the many ImageNet classes that map to the same vibe (six separate
+  beach-adjacent classes, for instance). `vibeSuggestions.js` then fans
+  each matched vibe out to its own primary + alternate look (curation,
+  not classification, so it stays in the host layer), giving
+  `VibePanel.jsx` a flat candidate pool: a few shown at once, "Try other
+  ideas" rotates a window over the rest. `classify_vibe` (single best
+  guess) is now a one-line wrapper over `classify_top_vibes(_, 1)` kept
+  for callers that only want one.
+- **The caption suggestion is picked, not generated.** A curated
+  greeting-message starter per `Vibe` (`vibeCaptions.js`, one hand-written
+  sentence per category, translated into all three languages) — tapping
+  "Use this message" drops it straight into the message textarea. This is
+  deliberately *not* free-form text generation: a model capable of really
+  writing a sentence needs 600MB-1.3GB+ (researched and ruled out when
+  this feature was first built), and this app has no server to call out
+  to instead. A small curated phrase bank keyed off real photo content is
+  the offline-compatible middle ground.
 - **License disclosure**: the model's BSD-3-Clause attribution lives in
   `www/static/privacy.html`'s "Third-party models" section and this
   repo's README — keep both in sync if the model is ever swapped.

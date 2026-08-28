@@ -17,8 +17,9 @@
 //!
 //! Split into two functions on purpose: [`run_inference`] is the only
 //! part that touches `rten`/the photo decoder and needs a real model file
-//! to test; [`classify_vibe`] is plain arithmetic over a logits slice and
-//! is fully testable with synthetic data, no model or wasm required.
+//! to test; [`classify_top_vibes`]/[`classify_vibe`] are plain arithmetic
+//! over a logits slice and are fully testable with synthetic data, no
+//! model or wasm required.
 
 #[cfg(feature = "vibe")]
 use image::imageops::FilterType;
@@ -137,28 +138,59 @@ fn vibe_for_class(class: u16) -> Option<Vibe> {
         .map(|&(_, v)| v)
 }
 
-/// Numerically-stable softmax over raw logits, then argmax -- pure
-/// arithmetic, no model or wasm needed to test. Returns `None` if the
-/// winning class isn't one this app has an opinion about, or the model
-/// wasn't confident enough to be worth surfacing.
-pub fn classify_vibe(logits: &[f32]) -> Option<(Vibe, f32)> {
-    if logits.is_empty() {
-        return None;
+/// Numerically-stable softmax over raw logits, then the top `k` *distinct*
+/// mapped vibes by confidence -- pure arithmetic, no model or wasm needed
+/// to test. Several ImageNet classes map to the same `Vibe` (e.g. six
+/// different beach-adjacent classes), so this walks the full sorted list
+/// rather than just taking the top `k` raw classes, keeping only the
+/// highest-confidence class per distinct vibe. Stops as soon as
+/// confidence drops below [`CONFIDENCE_FLOOR`] (the list is sorted, so
+/// nothing after that point would clear it either), meaning it can
+/// return fewer than `k` entries, including zero.
+pub fn classify_top_vibes(logits: &[f32], k: usize) -> Vec<(Vibe, f32)> {
+    if logits.is_empty() || k == 0 {
+        return Vec::new();
     }
     let max = logits.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     let exps: Vec<f32> = logits.iter().map(|&v| (v - max).exp()).collect();
     let sum: f32 = exps.iter().sum();
     if sum <= 0.0 {
-        return None;
+        return Vec::new();
     }
 
-    let (top_idx, &top_exp) = exps.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1))?;
-    let confidence = top_exp / sum;
-    if confidence < CONFIDENCE_FLOOR {
-        return None;
-    }
+    let mut scored: Vec<(usize, f32)> = exps
+        .iter()
+        .enumerate()
+        .map(|(i, &e)| (i, e / sum))
+        .collect();
+    scored.sort_by(|a, b| b.1.total_cmp(&a.1));
 
-    vibe_for_class(u16::try_from(top_idx).ok()?).map(|vibe| (vibe, confidence))
+    let mut out: Vec<(Vibe, f32)> = Vec::new();
+    for (idx, confidence) in scored {
+        if confidence < CONFIDENCE_FLOOR {
+            break;
+        }
+        let Ok(class) = u16::try_from(idx) else {
+            continue;
+        };
+        let Some(vibe) = vibe_for_class(class) else {
+            continue;
+        };
+        if out.iter().any(|&(v, _)| v == vibe) {
+            continue;
+        }
+        out.push((vibe, confidence));
+        if out.len() >= k {
+            break;
+        }
+    }
+    out
+}
+
+/// The single best suggestion -- a thin wrapper over
+/// [`classify_top_vibes`] for callers that only want one.
+pub fn classify_vibe(logits: &[f32]) -> Option<(Vibe, f32)> {
+    classify_top_vibes(logits, 1).into_iter().next()
 }
 
 /// Resizes and normalizes a decoded photo into the flat NCHW `f32` buffer
@@ -267,6 +299,64 @@ mod tests {
         // a wild canid must not trigger the "cute pet" suggestion.
         let logits = logits_favoring(269, 20.0);
         assert_eq!(classify_vibe(&logits), None);
+    }
+
+    fn logits_favoring_two(class_a: usize, value_a: f32, class_b: usize, value_b: f32) -> Vec<f32> {
+        let mut logits = vec![0.0; 1000];
+        logits[class_a] = value_a;
+        logits[class_b] = value_b;
+        logits
+    }
+
+    #[test]
+    fn top_vibes_returns_multiple_distinct_vibes_ranked_by_confidence() {
+        // 978 = seashore (Beach), 200 = a dog breed (Pet); values chosen so
+        // both clear CONFIDENCE_FLOOR after softmax.
+        let logits = logits_favoring_two(978, 10.0, 200, 9.0);
+        let top = classify_top_vibes(&logits, 2);
+        assert_eq!(top.len(), 2);
+        assert_eq!(top[0].0, Vibe::Beach);
+        assert_eq!(top[1].0, Vibe::Pet);
+        assert!(top[0].1 > top[1].1);
+    }
+
+    #[test]
+    fn top_vibes_dedupes_multiple_classes_mapping_to_the_same_vibe() {
+        // 978 (seashore) and 977 (sandbar) both map to Beach -- only the
+        // higher-confidence one should surface, not two Beach entries.
+        let logits = logits_favoring_two(978, 10.0, 977, 9.0);
+        let top = classify_top_vibes(&logits, 3);
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].0, Vibe::Beach);
+    }
+
+    #[test]
+    fn top_vibes_respects_the_k_cap() {
+        let logits = logits_favoring_two(978, 10.0, 200, 9.0);
+        let top = classify_top_vibes(&logits, 1);
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].0, Vibe::Beach);
+    }
+
+    #[test]
+    fn top_vibes_stops_at_the_confidence_floor() {
+        // A single confident class plus 999 equally-uninformative ones:
+        // only the one class should clear CONFIDENCE_FLOOR.
+        let logits = logits_favoring(978, 20.0);
+        let top = classify_top_vibes(&logits, 5);
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].0, Vibe::Beach);
+    }
+
+    #[test]
+    fn top_vibes_on_empty_logits_is_empty_not_panicking() {
+        assert_eq!(classify_top_vibes(&[], 3), Vec::new());
+    }
+
+    #[test]
+    fn top_vibes_with_k_zero_is_empty() {
+        let logits = logits_favoring(978, 20.0);
+        assert_eq!(classify_top_vibes(&logits, 0), Vec::new());
     }
 
     #[test]

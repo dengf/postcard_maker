@@ -403,6 +403,7 @@ label.btn { cursor: pointer; }
 }
 
 /* Suggest a look */
+.vibe-results { display: flex; flex-direction: column; gap: 10px; }
 .vibe-chip {
   background: var(--panel-alt);
   border-radius: 10px;
@@ -413,6 +414,16 @@ label.btn { cursor: pointer; }
   font-size: 0.88rem;
 }
 .vibe-chip-actions { display: flex; gap: 10px; }
+.vibe-panel-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.vibe-caption {
+  background: var(--panel-alt);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vibe-caption .text-option-note { margin: 0; }
 
 /* Doodle layer -- fills the same box as the postcard-frame it's layered
    over (see PostcardCanvas.jsx/CollageEditor.jsx, both render it as the
