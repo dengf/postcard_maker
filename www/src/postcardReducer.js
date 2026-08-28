@@ -132,10 +132,16 @@ export function postcardReducer(state, action) {
     // Applies a "Suggest a look" result in one step so the filter and the
     // sticker it recommends land in the same render, rather than as two
     // separate dispatches that could interleave with something else.
+    // `action.filter`/`action.adjustments` are each optional and merge
+    // rather than overwrite -- an exposure suggestion
+    // (`exposureSuggestion.js`) only ever carries `adjustments`, no
+    // filter or sticker, since it's based on pixel statistics alone,
+    // not the vibe classifier.
     case 'APPLY_VIBE':
       return {
         ...state,
-        filter: action.filter,
+        filter: action.filter ?? state.filter,
+        adjustments: action.adjustments ? { ...state.adjustments, ...action.adjustments } : state.adjustments,
         stickers: action.stickerId
           ? [...state.stickers, { key: action.key, id: action.stickerId, x: 0.5, y: 0.5, scale: 1 }]
           : state.stickers,

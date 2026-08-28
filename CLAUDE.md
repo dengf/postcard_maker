@@ -160,6 +160,23 @@ facts, not estimates:
   keeping the original suits one that's already balanced. Still no new
   model or Rust: this is host-layer curation logic, same boundary as the
   rest of this feature's copy.
+- **The exposure suggestion (`exposureSuggestion.js`) is the one part of
+  "Suggest a look" that works on *any* photo, including one the vibe
+  classifier structurally can't help with.** ImageNet has almost no
+  "person" classes at all, so a portrait or group photo -- probably the
+  majority of real postcard photos -- will rarely match any `Vibe` no
+  matter how wide `IMAGENET_CLASS_TO_VIBE` gets; widening that table
+  further was never going to fix this specific gap. `exposureSuggestion`
+  needs no object recognition, just `photoTone.js`'s own brightness/
+  contrast/saturation read (contrast is a new addition there too: std
+  deviation of per-pixel luminance, a cheap proxy for "how flat does this
+  photo look"), so it still has something to offer -- "this looks a bit
+  dark, brighten it up?" -- even when zero vibes match. `VibePanel.jsx`
+  appends it to the candidate pool whenever it fires, and it's the reason
+  the classifier finding nothing no longer means the panel has nothing
+  to show. Thresholds are a reasoned starting point, not tuned against a
+  labeled photo set (none exists) -- same honesty this file already
+  applies to `CONFIDENCE_FLOOR`.
 - **The caption suggestion is picked, not generated.** A curated
   greeting-message starter per `Vibe` (`vibeCaptions.js`, one hand-written
   sentence per category, translated into all three languages) — tapping

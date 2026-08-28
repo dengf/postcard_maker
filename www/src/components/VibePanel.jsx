@@ -4,6 +4,7 @@ import { suggestVibe } from '../vibe';
 import { buildCandidates } from '../vibeSuggestions';
 import { captionFor } from '../vibeCaptions';
 import { photoTone } from '../photoTone';
+import { suggestExposure } from '../exposureSuggestion';
 
 // 2, not 3: every vibe has exactly 3 look variants (see
 // vibeSuggestions.js), and the single most common outcome is one matched
@@ -18,10 +19,15 @@ const VISIBLE_COUNT = 2;
  * if the analysis is slow, fails, or has nothing to suggest.
  *
  * Shows up to `VISIBLE_COUNT` look candidates at once (built from the
- * model's own top matched vibes plus each vibe's alternate looks), with a
- * "Try other ideas" button that rotates the window over the rest of the
- * candidate pool rather than re-running the model -- classification only
- * ever runs once per tap.
+ * model's own top matched vibes plus each vibe's alternate looks, plus
+ * an `exposureSuggestion.js` brightness/contrast/saturation candidate
+ * when the photo's own pixel statistics call for one), with a "Try other
+ * ideas" button that rotates the window over the rest of the candidate
+ * pool rather than re-running the model -- classification only ever runs
+ * once per tap. The exposure candidate needs no object recognition at
+ * all, so it's the one thing here that still has something to offer a
+ * photo the vibe classifier can't -- a photo of people, most notably,
+ * since ImageNet has almost no classes for that.
  */
 export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }) {
   const { t } = useI18n();
@@ -47,17 +53,27 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
         return;
       }
       const matches = result?.matches ?? [];
-      if (matches.length === 0) {
-        setPhase('empty');
-        return;
-      }
       // Best-effort: a photo this classifier already accepted decodes
       // fine, so this essentially never fails, but the suggestion itself
       // -- not this refinement -- is the thing that must never break.
       const tone = await photoTone(photoBytes).catch(() => null);
-      setCandidates(buildCandidates(matches, tone));
+      // The vibe classifier has nothing for it to work with, since
+      // ImageNet has almost no "person" classes -- a photo of people
+      // (probably the majority of real postcard photos) would otherwise
+      // always land here empty. `suggestExposure` needs no object
+      // recognition at all, just the photo's own pixel statistics, so it
+      // still has something useful to offer even when `matches` is
+      // empty.
+      const exposure = suggestExposure(tone);
+      const vibeCandidates = buildCandidates(matches, tone);
+      const allCandidates = exposure ? [...vibeCandidates, exposure] : vibeCandidates;
+      if (allCandidates.length === 0) {
+        setPhase('empty');
+        return;
+      }
+      setCandidates(allCandidates);
       setCursor(0);
-      setTopVibe(matches[0].vibe);
+      setTopVibe(matches[0]?.vibe ?? null);
       setPhase('result');
     } catch (err) {
       onError({ text: err?.message ?? String(err) });
@@ -75,7 +91,7 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
   }, [candidates, cursor]);
 
   const apply = (candidate) => {
-    onApply(candidate.filter, candidate.sticker);
+    onApply(candidate.filter, candidate.sticker, candidate.adjustments);
     setPhase('idle');
   };
 

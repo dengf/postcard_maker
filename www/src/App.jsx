@@ -132,8 +132,14 @@ function AppShell({ wasmModule }) {
     [state.stickers.length],
   );
 
-  const applyVibe = useCallback((vibeFilter, stickerId) => {
-    dispatch({ type: 'APPLY_VIBE', filter: vibeFilter, stickerId, key: stickerId ? nextStickerKey() : undefined });
+  const applyVibe = useCallback((vibeFilter, stickerId, adjustments) => {
+    dispatch({
+      type: 'APPLY_VIBE',
+      filter: vibeFilter,
+      stickerId,
+      adjustments,
+      key: stickerId ? nextStickerKey() : undefined,
+    });
   }, []);
 
   // Pre-fills a best-guess location (timezone-derived, zero permission --

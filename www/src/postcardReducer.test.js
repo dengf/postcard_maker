@@ -113,6 +113,16 @@ describe('postcardReducer', () => {
     expect(state.stickers).toEqual([]);
   });
 
+  it('APPLY_VIBE with only adjustments (an exposure suggestion) leaves the filter untouched', () => {
+    const base = { ...initialState('landscape'), filter: 'sepia' };
+    const state = postcardReducer(base, {
+      type: 'APPLY_VIBE',
+      adjustments: { brightness: 0.18 },
+    });
+    expect(state.filter).toBe('sepia');
+    expect(state.adjustments).toEqual({ brightness: 0.18, contrast: 1, saturation: 1 });
+  });
+
   it('ADD_STROKE/UNDO_STROKE/CLEAR_STROKES manage the doodle list', () => {
     let state = initialState('landscape');
     state = postcardReducer(state, { type: 'ADD_STROKE', stroke: { color: '#000', width: 4, points: [] } });
