@@ -63,6 +63,12 @@ impl From<&PostcardError> for Message {
             PostcardError::EncodeFailed(v) => {
                 Message::with_value("err.encodeFailed", v.clone(), text)
             }
+            PostcardError::VibeModelLoadFailed(v) => {
+                Message::with_value("err.vibeModelLoadFailed", v.clone(), text)
+            }
+            PostcardError::VibeClassifyFailed(v) => {
+                Message::with_value("err.vibeClassifyFailed", v.clone(), text)
+            }
         }
     }
 }
@@ -91,6 +97,8 @@ mod tests {
             PostcardError::UnreadableImage("x".into()),
             PostcardError::CropOutOfBounds("x".into()),
             PostcardError::EncodeFailed("x".into()),
+            PostcardError::VibeModelLoadFailed("x".into()),
+            PostcardError::VibeClassifyFailed("x".into()),
         ];
         let codes: std::collections::BTreeSet<_> =
             all.iter().map(|e| Message::from(e).code).collect();

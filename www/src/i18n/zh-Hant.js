@@ -18,6 +18,7 @@ export default {
   'intro.startOver': '重新開始',
   'intro.heicHint':
     '如果 iPhone 拍攝的照片無法載入，可能是 HEIC 格式——請改用「拍照」，或選擇已儲存為 JPEG、PNG 格式的照片。',
+  'intro.makeCollage': '或用 2-3 張照片製作拼貼明信片',
 
   'template.heading': '形狀',
   'template.landscape': '橫式',
@@ -35,6 +36,33 @@ export default {
   'editor.contrast': '對比度',
   'editor.saturation': '飽和度',
   'editor.reset': '重設',
+
+  'vibe.suggest': '智慧推薦風格',
+  'vibe.analyzing': '正在分析照片…',
+  'vibe.apply': '套用',
+  'vibe.dismiss': '略過',
+  'vibe.noSuggestion': '這張照片暫無推薦。',
+  'vibe.chip.beach': '看起來像海灘照片——試試復古濾鏡和海浪貼紙？',
+  'vibe.chip.mountain': '看起來像山景——試試原圖效果？',
+  'vibe.chip.water': '照片裡有水景——試試海浪貼紙？',
+  'vibe.chip.architecture': '看起來像建築——試試黑白效果？',
+  'vibe.chip.winter': '看起來像冬季場景——試試黑白效果？',
+  'vibe.chip.food': '看起來像美食——試試復古濾鏡？',
+  'vibe.chip.pet': '好可愛的寵物！試試愛心貼紙？',
+
+  'doodle.heading': '塗鴉',
+  'doodle.draw': '在明信片上畫畫',
+  'doodle.drawingOn': '繪畫中——點擊停止',
+  'doodle.brushSize': '畫筆粗細',
+  'doodle.undo': '復原',
+  'doodle.clear': '清空',
+
+  'backSide.enable': '加上背面（橫線祝福語 + 郵票）',
+  'backSide.locationPlaceholder': '寄信地點是？（選填）',
+
+  'collage.layout': '版面',
+  'collage.addPhoto': '新增照片',
+  'collage.fillAllSlots': '為每個位置新增照片即可完成。',
 
   'text.heading': '祝福語',
   'text.placeholder': '寫下你的祝福…',
@@ -90,4 +118,6 @@ export default {
   'errors.cropOutOfBounds': '裁剪範圍與照片不再相符，請重新調整位置。',
   'errors.encodeFailed': '無法產生明信片圖片，請再試一次。',
   'errors.engineUnavailable': '影像處理引擎載入失敗。',
+  'errors.vibeModelLoadFailed': '無法載入智慧推薦功能，請稍後再試。',
+  'errors.vibeClassifyFailed': '無法分析這張照片。',
 };

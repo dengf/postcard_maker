@@ -87,3 +87,31 @@ impl From<postcard_calc::TemplateGeometry> for TemplateGeometryDto {
         }
     }
 }
+
+#[derive(Debug, Serialize)]
+pub struct CollageSlotDto {
+    pub area: NormRectDto,
+}
+
+impl From<postcard_core::CollageSlot> for CollageSlotDto {
+    fn from(s: postcard_core::CollageSlot) -> Self {
+        Self {
+            area: s.area.into(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct CollageLayoutDto {
+    pub id: String,
+    pub slots: Vec<CollageSlotDto>,
+}
+
+impl From<&postcard_core::CollageLayout> for CollageLayoutDto {
+    fn from(l: &postcard_core::CollageLayout) -> Self {
+        Self {
+            id: l.id.to_string(),
+            slots: l.slots.iter().map(|&s| s.into()).collect(),
+        }
+    }
+}

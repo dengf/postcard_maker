@@ -12,6 +12,7 @@ members = [
     "crates/postcard-core",
     "crates/postcard-calc",
     "crates/postcard-wasm",
+    "crates/postcard-wasm-vibe",
 ]
 resolver = "2"
 

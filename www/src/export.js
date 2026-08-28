@@ -4,11 +4,11 @@ import { wrapText } from './wordwrap';
 
 /**
  * The one-time "flatten to final image" step -- see CLAUDE.md for why
- * this, and only this, is where text and stickers ever touch pixels.
- * `postcard-wasm`'s `process_photo` does the crop/filter/resize (the real
- * algorithm work); everything here is drawing already-decided content
- * onto a plain `<canvas>` with the platform's own text renderer, so CJK
- * shaping is never this app's problem to solve.
+ * this, and only this, is where text, stickers and doodle strokes ever
+ * touch pixels. `postcard-wasm`'s `process_photo` does the crop/filter/
+ * resize (the real algorithm work); everything here is drawing
+ * already-decided content onto a plain `<canvas>` with the platform's own
+ * text renderer, so CJK shaping is never this app's problem to solve.
  */
 export async function renderPostcard({
   wasmModule,
@@ -21,6 +21,7 @@ export async function renderPostcard({
   textColor,
   textAlign,
   stickers,
+  strokes,
   geometry,
   maxDimension = 2000,
 }) {
@@ -49,17 +50,154 @@ export async function renderPostcard({
 
     drawMessage(ctx, canvas, { message, font, textColor, textAlign, geometry });
     await drawStickers(ctx, canvas, stickers);
+    drawStrokes(ctx, canvas, strokes);
 
-    return await new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob returned null'))),
-        'image/jpeg',
-        0.92,
-      );
-    });
+    return await canvasToJpeg(canvas);
   } finally {
     URL.revokeObjectURL(baseUrl);
   }
+}
+
+/**
+ * Same idea as `renderPostcard`, for a multi-photo collage: each slot's
+ * photo is processed independently through the exact same
+ * `process_photo` call (no new Rust needed -- a collage is N independent
+ * photos, not a new algorithm), then drawn into its own area on one
+ * shared canvas before the shared message/stickers/doodle layer (never
+ * per-slot -- see `CLAUDE.md`) goes on top.
+ */
+export async function renderCollage({
+  wasmModule,
+  aspectRatio,
+  slots,
+  message,
+  font,
+  textColor,
+  textAlign,
+  stickers,
+  strokes,
+  geometry,
+  longSide = 1600,
+}) {
+  const canvasW = aspectRatio >= 1 ? longSide : Math.round(longSide * aspectRatio);
+  const canvasH = aspectRatio >= 1 ? Math.round(longSide / aspectRatio) : longSide;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+
+  for (const s of slots) {
+    const slotX = s.area.x * canvasW;
+    const slotY = s.area.y * canvasH;
+    const slotW = Math.round(s.area.w * canvasW);
+    const slotH = Math.round(s.area.h * canvasH);
+
+    const bytes = wasmModule.process_photo(s.photoBytes, {
+      cropX: s.crop.x,
+      cropY: s.crop.y,
+      cropW: s.crop.w,
+      cropH: s.crop.h,
+      brightness: s.adjustments.brightness,
+      contrast: s.adjustments.contrast,
+      saturation: s.adjustments.saturation,
+      filter: s.filter,
+      maxDimension: Math.max(slotW, slotH),
+      format: 'jpeg',
+      quality: 90,
+    });
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
+    try {
+      // eslint-disable-next-line no-await-in-loop -- slots draw in order
+      // so a later one can legitimately overlap an earlier one's edge
+      // (anti-aliasing seams), same reasoning as stickers below.
+      const img = await loadImage(url);
+      ctx.drawImage(img, slotX, slotY, slotW, slotH);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  drawMessage(ctx, canvas, { message, font, textColor, textAlign, geometry });
+  await drawStickers(ctx, canvas, stickers);
+  drawStrokes(ctx, canvas, strokes);
+
+  return canvasToJpeg(canvas);
+}
+
+/**
+ * The optional second image: a plain postcard back -- lined paper, the
+ * greeting written larger across the lines, a stamp graphic, and a
+ * postmark-style date/location line. No Rust involved at all: there's no
+ * photo here, so this is pure host-layer canvas drawing, the same
+ * category as `drawMessage` below.
+ */
+export async function renderBackSide({ aspectRatio, longSide = 1600, message, font, textColor = '#241a1e', location, date }) {
+  const canvasW = aspectRatio >= 1 ? longSide : Math.round(longSide * aspectRatio);
+  const canvasH = aspectRatio >= 1 ? Math.round(longSide / aspectRatio) : longSide;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#f4ede0';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  const marginX = canvasW * 0.06;
+  const marginY = canvasH * 0.08;
+  const lineGap = canvasH * 0.09;
+
+  ctx.strokeStyle = 'rgba(36, 26, 30, 0.15)';
+  ctx.lineWidth = Math.max(1, canvasW * 0.0015);
+  for (let y = marginY + lineGap; y < canvasH - marginY; y += lineGap) {
+    ctx.beginPath();
+    ctx.moveTo(marginX, y);
+    ctx.lineTo(canvasW - marginX, y);
+    ctx.stroke();
+  }
+
+  if (message?.trim()) {
+    const fontSize = lineGap * 0.55;
+    ctx.font = `${fontSize}px ${FONT_STACKS[font] ?? FONT_STACKS.system}`;
+    ctx.fillStyle = textColor;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    const lines = wrapText(ctx, message, canvasW - marginX * 2);
+    let y = marginY + lineGap - lineGap * 0.25;
+    for (const line of lines) {
+      if (y > canvasH - marginY) break;
+      ctx.fillText(line, marginX, y);
+      y += lineGap;
+    }
+  }
+
+  const stampDef = stickerById('stamp');
+  const stampSize = Math.min(canvasW, canvasH) * 0.18;
+  const stampTop = marginY * 0.6;
+  if (stampDef) {
+    const stampImg = await loadImage(stickerDataUrl(stampDef));
+    ctx.drawImage(stampImg, canvasW - marginX - stampSize, stampTop, stampSize, stampSize);
+  }
+
+  const postmark = [date, location].filter(Boolean).join(' • ');
+  if (postmark) {
+    ctx.font = `${canvasH * 0.025}px ${FONT_STACKS.system}`;
+    ctx.fillStyle = 'rgba(36, 26, 30, 0.55)';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText(postmark, canvasW - marginX, stampTop + stampSize + 8);
+  }
+
+  return canvasToJpeg(canvas);
+}
+
+function canvasToJpeg(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob returned null'))),
+      'image/jpeg',
+      0.92,
+    );
+  });
 }
 
 function loadImage(url) {
@@ -106,5 +244,26 @@ async function drawStickers(ctx, canvas, stickers) {
     const cx = sticker.x * canvas.width;
     const cy = sticker.y * canvas.height;
     ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
+  }
+}
+
+/** Mirrors `DoodleLayer.jsx`'s own stroke rendering exactly (same
+ * `width * (canvas.width / 100)` scale convention) so a stroke drawn in
+ * the live preview lands the same way in the export. */
+function drawStrokes(ctx, canvas, strokes) {
+  for (const stroke of strokes ?? []) {
+    if (stroke.points.length < 2) continue;
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width * (canvas.width / 100);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    stroke.points.forEach((p, i) => {
+      const x = p.x * canvas.width;
+      const y = p.y * canvas.height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
   }
 }

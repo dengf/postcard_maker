@@ -4,10 +4,13 @@
 www/node_modules/
 www/dist/
 www/pkg/
+www/pkg-vibe/
 
 # wasm-pack
 crates/postcard-wasm/pkg/
 crates/postcard-wasm/target/
+crates/postcard-wasm-vibe/pkg/
+crates/postcard-wasm-vibe/target/
 
 .DS_Store
 __pycache__/

@@ -16,10 +16,11 @@ something more specific here than in the other two tools. Applying it:
 
 | Layer | Owns |
 |---|---|
-| `postcard-core` | Shared vocabulary: `Aspect`, `Filter`/`Adjustments`, `ExportFormat`, geometry, the `Message` error convention |
-| `postcard-calc` | Crop geometry, every filter's pixel math, template layout facts, the decode -> crop -> filter -> resize -> encode pipeline |
+| `postcard-core` | Shared vocabulary: `Aspect`, `Filter`/`Adjustments`, `ExportFormat`, `CollageLayout`/`CollageSlot`, geometry, the `Message` error convention |
+| `postcard-calc` | Crop geometry, every filter's pixel math, template/collage layout facts, the decode -> crop -> filter -> resize -> encode pipeline, `vibe` (photo classification, feature-gated) |
 | `postcard-wasm` | Bridge only. Parse `JsValue`/`&[u8]`, call `postcard-calc`, serialize back |
-| `www/` | Camera/file capture, live preview (CSS, not wasm), text/sticker placement, the one-shot canvas bake at export, i18n |
+| `postcard-wasm-vibe` | Same bridge rule, lazily-loaded (see "Suggest a look" below) |
+| `www/` | Camera/file capture, live preview (CSS, not wasm), text/sticker/doodle placement, the one-shot canvas bake at export, i18n |
 
 **Rust owns:** crop/resize geometry against a template's aspect ratio,
 every filter's pixel transform (grayscale/sepia/vintage,
@@ -75,6 +76,64 @@ crate here unless the draft shape grows real structure (e.g. a
 multi-draft gallery with queries) — for a single opaque blob it would be
 pure overhead on the wasm bundle.
 
+## "Suggest a look" -- the one on-device ML feature, and why it's shaped this way
+
+`postcard-wasm-vibe` classifies a photo against **MobileNetV3-Small,
+trained on ImageNet-1000** (BSD-3-Clause, torchvision lineage —
+`www/static/vibe/mobilenetv3-small.onnx`, exported from
+`torchvision.models.mobilenet_v3_small(weights=IMAGENET1K_V1)`, opset 17)
+via `rten` — the same pure-Rust ONNX runtime `budget_planner` already
+proved out for OCR, reused here for a plain classifier. Real, measured
+facts, not estimates:
+
+- **Model file: 10.18MB** (float32, no quantization attempted yet —
+  quantizing needs its own calibration pipeline, not a free flag; revisit
+  only if the download actually proves to be a problem in practice).
+- **`postcard-wasm-vibe`'s own wasm: ~2.22MB raw / ~647KB gzipped**
+  (`rten` + `rayon`, wasm32+SIMD).
+- **Both are lazy** — `www/src/vibeWorker.js` only `import()`s the wasm
+  and `fetch()`es the model the first time "Suggest a look" is tapped,
+  confirmed in-browser via the Network panel showing zero requests for
+  either on an ordinary page load. Never automatic, same as OCR's own
+  precedent in the sibling tool.
+- **Runs in a Web Worker**, not the main thread, even though a single
+  224×224 forward pass measured only ~60ms natively — OCR's own
+  synchronous-call-froze-the-tab lesson was cheap enough to preempt here
+  that it wasn't worth risking, not because this was observed to be slow.
+- **A real finding, not assumed going in**: ImageNet is an *object*
+  dataset, not a *scene* dataset — no "sunset" or "night" class exists at
+  all. `postcard-calc::vibe`'s `Vibe` enum (Beach, Mountain, Water,
+  Architecture, Winter, Food, Pet) reflects what this specific model can
+  actually see, curated by hand against the real class list — see that
+  module's own doc comment before ever expanding the category set.
+- **License disclosure**: the model's BSD-3-Clause attribution lives in
+  `www/static/privacy.html`'s "Third-party models" section and this
+  repo's README — keep both in sync if the model is ever swapped.
+
+## Doodle, collage and the postcard back side
+
+- **Doodle** (`DoodleLayer.jsx`): strokes are normalized (0..1) point
+  lists, same convention as sticker `x`/`y`, drawn identically in the live
+  preview and in `export.js`'s bake (`drawStrokes` mirrors
+  `DoodleLayer`'s own canvas code on purpose — keep them in sync if either
+  changes). A `drawMode` toggle exists so pen strokes and pan/sticker-drag
+  never compete for the same pointer events on the same frame.
+- **Collage** (`CollageEditor.jsx`, `collageReducer.js`) is a **parallel
+  flow to the single-photo one, not a generalization of it** — unifying
+  "one photo" into "a collage of one" was rejected as real regression risk
+  on the already-shipped, tested single-photo path for no benefit. A
+  collage slot's own on-card pixel ratio is virtually never one of the
+  three named `Aspect` values (e.g. a 0.7-width "big" slot), which is why
+  `postcard_calc::crop::suggest_for_ratio`/`suggest_crop_ratio` exist
+  alongside the named-aspect versions rather than replacing them.
+  Message/stickers/doodle are shared across the whole collage, never
+  per-slot.
+- **Back side** (`renderBackSide` in `export.js`) is pure host-layer
+  canvas drawing — no photo, so no Rust involved at all. Optional and off
+  by default; when on, `share.js`'s `shareFiles`/`saveFiles` carry two
+  files, relying on `navigator.share`'s native multi-file support rather
+  than anything new.
+
 ## Known v1 limitations (parked, not bugs)
 
 - **HEIC photos (iPhone's default format) uploaded via file picker won't
@@ -93,6 +152,10 @@ pure overhead on the wasm bundle.
   (same caveat `mortgage_calculator`'s CLAUDE.md carries for its
   regulatory copy) — wants a native-speaker pass before this ships
   broadly.
+- **Collage drafts aren't autosaved.** Only the single-photo flow persists
+  to `draftStore.js`; starting a collage and reloading loses it. Same
+  category of scope cut as the single-draft-only limitation above, just
+  narrower.
 
 ## Verification traps specific to this repo
 
@@ -120,6 +183,18 @@ pure overhead on the wasm bundle.
   (`ctx.getImageData`), not by eyeballing a screenshot — the vintage
   transform's shift is real but subtle on already-saturated source
   photos and easy to misjudge by eye alone.
+- **`cargo build -p postcard-wasm-vibe --target wasm32-unknown-unknown`
+  is its own separate check** from `postcard-wasm`'s — two independent
+  wasm-pack builds (`npm run build:wasm:core` / `build:wasm:vibe`), and a
+  green build of one proves nothing about the other, same reasoning as
+  budget_planner's three-crate wasm32 CI job.
+- **A `ResizeObserver` that resizes the element it's observing, inside its
+  own callback, can trigger "ResizeObserver loop completed with
+  undelivered notifications"** — spec-legal, but webpack's dev overlay
+  treats it as an uncaught error and blocks the page. `DoodleLayer.jsx`
+  defers the actual canvas resize to `requestAnimationFrame` to break the
+  synchronous loop; keep that pattern if another component ever needs to
+  resize a canvas to match its container.
 
 ## Landing changes
 

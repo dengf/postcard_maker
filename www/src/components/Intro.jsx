@@ -3,7 +3,7 @@ import { useI18n } from '../i18n';
 import CameraCapture from './CameraCapture';
 import { ImageIcon } from './icons';
 
-export default function Intro({ onPhotoFile }) {
+export default function Intro({ onPhotoFile, onStartCollage }) {
   const { t } = useI18n();
   const fileRef = useRef(null);
 
@@ -32,6 +32,9 @@ export default function Intro({ onPhotoFile }) {
         </label>
       </div>
       <p className="intro-hint">{t('intro.heicHint')}</p>
+      <button type="button" className="btn ghost intro-collage-link" onClick={onStartCollage}>
+        {t('intro.makeCollage')}
+      </button>
     </div>
   );
 }

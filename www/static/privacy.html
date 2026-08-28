@@ -96,9 +96,21 @@
       to those logs.
     </p>
     <p>
-      Beyond loading the page itself, the app makes no network requests.
-      You can verify this in your browser's developer tools: open the
-      Network tab, make a postcard, and watch it stay empty.
+      Beyond loading the page itself, the app makes no network requests
+      that send your photo, message, or anything else out — with one
+      exception, described next. You can verify this in your browser's
+      developer tools: open the Network tab and make a postcard.
+    </p>
+
+    <h2>Third-party models</h2>
+    <p>
+      "Suggest a look" downloads a small photo-classification model —
+      MobileNetV3-Small, trained on ImageNet-1000, licensed
+      <a href="https://github.com/pytorch/vision/blob/main/LICENSE">BSD-3-Clause</a>
+      — the first time you tap that button, and only then. That download
+      is a one-way fetch of the model file itself; your photo never goes
+      anywhere. The model then runs entirely in your browser, the same as
+      every other calculation in this app.
     </p>
 
     <h2>Children</h2>

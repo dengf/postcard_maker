@@ -4,7 +4,15 @@ use postcard_core::{Aspect, PostcardError, PostcardResult, Rect};
 /// This is a suggestion, not a requirement -- the editor lets the user
 /// drag the crop afterward, and `validate` is what actually gets enforced.
 pub fn suggest(image_w: u32, image_h: u32, aspect: Aspect) -> Rect {
-    let target = aspect.ratio_f64();
+    suggest_for_ratio(image_w, image_h, aspect.ratio_f64())
+}
+
+/// Same as [`suggest`], generalized to an arbitrary width/height ratio --
+/// a collage slot's own proportions (e.g. the 0.7/0.3 split in a
+/// "big-small" layout) rarely match one of the three named [`Aspect`]
+/// variants, so `CollageEditor.jsx` calls this directly with the slot's
+/// own ratio rather than forcing it through the named-aspect enum.
+pub fn suggest_for_ratio(image_w: u32, image_h: u32, target: f64) -> Rect {
     let image_ratio = f64::from(image_w) / f64::from(image_h);
 
     let (w, h) = if image_ratio > target {
@@ -50,6 +58,24 @@ pub fn validate(image_w: u32, image_h: u32, rect: Rect) -> PostcardResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn suggest_for_ratio_matches_suggest_for_the_same_aspect() {
+        for aspect in [Aspect::Landscape, Aspect::Square, Aspect::Portrait] {
+            assert_eq!(
+                suggest(800, 600, aspect),
+                suggest_for_ratio(800, 600, aspect.ratio_f64())
+            );
+        }
+    }
+
+    #[test]
+    fn suggest_for_ratio_handles_a_non_standard_collage_slot_ratio() {
+        // A "big" 0.7-width slot on a 3:2 card is roughly a 2.1:2 (~1.05)
+        // ratio -- not any of the three named aspects.
+        let rect = suggest_for_ratio(1000, 1000, 0.7 / 0.6667);
+        assert!(validate(1000, 1000, rect).is_ok());
+    }
 
     #[test]
     fn suggests_a_centered_crop_for_a_wider_image() {

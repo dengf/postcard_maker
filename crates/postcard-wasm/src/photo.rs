@@ -65,6 +65,19 @@ pub fn suggest_crop(image_w: u32, image_h: u32, aspect: &str) -> Result<JsValue,
     Ok(to_js(&RectDto::from(rect)))
 }
 
+/// Same as [`suggest_crop`], for an arbitrary width/height `ratio`
+/// instead of one of the three named templates -- what a collage slot's
+/// own proportions need, since they rarely match `"landscape"` /
+/// `"square"` / `"portrait"`. See `postcard_calc::crop::suggest_for_ratio`.
+#[wasm_bindgen]
+pub fn suggest_crop_ratio(image_w: u32, image_h: u32, ratio: f64) -> Result<JsValue, JsValue> {
+    if !(ratio.is_finite() && ratio > 0.0) {
+        return Err(to_js(&Message::bad_request()));
+    }
+    let rect = postcard_calc::crop::suggest_for_ratio(image_w, image_h, ratio);
+    Ok(to_js(&RectDto::from(rect)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -32,7 +32,7 @@ const isBrand = (text) => BRAND.has(text);
 
 /** A CSS unit suffix glued onto a template value, e.g. `` `${n}cqmin` `` --
  * not a word needing translation. */
-const CSS_UNITS = new Set(['cqmin', 'cqw', 'cqh', 'px', 'em', 'rem', 'vh', 'vw']);
+const CSS_UNITS = new Set(['cqmin', 'cqw', 'cqh', 'px', 'em', 'rem', 'vh', 'vw', 'deg', 'ms', 's']);
 const isCssUnit = (text) => CSS_UNITS.has(text);
 
 function hardcodedEnglish(source) {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { I18nProvider, useI18n, detectLocale } from './i18n';
 import Header from './components/Header';
 import UpdateBanner from './components/UpdateBanner';
@@ -10,13 +10,18 @@ import TextPanel from './components/TextPanel';
 import StickerPalette from './components/StickerPalette';
 import PostcardCanvas from './components/PostcardCanvas';
 import ShareBar from './components/ShareBar';
+import VibePanel from './components/VibePanel';
+import DoodleToolbar from './components/DoodleToolbar';
+import BackSidePanel from './components/BackSidePanel';
+import CollageEditor from './components/CollageEditor';
 import { useConfirm } from './components/ConfirmDialog';
 import { ASPECTS, aspectRatio } from './aspect';
 import { zoomedCrop } from './cropGesture';
 import { effectiveFont } from './fonts';
 import { saveDraft, loadDraft, clearDraft } from './draftStore';
+import { renderPostcard } from './export';
+import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, nextStickerKey } from './postcardReducer';
 
-const DEFAULT_ADJUSTMENTS = { brightness: 0, contrast: 1, saturation: 1 };
 const DEFAULT_ASPECT = ASPECTS[0].id;
 const AUTOSAVE_DELAY_MS = 800;
 
@@ -30,32 +35,24 @@ function loadImageDimensions(url) {
 }
 
 function AppShell({ wasmModule }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [confirm, confirmDialog] = useConfirm();
+  const [collageActive, setCollageActive] = useState(false);
 
-  const [photo, setPhoto] = useState(null); // { bytes: Uint8Array, url, naturalW, naturalH }
-  const [aspectId, setAspectId] = useState(DEFAULT_ASPECT);
-  const [baseCrop, setBaseCrop] = useState(null);
-  const [crop, setCrop] = useState(null);
-  const [zoom, setZoom] = useState(1);
-  const [geometry, setGeometry] = useState(null);
-  const [adjustments, setAdjustments] = useState(DEFAULT_ADJUSTMENTS);
-  const [filter, setFilter] = useState('none');
-  const [message, setMessage] = useState('');
-  const [fontChoice, setFontChoice] = useState('system');
-  const [textColor, setTextColor] = useState('#ffffff');
-  const [textAlign, setTextAlign] = useState('center');
-  const [stickers, setStickers] = useState([]);
+  const [state, dispatch] = useReducer(postcardReducer, DEFAULT_ASPECT, initialState);
   const [error, setError] = useState(null);
   const [draftAvailable, setDraftAvailable] = useState(false);
 
-  const stickerSeq = useRef(0);
   const objectUrlRef = useRef(null);
+  const { photo, aspectId, baseCrop, crop, zoom, geometry, adjustments, filter } = state;
+  const { message, fontChoice, textColor, textAlign, stickers, strokes, drawMode } = state;
+  const { strokeColor, strokeWidth, backSide } = state;
 
   // A previously unfinished postcard, offered once at startup rather than
   // silently resumed -- someone landing fresh (a shared link, a second
   // visit that isn't a continuation) shouldn't have yesterday's photo
-  // reappear without asking.
+  // reappear without asking. Collage drafts aren't persisted in v1 -- a
+  // scope cut, not an oversight, see CLAUDE.md.
   useEffect(() => {
     if (wasmModule?.unavailable) return;
     loadDraft()
@@ -64,7 +61,7 @@ function AppShell({ wasmModule }) {
   }, [wasmModule]);
 
   const openPhoto = useCallback(
-    async (file, restoredSettings) => {
+    async (file, restored) => {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const url = URL.createObjectURL(file);
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -72,23 +69,18 @@ function AppShell({ wasmModule }) {
 
       try {
         const { w, h } = await loadImageDimensions(url);
-        const aspect = restoredSettings?.aspectId ?? DEFAULT_ASPECT;
+        const aspect = restored?.aspectId ?? DEFAULT_ASPECT;
         const base = wasmModule.suggest_crop(w, h, aspect);
         const geo = wasmModule.template_geometry(aspect);
 
-        setPhoto({ bytes, url, naturalW: w, naturalH: h, mimeType: file.type || 'image/jpeg' });
-        setAspectId(aspect);
-        setBaseCrop(base);
-        setCrop(restoredSettings?.crop ?? base);
-        setZoom(restoredSettings?.zoom ?? 1);
-        setGeometry(geo);
-        setAdjustments(restoredSettings?.adjustments ?? DEFAULT_ADJUSTMENTS);
-        setFilter(restoredSettings?.filter ?? 'none');
-        setMessage(restoredSettings?.message ?? '');
-        setFontChoice(restoredSettings?.fontChoice ?? 'system');
-        setTextColor(restoredSettings?.textColor ?? '#ffffff');
-        setTextAlign(restoredSettings?.textAlign ?? 'center');
-        setStickers(restoredSettings?.stickers ?? []);
+        dispatch({
+          type: 'OPEN_PHOTO',
+          photo: { bytes, url, naturalW: w, naturalH: h, mimeType: file.type || 'image/jpeg' },
+          aspect,
+          base,
+          geometry: geo,
+          restored,
+        });
       } catch (err) {
         setError(err);
       }
@@ -110,16 +102,9 @@ function AppShell({ wasmModule }) {
 
   const changeAspect = useCallback(
     (nextAspect) => {
-      if (!photo) {
-        setAspectId(nextAspect);
-        return;
-      }
+      if (!photo) return;
       const base = wasmModule.suggest_crop(photo.naturalW, photo.naturalH, nextAspect);
-      setAspectId(nextAspect);
-      setBaseCrop(base);
-      setCrop(base);
-      setZoom(1);
-      setGeometry(wasmModule.template_geometry(nextAspect));
+      dispatch({ type: 'CHANGE_ASPECT', aspect: nextAspect, base, geometry: wasmModule.template_geometry(nextAspect) });
     },
     [photo, wasmModule],
   );
@@ -127,27 +112,27 @@ function AppShell({ wasmModule }) {
   const changeZoom = useCallback(
     (nextZoom) => {
       if (!photo || !baseCrop) return;
-      setCrop((current) => zoomedCrop(current, baseCrop, photo.naturalW, photo.naturalH, nextZoom));
-      setZoom(nextZoom);
+      dispatch({ type: 'CHANGE_ZOOM', crop: zoomedCrop(crop, baseCrop, photo.naturalW, photo.naturalH, nextZoom), zoom: nextZoom });
     },
-    [photo, baseCrop],
+    [photo, baseCrop, crop],
   );
 
-  const addSticker = useCallback((id) => {
-    stickerSeq.current += 1;
-    const n = stickerSeq.current;
-    setStickers((current) => [
-      ...current,
-      { key: `s${n}`, id, x: 0.5 + ((n % 3) - 1) * 0.1, y: 0.5 + ((n % 2) - 0.5) * 0.14, scale: 1 },
-    ]);
-  }, []);
+  const addSticker = useCallback(
+    (id) => {
+      const n = state.stickers.length;
+      dispatch({
+        type: 'ADD_STICKER',
+        id,
+        key: nextStickerKey(),
+        x: 0.5 + ((n % 3) - 1) * 0.1,
+        y: 0.5 + ((n % 2) - 0.5) * 0.14,
+      });
+    },
+    [state.stickers.length],
+  );
 
-  const moveSticker = useCallback((index, x, y) => {
-    setStickers((current) => current.map((s, i) => (i === index ? { ...s, x, y } : s)));
-  }, []);
-
-  const removeSticker = useCallback((index) => {
-    setStickers((current) => current.filter((_, i) => i !== index));
+  const applyVibe = useCallback((vibeFilter, stickerId) => {
+    dispatch({ type: 'APPLY_VIBE', filter: vibeFilter, stickerId, key: stickerId ? nextStickerKey() : undefined });
   }, []);
 
   const startOver = useCallback(async () => {
@@ -155,18 +140,7 @@ function AppShell({ wasmModule }) {
     if (!ok) return;
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = null;
-    setPhoto(null);
-    setAspectId(DEFAULT_ASPECT);
-    setBaseCrop(null);
-    setCrop(null);
-    setZoom(1);
-    setAdjustments(DEFAULT_ADJUSTMENTS);
-    setFilter('none');
-    setMessage('');
-    setFontChoice('system');
-    setTextColor('#ffffff');
-    setTextAlign('center');
-    setStickers([]);
+    dispatch({ type: 'RESET', defaultAspect: DEFAULT_ASPECT });
     discardDraft();
   }, [confirm, t, discardDraft]);
 
@@ -187,10 +161,12 @@ function AppShell({ wasmModule }) {
         textColor,
         textAlign,
         stickers,
+        strokes,
+        backSide,
       }).catch(() => {});
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(handle);
-  }, [photo, aspectId, crop, zoom, adjustments, filter, message, fontChoice, textColor, textAlign, stickers]);
+  }, [photo, aspectId, crop, zoom, adjustments, filter, message, fontChoice, textColor, textAlign, stickers, strokes, backSide]);
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -206,6 +182,9 @@ function AppShell({ wasmModule }) {
       </div>
     );
   }
+
+  const effFont = effectiveFont(fontChoice, message);
+  const postmarkDate = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
 
   return (
     <div className="app">
@@ -225,7 +204,13 @@ function AppShell({ wasmModule }) {
           </div>
         )}
 
-        {!photo && <Intro onPhotoFile={openPhoto} />}
+        {!photo && !collageActive && (
+          <Intro onPhotoFile={openPhoto} onStartCollage={() => setCollageActive(true)} />
+        )}
+
+        {collageActive && (
+          <CollageEditor wasmModule={wasmModule} onError={setError} onExit={() => setCollageActive(false)} />
+        )}
 
         {photo && crop && (
           <div className="editor-layout">
@@ -235,18 +220,23 @@ function AppShell({ wasmModule }) {
                 naturalW={photo.naturalW}
                 naturalH={photo.naturalH}
                 crop={crop}
-                onCropChange={setCrop}
+                onCropChange={(next) => dispatch({ type: 'SET_CROP', crop: next })}
                 aspectRatio={aspectRatio(aspectId)}
                 adjustments={adjustments}
                 filter={filter}
                 geometry={geometry}
                 message={message}
-                font={effectiveFont(fontChoice, message)}
+                font={effFont}
                 textColor={textColor}
                 textAlign={textAlign}
                 stickers={stickers}
-                onStickerMove={moveSticker}
-                onStickerRemove={removeSticker}
+                onStickerMove={(index, x, y) => dispatch({ type: 'MOVE_STICKER', index, x, y })}
+                onStickerRemove={(index) => dispatch({ type: 'REMOVE_STICKER', index })}
+                strokes={strokes}
+                drawMode={drawMode}
+                strokeColor={strokeColor}
+                strokeWidth={strokeWidth}
+                onAddStroke={(stroke) => dispatch({ type: 'ADD_STROKE', stroke })}
               />
               <button type="button" className="btn ghost" onClick={startOver}>
                 {t('intro.startOver')}
@@ -259,39 +249,73 @@ function AppShell({ wasmModule }) {
                 zoom={zoom}
                 onZoomChange={changeZoom}
                 filter={filter}
-                onFilterChange={setFilter}
+                onFilterChange={(f) => dispatch({ type: 'SET_FILTER', filter: f })}
                 adjustments={adjustments}
-                onAdjustmentsChange={setAdjustments}
-                onReset={() => setAdjustments(DEFAULT_ADJUSTMENTS)}
+                onAdjustmentsChange={(a) => dispatch({ type: 'SET_ADJUSTMENTS', adjustments: a })}
+                onReset={() => dispatch({ type: 'RESET_ADJUSTMENTS' })}
               />
+              <VibePanel photoBytes={photo.bytes} onApply={applyVibe} onError={setError} />
               <TextPanel
                 message={message}
-                onMessageChange={setMessage}
+                onMessageChange={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
                 font={fontChoice}
-                onFontChange={setFontChoice}
+                onFontChange={(f) => dispatch({ type: 'SET_FONT_CHOICE', fontChoice: f })}
                 textColor={textColor}
-                onTextColorChange={setTextColor}
+                onTextColorChange={(c) => dispatch({ type: 'SET_TEXT_COLOR', textColor: c })}
                 textAlign={textAlign}
-                onTextAlignChange={setTextAlign}
+                onTextAlignChange={(a) => dispatch({ type: 'SET_TEXT_ALIGN', textAlign: a })}
               />
               <div className="panel">
                 <h2>{t('stickers.heading')}</h2>
                 <StickerPalette onAdd={addSticker} />
               </div>
+              <DoodleToolbar
+                drawMode={drawMode}
+                onToggleDrawMode={() => dispatch({ type: 'SET_DRAW_MODE', drawMode: !drawMode })}
+                strokeColor={strokeColor}
+                onStrokeColorChange={(c) => dispatch({ type: 'SET_STROKE_COLOR', color: c })}
+                strokeWidth={strokeWidth}
+                onStrokeWidthChange={(w) => dispatch({ type: 'SET_STROKE_WIDTH', width: w })}
+                hasStrokes={strokes.length > 0}
+                onUndo={() => dispatch({ type: 'UNDO_STROKE' })}
+                onClear={() => dispatch({ type: 'CLEAR_STROKES' })}
+              />
+              <BackSidePanel
+                enabled={backSide.enabled}
+                onToggle={(enabled) => dispatch({ type: 'SET_BACK_SIDE_ENABLED', enabled })}
+                location={backSide.location}
+                onLocationChange={(location) => dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })}
+              />
               <ShareBar
-                postcard={{
-                  wasmModule,
-                  photoBytes: photo.bytes,
-                  crop,
-                  adjustments,
-                  filter,
-                  message,
-                  font: effectiveFont(fontChoice, message),
-                  textColor,
-                  textAlign,
-                  stickers,
-                  geometry,
-                }}
+                renderFront={() =>
+                  renderPostcard({
+                    wasmModule,
+                    photoBytes: photo.bytes,
+                    crop,
+                    adjustments,
+                    filter,
+                    message,
+                    font: effFont,
+                    textColor,
+                    textAlign,
+                    stickers,
+                    strokes,
+                    geometry,
+                  })
+                }
+                backSide={
+                  backSide.enabled
+                    ? {
+                        enabled: true,
+                        aspectRatio: aspectRatio(aspectId),
+                        message,
+                        font: effFont,
+                        textColor,
+                        location: backSide.location,
+                        date: postmarkDate,
+                      }
+                    : null
+                }
                 onError={setError}
               />
             </div>

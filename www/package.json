@@ -2,8 +2,11 @@
   "name": "postcard-maker-web",
   "version": "0.1.0",
   "description": "Turn a photo into a postcard and email or save it, powered by Rust/WASM",
+  "license": "MIT",
   "scripts": {
-    "build:wasm": "cd ../crates/postcard-wasm && wasm-pack build --target web --out-dir ../../www/pkg",
+    "build:wasm": "npm run build:wasm:core && npm run build:wasm:vibe",
+    "build:wasm:core": "cd ../crates/postcard-wasm && wasm-pack build --target web --out-dir ../../www/pkg",
+    "build:wasm:vibe": "cd ../crates/postcard-wasm-vibe && wasm-pack build --target web --out-dir ../../www/pkg-vibe",
     "start": "npm run build:wasm && webpack serve --mode development",
     "build": "webpack --mode production",
     "deploy": "npm run build:wasm && npm run build",

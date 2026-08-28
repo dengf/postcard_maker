@@ -143,6 +143,12 @@ label.btn { cursor: pointer; }
 .btn.danger { background: transparent; color: var(--negative); padding: 6px 10px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* icons.jsx's small inline outline icons (camera, image, share, save).
+   Without an explicit size, an SVG with a viewBox but no width/height
+   attribute falls back to its unconstrained intrinsic size (45-55px here,
+   measured) instead of sitting neatly beside a button's text. */
+.field-icon { width: 18px; height: 18px; flex: none; }
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -380,4 +386,126 @@ label.btn { cursor: pointer; }
   padding: 10px 14px;
   color: var(--negative);
   font-size: 0.88rem;
+}
+
+/* Suggest a look */
+.vibe-chip {
+  background: var(--panel-alt);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.vibe-chip-actions { display: flex; gap: 10px; }
+
+/* Doodle layer -- fills the same box as the postcard-frame it's layered
+   over (see PostcardCanvas.jsx/CollageEditor.jsx, both render it as the
+   last child of .postcard-frame). */
+.doodle-layer {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+.doodle-layer canvas { display: block; width: 100%; height: 100%; }
+.field-check-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
+.field-check-row input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+.back-side-location {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 10px;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* Celebration burst -- a brief five-petal blossom scatter on a
+   successful Share/Save. Fixed to the viewport rather than the finish
+   panel so it reads regardless of scroll position. */
+.celebration-burst {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.celebration-petal {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  opacity: 0;
+  animation: celebration-fly 1.4s ease-out forwards;
+}
+.celebration-petal svg { width: 100%; height: 100%; }
+@keyframes celebration-fly {
+  0% { opacity: 0; transform: rotate(var(--angle)) translateY(0) scale(0.4); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--angle)) translateY(-160px) scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celebration-petal { animation: none; opacity: 0; }
+}
+
+/* Collage */
+.intro-collage-link { margin-top: 16px; }
+
+.collage-layout-options { display: flex; gap: 10px; flex-wrap: wrap; }
+.collage-layout-swatch {
+  border: 2px solid var(--input-border);
+  background: var(--panel-alt);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+}
+.collage-layout-swatch.active { border-color: var(--accent); }
+.collage-layout-preview {
+  position: relative;
+  display: block;
+  width: 64px;
+  background: var(--surface);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.collage-layout-preview span {
+  position: absolute;
+  background: var(--muted-2);
+  border: 1px solid var(--panel-alt);
+}
+.collage-layout-swatch.active .collage-layout-preview span { background: var(--accent); }
+
+.collage-frame { display: block; }
+.collage-slot {
+  position: absolute;
+  overflow: hidden;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+}
+.collage-slot.active { outline-color: var(--accent); }
+.collage-photo-slot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  touch-action: none;
+  cursor: grab;
+}
+.collage-photo-slot:active { cursor: grabbing; }
+.collage-empty-slot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--panel-alt);
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
 }

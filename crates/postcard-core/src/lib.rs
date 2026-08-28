@@ -5,6 +5,7 @@
 //! dependency on the calculation logic itself -- see `postcard-calc`.
 
 mod aspect;
+mod collage;
 mod error;
 mod export;
 mod filter;
@@ -12,6 +13,7 @@ mod geometry;
 mod message;
 
 pub use aspect::Aspect;
+pub use collage::{CollageLayout, CollageSlot};
 pub use error::PostcardError;
 pub use export::ExportFormat;
 pub use filter::{Adjustments, Filter};

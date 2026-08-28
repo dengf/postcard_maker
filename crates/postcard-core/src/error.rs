@@ -18,4 +18,10 @@ pub enum PostcardError {
 
     #[error("could not encode the finished postcard: {0}")]
     EncodeFailed(String),
+
+    #[error("could not load the suggestion model: {0}")]
+    VibeModelLoadFailed(String),
+
+    #[error("could not analyze this photo: {0}")]
+    VibeClassifyFailed(String),
 }

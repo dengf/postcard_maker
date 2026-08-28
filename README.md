@@ -5,8 +5,7 @@ a greeting, decorate it with stickers, then email or save it. meifio's
 third tool, built as a web app with a pure Rust image-processing core
 compiled to WebAssembly.
 
-**A build to verify locally before it is deployed anywhere** — this repo
-has not been pushed to a remote yet. See `npm start` below.
+Live at [dengf.github.io/postcard_maker](https://dengf.github.io/postcard_maker/). See `npm start` below to run it locally.
 
 ## What it is, and what it deliberately is not
 
@@ -41,7 +40,17 @@ stay empty.
 - **Stickers**: a small hand-drawn set — heart, star, sun, cloud, wave,
   airplane, postmark, palm tree, confetti, arrow, washi tape, and the
   brand's own plum blossom — placed by dragging
-- **Finish**: Share (native share sheet with the image attached, where
+- **Suggest a look**: on-device photo classification (MobileNetV3-Small,
+  lazily loaded only when tapped) suggests a filter and sticker matching
+  what's in the photo — beach, mountain, water, architecture, winter,
+  food, or a pet. See `CLAUDE.md` for the real ImageNet-vs-scene-dataset
+  finding behind the category list.
+- **Draw**: a freehand doodle layer over the postcard
+- **Collage**: 2 or 3 photos in one postcard, three curated layouts per
+  template shape
+- **A real back side**: lined message, a stamp graphic, and a
+  postmark-style date/location line, as an optional second image
+- **Finish**: Share (native share sheet with the image(s) attached, where
   supported) or Save, with a `mailto:` + download fallback everywhere else
 
 ## Architecture
@@ -54,13 +63,16 @@ why it differs from the other two in one place (persistence).
 
 ```
 crates/
-  postcard-core   shared vocabulary: Aspect, Filter/Adjustments,
-                   ExportFormat, geometry, errors
-  postcard-calc   every image algorithm -- crop math, filter pixel
-                   transforms, template layout, the encode pipeline
-  postcard-wasm   thin wasm-bindgen bridge -- parses, calls, serializes
-www/              React + webpack front end: capture, live CSS preview,
-                   canvas bake at export, i18n, IndexedDB draft autosave
+  postcard-core     shared vocabulary: Aspect, Filter/Adjustments,
+                     ExportFormat, CollageLayout/Slot, geometry, errors
+  postcard-calc     every image algorithm -- crop math, filter pixel
+                     transforms, template/collage layout, the encode
+                     pipeline, and `vibe` (photo classification, behind
+                     its own Cargo feature)
+  postcard-wasm     thin wasm-bindgen bridge -- parses, calls, serializes
+  postcard-wasm-vibe  same bridge rule, lazily loaded (see CLAUDE.md)
+www/                React + webpack front end: capture, live CSS preview,
+                     canvas bake at export, i18n, IndexedDB draft autosave
 ```
 
 `postcard-calc` has zero dependencies on wasm, the DOM, or a clock — every
@@ -95,3 +107,24 @@ No accounts, no server, no analytics of any kind. See
 ## License
 
 MIT — see `LICENSE`.
+
+### Third-party licenses
+
+Audited 2026-08-28: every crate in the Rust dependency graph
+(`cargo metadata`, full transitive closure of the workspace) is MIT,
+Apache-2.0, BSD-3-Clause, 0BSD, Unlicense, or Zlib — no GPL/LGPL/AGPL
+anywhere. Every production npm dependency (`react`, `react-dom`, and
+their two small transitive deps) is MIT. No fonts or icon assets are
+bundled or redistributed: the brand mark (`assets/icon/`,
+`MeifioMark.jsx`) and every sticker (`www/src/stickers.js`) are
+hand-authored inline SVG/PNG, and the text tool's fonts are the
+browser's own system font stack, never shipped as files. Re-check this
+if a new dependency is ever added — `cargo metadata --format-version=1`
+for Rust, `npx license-checker --production` for npm.
+
+**One vendored model**, added after this audit: `www/static/vibe/mobilenetv3-small.onnx`
+is MobileNetV3-Small trained on ImageNet-1000, **BSD-3-Clause**
+(torchvision lineage), exported directly from
+`torchvision.models.mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.IMAGENET1K_V1)`.
+Same disclosure duty as budget_planner's OCR models — see
+`www/static/privacy.html`'s "Third-party models" section.

@@ -18,6 +18,7 @@ export default {
   'intro.startOver': 'Start over',
   'intro.heicHint':
     "If a photo you took on an iPhone won't load, it may be saved as HEIC — try \"Take a photo\" instead, or choose one already saved as JPEG or PNG.",
+  'intro.makeCollage': 'Or make a collage from 2-3 photos',
 
   'template.heading': 'Shape',
   'template.landscape': 'Landscape',
@@ -35,6 +36,33 @@ export default {
   'editor.contrast': 'Contrast',
   'editor.saturation': 'Saturation',
   'editor.reset': 'Reset',
+
+  'vibe.suggest': 'Suggest a look',
+  'vibe.analyzing': 'Analyzing your photo…',
+  'vibe.apply': 'Apply',
+  'vibe.dismiss': 'Dismiss',
+  'vibe.noSuggestion': 'No suggestion for this photo.',
+  'vibe.chip.beach': 'Looks like a beach photo — try the Vintage filter and a wave sticker?',
+  'vibe.chip.mountain': 'Looks like a mountain view — try the Original look?',
+  'vibe.chip.water': 'Looks like water in this photo — try a wave sticker?',
+  'vibe.chip.architecture': 'Looks like architecture — try Black & white?',
+  'vibe.chip.winter': 'Looks like a winter scene — try Black & white?',
+  'vibe.chip.food': 'Looks like food — try the Vintage filter?',
+  'vibe.chip.pet': 'Aww, a pet! Try a heart sticker?',
+
+  'doodle.heading': 'Draw',
+  'doodle.draw': 'Draw on the postcard',
+  'doodle.drawingOn': 'Drawing — tap to stop',
+  'doodle.brushSize': 'Brush size',
+  'doodle.undo': 'Undo',
+  'doodle.clear': 'Clear',
+
+  'backSide.enable': 'Add a back side (lined message + stamp)',
+  'backSide.locationPlaceholder': 'Where are you writing from? (optional)',
+
+  'collage.layout': 'Layout',
+  'collage.addPhoto': 'Add photo',
+  'collage.fillAllSlots': 'Add a photo to every slot to finish.',
 
   'text.heading': 'Message',
   'text.placeholder': 'Write your greeting…',
@@ -91,4 +119,6 @@ export default {
   'errors.cropOutOfBounds': 'The crop no longer matches this photo. Try repositioning it again.',
   'errors.encodeFailed': 'Couldn’t finish the postcard image. Try again.',
   'errors.engineUnavailable': 'The image engine could not be loaded.',
+  'errors.vibeModelLoadFailed': 'Could not load the suggestion feature. Try again later.',
+  'errors.vibeClassifyFailed': 'Could not analyze this photo.',
 };
