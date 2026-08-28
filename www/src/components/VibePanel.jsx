@@ -3,6 +3,7 @@ import { useI18n } from '../i18n';
 import { suggestVibe } from '../vibe';
 import { buildCandidates } from '../vibeSuggestions';
 import { captionFor } from '../vibeCaptions';
+import { photoTone } from '../photoTone';
 
 // 2, not 3: every vibe has exactly 3 look variants (see
 // vibeSuggestions.js), and the single most common outcome is one matched
@@ -43,7 +44,11 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
         setPhase('empty');
         return;
       }
-      setCandidates(buildCandidates(matches));
+      // Best-effort: a photo this classifier already accepted decodes
+      // fine, so this essentially never fails, but the suggestion itself
+      // -- not this refinement -- is the thing that must never break.
+      const tone = await photoTone(photoBytes).catch(() => null);
+      setCandidates(buildCandidates(matches, tone));
       setCursor(0);
       setTopVibe(matches[0].vibe);
       setPhase('result');

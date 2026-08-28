@@ -134,6 +134,22 @@ facts, not estimates:
   ideas" rotates a window over the rest. `classify_vibe` (single best
   guess) is now a one-line wrapper over `classify_top_vibes(_, 1)` kept
   for callers that only want one.
+- **Which look ranks first depends on the photo, not just its `Vibe`.**
+  Early feedback: two very differently-toned photos of the same vibe (a
+  blown-out bright beach shot vs. a hazy flat one) always got the exact
+  same top suggestion, which read as a dumb fixed lookup rather than
+  something tailored. `photoTone.js` samples a cheap 32×32 downscale of
+  the *original* photo bytes (independent of whatever crop/filter is
+  currently applied — "what the photo actually looks like" is the
+  honest signal, not whatever the user already picked) for overall
+  brightness/saturation; `vibeSuggestions.js`'s `scoreForTone` then
+  reorders each matched vibe's own 3 looks by fit before flattening them
+  — grayscale suits a photo already bright and colorful enough to carry
+  losing its hue, vintage suits one that's already vivid enough to
+  afford being toned down, sepia suits one that's dim or washed out,
+  keeping the original suits one that's already balanced. Still no new
+  model or Rust: this is host-layer curation logic, same boundary as the
+  rest of this feature's copy.
 - **The caption suggestion is picked, not generated.** A curated
   greeting-message starter per `Vibe` (`vibeCaptions.js`, one hand-written
   sentence per category, translated into all three languages) — tapping
