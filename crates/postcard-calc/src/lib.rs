@@ -4,7 +4,6 @@
 //! DOM, a canvas, or a font -- see the repo's CLAUDE.md for the Rust/JS
 //! boundary this crate sits on.
 
-pub mod caption;
 pub mod crop;
 pub mod face;
 pub mod filters;
@@ -20,6 +19,3 @@ pub use vibe::{classify_top_vibes, classify_vibe, Vibe};
 pub use face::count_faces;
 #[cfg(feature = "vibe")]
 pub use vibe::run_inference;
-
-#[cfg(feature = "caption")]
-pub use caption::generate_caption;

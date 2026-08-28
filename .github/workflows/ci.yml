@@ -69,14 +69,11 @@ jobs:
       - name: cargo build -p postcard-wasm --target wasm32-unknown-unknown
         run: cargo build -p postcard-wasm --target wasm32-unknown-unknown
 
-      # A green build of one crate proves nothing about the others --
-      # each is its own independent wasm-pack build with its own
-      # dependency graph (rten for vibe, rten+tokenizers for caption).
+      # A green build of one crate proves nothing about the other -- each
+      # is its own independent wasm-pack build with its own rten-based
+      # dependency graph.
       - name: cargo build -p postcard-wasm-vibe --target wasm32-unknown-unknown
         run: cargo build -p postcard-wasm-vibe --target wasm32-unknown-unknown --release
-
-      - name: cargo build -p postcard-wasm-caption --target wasm32-unknown-unknown
-        run: cargo build -p postcard-wasm-caption --target wasm32-unknown-unknown --release
 
   coverage:
     name: cargo llvm-cov (coverage gate)

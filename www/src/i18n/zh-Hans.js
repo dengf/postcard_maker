@@ -51,11 +51,6 @@ export default {
   'exposure.saturate': '颜色有点淡——让它们更鲜艳？',
   'group.together': '看起来是个热闹的聚会——加点彩纸屑？',
   'group.caption': '真高兴我们能聚在一起。',
-  'caption.heading': '写一句文案',
-  'caption.sizeNote': '使用真正的 AI 模型来描述你的照片——首次使用会一次性下载约 140MB 的文件。',
-  'caption.write': '帮我写一句',
-  'caption.loading': '思考中…',
-  'caption.loadingProgress': '正在下载 AI 模型…{percent}%',
   'vibe.chip.beach': '看起来像海滩照片——试试复古滤镜和海浪贴纸？',
   'vibe.chip.beach.alt': '也可以试试棕褐色滤镜配棕榈树贴纸？',
   'vibe.chip.beach.alt2': '或者更有意境的黑白效果配海浪贴纸？',
@@ -164,6 +159,4 @@ export default {
   'errors.vibeClassifyFailed': '无法分析这张照片。',
   'errors.faceModelLoadFailed': '无法加载智能推荐功能，请稍后再试。',
   'errors.faceDetectFailed': '无法分析这张照片。',
-  'errors.captionModelLoadFailed': '无法加载文案功能，请稍后再试。',
-  'errors.captionGenerateFailed': '无法为这张照片写文案，请再试一次。',
 };

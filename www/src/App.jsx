@@ -11,7 +11,6 @@ import StickerPalette from './components/StickerPalette';
 import PostcardCanvas from './components/PostcardCanvas';
 import ShareBar from './components/ShareBar';
 import VibePanel from './components/VibePanel';
-import CaptionPanel from './components/CaptionPanel';
 import DoodleToolbar from './components/DoodleToolbar';
 import BackSidePanel from './components/BackSidePanel';
 import CollageEditor from './components/CollageEditor';
@@ -296,11 +295,6 @@ function AppShell({ wasmModule }) {
                 onTextColorChange={(c) => dispatch({ type: 'SET_TEXT_COLOR', textColor: c })}
                 textAlign={textAlign}
                 onTextAlignChange={(a) => dispatch({ type: 'SET_TEXT_ALIGN', textAlign: a })}
-              />
-              <CaptionPanel
-                photoBytes={photo.bytes}
-                onSetMessage={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
-                onError={setError}
               />
               <div className="panel">
                 <h2>{t('stickers.heading')}</h2>

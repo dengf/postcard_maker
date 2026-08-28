@@ -13,7 +13,6 @@ members = [
     "crates/postcard-calc",
     "crates/postcard-wasm",
     "crates/postcard-wasm-vibe",
-    "crates/postcard-wasm-caption",
 ]
 resolver = "2"
 

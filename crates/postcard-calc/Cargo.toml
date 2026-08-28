@@ -10,7 +10,6 @@ postcard-core.workspace = true
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 rten = { version = "0.25", optional = true }
 rten-tensor = { version = "0.25", optional = true }
-tokenizers = { version = "0.22", default-features = false, features = ["unstable_wasm"], optional = true }
 
 [features]
 # Gated: rten is a full ML tensor runtime, most of its own crate's wasm
@@ -18,12 +17,5 @@ tokenizers = { version = "0.22", default-features = false, features = ["unstable
 # size split this buys, mirroring budget_planner's identical `ocr`
 # feature on budget-calc.
 vibe = ["dep:rten", "dep:rten-tensor"]
-# Separate from `vibe`, not layered on it: a real captioning model is a
-# ~139MB download (three ONNX models plus a tokenizer) next to vibe's
-# ~11MB, downloaded from its own separate UI action rather than folded
-# into "Suggest a look" -- see CLAUDE.md. `tokenizers` (the same crate
-# powering HuggingFace's Python library) is its own dependency since
-# vibe/face have no text to tokenize at all.
-caption = ["dep:rten", "dep:rten-tensor", "dep:tokenizers"]
 
 [dev-dependencies]
