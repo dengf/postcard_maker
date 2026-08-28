@@ -1,4 +1,5 @@
 import { FONT_STACKS } from './fonts';
+import { fitFontSize } from './fitText';
 import { stickerById, stickerDataUrl } from './stickers';
 import { wrapText } from './wordwrap';
 
@@ -18,6 +19,7 @@ export async function renderPostcard({
   filter,
   message,
   font,
+  fontScale = 1,
   textColor,
   textAlign,
   stickers,
@@ -48,7 +50,7 @@ export async function renderPostcard({
     const ctx = canvas.getContext('2d');
     ctx.drawImage(baseImg, 0, 0);
 
-    drawMessage(ctx, canvas, { message, font, textColor, textAlign, geometry });
+    drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry });
     await drawStickers(ctx, canvas, stickers);
     drawStrokes(ctx, canvas, strokes);
 
@@ -72,6 +74,7 @@ export async function renderCollage({
   slots,
   message,
   font,
+  fontScale = 1,
   textColor,
   textAlign,
   stickers,
@@ -117,7 +120,7 @@ export async function renderCollage({
     }
   }
 
-  drawMessage(ctx, canvas, { message, font, textColor, textAlign, geometry });
+  drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry });
   await drawStickers(ctx, canvas, stickers);
   drawStrokes(ctx, canvas, strokes);
 
@@ -131,7 +134,16 @@ export async function renderCollage({
  * photo here, so this is pure host-layer canvas drawing, the same
  * category as `drawMessage` below.
  */
-export async function renderBackSide({ aspectRatio, longSide = 1600, message, font, textColor = '#241a1e', location, date }) {
+export async function renderBackSide({
+  aspectRatio,
+  longSide = 1600,
+  message,
+  font,
+  fontScale = 1,
+  textColor = '#241a1e',
+  location,
+  date,
+}) {
   const canvasW = aspectRatio >= 1 ? longSide : Math.round(longSide * aspectRatio);
   const canvasH = aspectRatio >= 1 ? Math.round(longSide / aspectRatio) : longSide;
   const canvas = document.createElement('canvas');
@@ -156,7 +168,12 @@ export async function renderBackSide({ aspectRatio, longSide = 1600, message, fo
   }
 
   if (message?.trim()) {
-    const fontSize = lineGap * 0.55;
+    // Scaled, not auto-fit, on purpose: the back side's lines are drawn
+    // at a fixed `lineGap`, so the default size is the one already tuned
+    // to sit on them -- full auto-fit would decouple the text baseline
+    // from the ruled lines it's meant to sit on. `fontScale` still lets
+    // someone go bigger/smaller deliberately.
+    const fontSize = lineGap * 0.55 * fontScale;
     ctx.font = `${fontSize}px ${FONT_STACKS[font] ?? FONT_STACKS.system}`;
     ctx.fillStyle = textColor;
     ctx.textBaseline = 'alphabetic';
@@ -209,16 +226,21 @@ function loadImage(url) {
   });
 }
 
-function drawMessage(ctx, canvas, { message, font, textColor, textAlign, geometry }) {
+function drawMessage(ctx, canvas, { message, font, fontScale = 1, textColor, textAlign, geometry }) {
   if (!message?.trim()) return;
   const area = geometry.messageArea;
   const x = area.x * canvas.width;
   const y = area.y * canvas.height;
   const w = area.w * canvas.width;
   const h = area.h * canvas.height;
+  const fontFamily = FONT_STACKS[font] ?? FONT_STACKS.system;
 
-  const fontSize = Math.max(14, h * 0.22);
-  ctx.font = `${fontSize}px ${FONT_STACKS[font] ?? FONT_STACKS.system}`;
+  // The same fit-to-content search `PostcardOverlay.jsx`'s live preview
+  // uses, run against this real canvas context instead of a shared
+  // detached one -- see `fitText.js`. Keeps the exported size matching
+  // what was shown while editing, not a separate fixed formula.
+  const fontSize = fitFontSize(ctx, message, w, h, { fontFamily }) * fontScale;
+  ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.fillStyle = textColor;
   ctx.textBaseline = 'top';
   ctx.textAlign = textAlign;

@@ -19,6 +19,7 @@ import { ASPECTS, aspectRatio } from './aspect';
 import { zoomedCrop } from './cropGesture';
 import { effectiveFont } from './fonts';
 import { saveDraft, loadDraft, clearDraft } from './draftStore';
+import { detectLocation } from './location';
 import { renderPostcard } from './export';
 import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, nextStickerKey } from './postcardReducer';
 
@@ -45,7 +46,7 @@ function AppShell({ wasmModule }) {
 
   const objectUrlRef = useRef(null);
   const { photo, aspectId, baseCrop, crop, zoom, geometry, adjustments, filter } = state;
-  const { message, fontChoice, textColor, textAlign, stickers, strokes, drawMode } = state;
+  const { message, fontChoice, fontScale, textColor, textAlign, stickers, strokes, drawMode } = state;
   const { strokeColor, strokeWidth, backSide } = state;
 
   // A previously unfinished postcard, offered once at startup rather than
@@ -135,6 +136,21 @@ function AppShell({ wasmModule }) {
     dispatch({ type: 'APPLY_VIBE', filter: vibeFilter, stickerId, key: stickerId ? nextStickerKey() : undefined });
   }, []);
 
+  // Pre-fills a best-guess location (timezone-derived, zero permission --
+  // see location.js) the first time the back side is switched on, only
+  // if nothing's been typed there yet. Never overwrites an existing
+  // value, including an intentionally-cleared one.
+  const toggleBackSide = useCallback(
+    (enabled) => {
+      dispatch({ type: 'SET_BACK_SIDE_ENABLED', enabled });
+      if (enabled && !backSide.location) {
+        const guess = detectLocation();
+        if (guess) dispatch({ type: 'SET_BACK_SIDE_LOCATION', location: guess });
+      }
+    },
+    [backSide.location],
+  );
+
   const startOver = useCallback(async () => {
     const ok = await confirm(t('confirm.startOverBody'), t('confirm.confirm'));
     if (!ok) return;
@@ -158,6 +174,7 @@ function AppShell({ wasmModule }) {
         filter,
         message,
         fontChoice,
+        fontScale,
         textColor,
         textAlign,
         stickers,
@@ -166,7 +183,7 @@ function AppShell({ wasmModule }) {
       }).catch(() => {});
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(handle);
-  }, [photo, aspectId, crop, zoom, adjustments, filter, message, fontChoice, textColor, textAlign, stickers, strokes, backSide]);
+  }, [photo, aspectId, crop, zoom, adjustments, filter, message, fontChoice, fontScale, textColor, textAlign, stickers, strokes, backSide]);
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -227,6 +244,7 @@ function AppShell({ wasmModule }) {
                 geometry={geometry}
                 message={message}
                 font={effFont}
+                fontScale={fontScale}
                 textColor={textColor}
                 textAlign={textAlign}
                 stickers={stickers}
@@ -260,6 +278,8 @@ function AppShell({ wasmModule }) {
                 onMessageChange={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
                 font={fontChoice}
                 onFontChange={(f) => dispatch({ type: 'SET_FONT_CHOICE', fontChoice: f })}
+                fontScale={fontScale}
+                onFontScaleChange={(s) => dispatch({ type: 'SET_FONT_SCALE', fontScale: s })}
                 textColor={textColor}
                 onTextColorChange={(c) => dispatch({ type: 'SET_TEXT_COLOR', textColor: c })}
                 textAlign={textAlign}
@@ -282,7 +302,7 @@ function AppShell({ wasmModule }) {
               />
               <BackSidePanel
                 enabled={backSide.enabled}
-                onToggle={(enabled) => dispatch({ type: 'SET_BACK_SIDE_ENABLED', enabled })}
+                onToggle={toggleBackSide}
                 location={backSide.location}
                 onLocationChange={(location) => dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })}
               />
@@ -296,6 +316,7 @@ function AppShell({ wasmModule }) {
                     filter,
                     message,
                     font: effFont,
+                    fontScale,
                     textColor,
                     textAlign,
                     stickers,
@@ -310,6 +331,7 @@ function AppShell({ wasmModule }) {
                         aspectRatio: aspectRatio(aspectId),
                         message,
                         font: effFont,
+                        fontScale,
                         textColor,
                         location: backSide.location,
                         date: postmarkDate,

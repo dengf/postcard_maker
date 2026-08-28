@@ -16,10 +16,17 @@ export function containsCjk(text) {
 
 export const FONT_STACKS = {
   system: '-apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif',
+  serif: 'Georgia, "Songti SC", "PMingLiU", "Times New Roman", serif',
   decorative: '"Brush Script MT", "Segoe Script", cursive',
 };
 
-/** The font choice actually in effect, forcing `system` once CJK appears. */
+/** Font choices with no CJK glyphs -- see the module doc comment. Only
+ * these ever need to be force-disabled for a Chinese message; `serif`
+ * has real CJK fallbacks and stays available. */
+const LATIN_ONLY_FONTS = new Set(['decorative']);
+
+/** The font choice actually in effect, forcing `system` once CJK appears
+ * in a Latin-only font's message. */
 export function effectiveFont(choice, message) {
-  return choice === 'decorative' && containsCjk(message) ? 'system' : choice;
+  return LATIN_ONLY_FONTS.has(choice) && containsCjk(message) ? 'system' : choice;
 }

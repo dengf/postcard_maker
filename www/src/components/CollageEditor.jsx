@@ -3,6 +3,7 @@ import { useI18n } from '../i18n';
 import { ASPECTS, aspectRatio } from '../aspect';
 import { zoomedCrop } from '../cropGesture';
 import { effectiveFont } from '../fonts';
+import { detectLocation } from '../location';
 import { renderCollage } from '../export';
 import { collageReducer, initialCollageState } from '../collageReducer';
 import { nextStickerKey } from '../postcardReducer';
@@ -122,6 +123,17 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
     });
   };
 
+  const toggleBackSide = useCallback(
+    (enabled) => {
+      dispatch({ type: 'SET_BACK_SIDE_ENABLED', enabled });
+      if (enabled && !state.backSide.location) {
+        const guess = detectLocation();
+        if (guess) dispatch({ type: 'SET_BACK_SIDE_LOCATION', location: guess });
+      }
+    },
+    [state.backSide.location],
+  );
+
   const allSlotsFilled = state.slots.length > 0 && state.slots.every((s) => s.photo);
   const effFont = effectiveFont(state.fontChoice, state.message);
   const postmarkDate = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -193,6 +205,7 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
             geometry={geometry}
             message={state.message}
             font={effFont}
+            fontScale={state.fontScale}
             textColor={state.textColor}
             textAlign={state.textAlign}
             stickers={state.stickers}
@@ -231,6 +244,8 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
           onMessageChange={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
           font={state.fontChoice}
           onFontChange={(f) => dispatch({ type: 'SET_FONT_CHOICE', fontChoice: f })}
+          fontScale={state.fontScale}
+          onFontScaleChange={(s) => dispatch({ type: 'SET_FONT_SCALE', fontScale: s })}
           textColor={state.textColor}
           onTextColorChange={(c) => dispatch({ type: 'SET_TEXT_COLOR', textColor: c })}
           textAlign={state.textAlign}
@@ -253,7 +268,7 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
         />
         <BackSidePanel
           enabled={state.backSide.enabled}
-          onToggle={(enabled) => dispatch({ type: 'SET_BACK_SIDE_ENABLED', enabled })}
+          onToggle={toggleBackSide}
           location={state.backSide.location}
           onLocationChange={(location) => dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })}
         />
@@ -275,6 +290,7 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
                 })),
                 message: state.message,
                 font: effFont,
+                fontScale: state.fontScale,
                 textColor: state.textColor,
                 textAlign: state.textAlign,
                 stickers: state.stickers,
@@ -289,6 +305,7 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
                     aspectRatio: aspectRatio(aspectId),
                     message: state.message,
                     font: effFont,
+                    fontScale: state.fontScale,
                     textColor: state.textColor,
                     location: state.backSide.location,
                     date: postmarkDate,

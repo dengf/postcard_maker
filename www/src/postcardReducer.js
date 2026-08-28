@@ -26,6 +26,9 @@ export function initialState(defaultAspect) {
     filter: 'none',
     message: '',
     fontChoice: 'system',
+    // 1 = "Auto" -- the fit-to-message-area size `fitText.js` computes,
+    // not a fixed pixel value. Other choices scale relative to that.
+    fontScale: 1,
     textColor: '#ffffff',
     textAlign: 'center',
     stickers: [],
@@ -63,6 +66,7 @@ export function postcardReducer(state, action) {
         filter: action.restored?.filter ?? 'none',
         message: action.restored?.message ?? '',
         fontChoice: action.restored?.fontChoice ?? 'system',
+        fontScale: action.restored?.fontScale ?? 1,
         textColor: action.restored?.textColor ?? '#ffffff',
         textAlign: action.restored?.textAlign ?? 'center',
         stickers: action.restored?.stickers ?? [],
@@ -100,6 +104,9 @@ export function postcardReducer(state, action) {
 
     case 'SET_FONT_CHOICE':
       return { ...state, fontChoice: action.fontChoice };
+
+    case 'SET_FONT_SCALE':
+      return { ...state, fontScale: action.fontScale };
 
     case 'SET_TEXT_COLOR':
       return { ...state, textColor: action.textColor };

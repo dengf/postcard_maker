@@ -25,6 +25,7 @@ export default function PostcardCanvas({
   geometry,
   message,
   font,
+  fontScale,
   textColor,
   textAlign,
   stickers,
@@ -102,6 +103,7 @@ export default function PostcardCanvas({
         geometry={geometry}
         message={message}
         font={font}
+        fontScale={fontScale}
         textColor={textColor}
         textAlign={textAlign}
         stickers={stickers}

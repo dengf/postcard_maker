@@ -1,6 +1,7 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { FONT_STACKS } from '../fonts';
+import { fitFontSize, getMeasureContext } from '../fitText';
 import StickerIcon from './StickerIcon';
 import { stickerById } from '../stickers';
 
@@ -18,12 +19,15 @@ export default function PostcardOverlay({
   geometry,
   message,
   font,
+  fontScale,
   textColor,
   textAlign,
   stickers,
   onStickerMove,
   onStickerRemove,
 }) {
+  const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
+
   return (
     <>
       {geometry && (
@@ -49,7 +53,7 @@ export default function PostcardOverlay({
             color: textColor,
             textAlign,
             fontFamily: FONT_STACKS[font] ?? FONT_STACKS.system,
-            fontSize: 'clamp(12px, 3.4cqw, 28px)',
+            fontSize: `${fittedSize}px`,
           }}
         >
           {message}
@@ -67,6 +71,49 @@ export default function PostcardOverlay({
       ))}
     </>
   );
+}
+
+/**
+ * The largest size that fits `message` inside the message area, scaled
+ * by the user's manual override -- see `fitText.js`'s own doc comment
+ * for why a fixed formula isn't good enough. Recomputed on resize via
+ * the same deferred-to-`requestAnimationFrame` `ResizeObserver` pattern
+ * `DoodleLayer.jsx` uses, for the same reason: resizing something inside
+ * its own observer callback can trigger a synchronous loop Chrome
+ * reports as an (spec-legal but dev-overlay-blocking) error.
+ */
+function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
+  const [size, setSize] = useState(16);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame || !geometry || !message?.trim()) return undefined;
+
+    let raf = null;
+    const recompute = () => {
+      raf = null;
+      const rect = frame.getBoundingClientRect();
+      const boxW = rect.width * geometry.messageArea.w;
+      const boxH = rect.height * geometry.messageArea.h;
+      const fitted = fitFontSize(getMeasureContext(), message, boxW, boxH, {
+        fontFamily: FONT_STACKS[font] ?? FONT_STACKS.system,
+      });
+      setSize(fitted * fontScale);
+    };
+    const schedule = () => {
+      if (raf === null) raf = requestAnimationFrame(recompute);
+    };
+
+    schedule();
+    const observer = new ResizeObserver(schedule);
+    observer.observe(frame);
+    return () => {
+      observer.disconnect();
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
+  }, [frameRef, geometry, message, font, fontScale]);
+
+  return size;
 }
 
 function StickerOverlay({ sticker, frameRef, onMove, onRemove }) {

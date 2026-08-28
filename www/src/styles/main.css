@@ -99,10 +99,15 @@ body {
 
 .app-regions { display: flex; gap: 2px; background: var(--panel-alt); padding: 3px; border-radius: 8px; }
 .app-region {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
   border: none;
   background: transparent;
   color: var(--muted);
-  padding: 6px 10px;
+  padding: 6px 14px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.8rem;
@@ -128,6 +133,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 44px;
   border: none;
   border-radius: 8px;
   padding: 10px 16px;
@@ -139,8 +145,8 @@ body {
 }
 label.btn { cursor: pointer; }
 .btn.secondary { background: var(--panel-alt); color: var(--ink); }
-.btn.ghost { background: transparent; color: var(--muted); padding: 6px 10px; }
-.btn.danger { background: transparent; color: var(--negative); padding: 6px 10px; }
+.btn.ghost { background: transparent; color: var(--muted); padding: 6px 12px; }
+.btn.danger { background: transparent; color: var(--negative); padding: 6px 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* icons.jsx's small inline outline icons (camera, image, share, save).
@@ -282,6 +288,10 @@ label.btn { cursor: pointer; }
 
 .filter-options { display: flex; gap: 8px; flex-wrap: wrap; }
 .filter-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 2px solid var(--input-border);
   background: var(--panel-alt);
   color: var(--ink);
@@ -307,20 +317,24 @@ label.btn { cursor: pointer; }
 .text-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
 .text-option-group { display: flex; flex-direction: column; gap: 6px; }
 .text-option-label { font-size: 0.78rem; color: var(--muted); }
-.text-option-buttons { display: flex; gap: 6px; }
+.text-option-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .text-option-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 2px solid var(--input-border);
   background: var(--panel-alt);
   color: var(--ink);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   font-size: 0.8rem;
   cursor: pointer;
 }
 .text-option-buttons button.active { border-color: var(--accent); color: var(--accent); }
 .text-color-swatch {
-  width: 26px;
-  height: 26px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 2px solid var(--input-border);
   cursor: pointer;
