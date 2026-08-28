@@ -50,6 +50,12 @@ stay empty.
   contrast/saturation to suggest an exposure fix on any photo at all, no
   recognition needed. See `CLAUDE.md` for the real findings behind all
   three.
+- **Write a caption**: a real, on-device generated sentence describing
+  the photo (SmolVLM-256M-Instruct, ~140MB, its own separate explicit
+  action — never downloaded alongside "Suggest a look"). Genuinely
+  different from the other suggestions: it looks at the specific photo
+  and writes an original sentence rather than picking from a curated
+  list.
 - **Draw**: a freehand doodle layer over the postcard
 - **Collage**: 2 or 3 photos in one postcard, three curated layouts per
   template shape
@@ -127,7 +133,16 @@ browser's own system font stack, never shipped as files. Re-check this
 if a new dependency is ever added — `cargo metadata --format-version=1`
 for Rust, `npx license-checker --production` for npm.
 
-**Two vendored models**, added after this audit:
+Re-checked the same day after adding the `tokenizers` crate (for "Write
+a caption", below): its full transitive closure inside
+`postcard-wasm-caption` is 145 crates, every one MIT, Apache-2.0,
+BSD-2/3-Clause, Zlib, Unlicense, or BSL-1.0 (several offered as an
+either/or choice alongside a copyleft option, e.g. `r-efi`'s "MIT OR
+Apache-2.0 OR LGPL-2.1-or-later" — the permissive choice is always
+available and is the one that applies here) — no required copyleft
+anywhere.
+
+**Three vendored models**, added after the original audit:
 - `www/static/vibe/mobilenetv3-small.onnx` is MobileNetV3-Small trained
   on ImageNet-1000, **BSD-3-Clause** (torchvision lineage), exported
   directly from
@@ -135,6 +150,11 @@ for Rust, `npx license-checker --production` for npm.
 - `www/static/face/ultra-light-face-detector.onnx` is
   [Ultra-Light-Fast-Generic-Face-Detector-1MB](https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB)
   (`version-slim-320_simplified.onnx`), **MIT**.
+- `www/static/caption/{vision_encoder,embed_tokens,decoder_model_merged}.onnx`
+  and `tokenizer.json` are the most aggressively quantized ONNX export
+  of each component of
+  [SmolVLM-256M-Instruct](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct),
+  **Apache-2.0**.
 
 Same disclosure duty as budget_planner's OCR models — see
 `www/static/privacy.html`'s "Third-party models" section.

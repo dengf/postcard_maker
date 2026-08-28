@@ -238,6 +238,76 @@ separate lazy-load step.
   a look" proceeds normally. It's a best-effort supplement riding along
   with the required vibe download, not a required part of the result.
 
+## "Write a caption" -- a real generated sentence, deliberately separate from "Suggest a look"
+
+Everything in "Suggest a look" -- the vibe filter/sticker, the exposure
+nudge, the group caption -- picks from something curated ahead of time.
+"Write a caption" is different in kind, not just degree: it looks at the
+specific photo and generates an original sentence, via
+[SmolVLM-256M-Instruct](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct)
+(Apache-2.0), a genuine small vision-language model.
+
+- **Kept as its own explicit action, never folded into "Suggest a
+  look."** This is a ~139MB download (three ONNX models plus a
+  tokenizer) next to "Suggest a look"'s combined ~11MB -- roughly 13x
+  bigger, and confirmed to only compress to ~139MB even with gzip
+  (quantized weights are already dense, near-random-looking binary data;
+  generic compression barely touches them, unlike JS or JSON). Nobody
+  should get that download without asking for it by name --
+  `CaptionPanel.jsx` states the size up front in its own UI, not just in
+  `privacy.html`.
+- **A fundamentally different inference shape, verified before writing
+  any production code.** "Suggest a look"'s two models are each one
+  forward pass. Captioning needs three separate ONNX graphs (a vision
+  encoder, a token embedder, and a 30-layer transformer decoder) and
+  genuine multi-step autoregressive generation -- run the decoder once
+  per output word, feeding its own growing key/value cache back into
+  itself. Spiked this standalone first (same discipline as the face
+  detector's spike) specifically because `rten` only supports *most*
+  standard ONNX operators, not all of them, and a transformer decoder's
+  ops are a real, different question from a CNN classifier's or an SSD
+  detector's. It worked: ~7ms per decode step after the first, ~780ms-1.5s
+  for the one-time vision encoding pass.
+- **Two real gotchas the spike caught, neither of which errors when
+  wrong -- they just quietly produce garbage:**
+  1. The ONNX export doesn't include chat-template or image-token-
+     placement logic. The prompt has to be hand-assembled exactly the
+     way `transformers`' own `SmolVLMProcessor` does it for a single,
+     unsplit image -- `<fake_token_around_image><global-img>` + the image
+     placeholder token repeated once per vision-encoder output patch +
+     `<fake_token_around_image>` -- gotten from the actual `transformers`
+     source, not guessed. See `postcard_calc::caption::build_prompt`'s
+     own doc comment.
+  2. A 256M-parameter model's *tone* instruction-following is limited:
+     asked for "a warm sentence suitable for a postcard," it reliably
+     describes what's actually in the photo but doesn't reliably sound
+     like a postcard just because the prompt asks. Accepted as a known
+     limitation of this model size, not a bug worth chasing with more
+     prompt tuning.
+- **Real tokenization, not a hand-rolled decoder.** Uses the actual
+  `tokenizers` crate (Apache-2.0, the same Rust crate powering
+  HuggingFace's own Python library) against the model's own
+  `tokenizer.json`, confirmed to compile for `wasm32-unknown-unknown`
+  with its `unstable_wasm` feature before committing to using it. Since
+  the *prompt* text is entirely fixed (chosen by this app, not user
+  input), only decoding the model's generated output needs to happen at
+  runtime -- no general-purpose BPE encoder logic to get right beyond
+  what the crate already does correctly.
+- **Its own crate (`postcard-wasm-caption`), not layered onto
+  `postcard-wasm-vibe`.** Same reasoning `postcard-wasm-vibe` was split
+  off `postcard-wasm` for in the first place: keep a large, rarely-used
+  download out of a bundle everyone else pays for. `postcard-calc`'s
+  `caption` Cargo feature is separate from `vibe` for the identical
+  reason -- `tokenizers` has no business being pulled into a build that
+  never tokenizes anything.
+- **License audit, done the same day this was built**: `tokenizers`'
+  full transitive dependency closure inside `postcard-wasm-caption` is
+  145 crates, every one MIT/Apache-2.0/BSD/Zlib/Unlicense/BSL-1.0 (a few
+  offered as an either/or choice alongside a copyleft option -- the
+  permissive choice is the one that applies) -- no required copyleft
+  anywhere. See the README's own "Third-party licenses" section for the
+  full note.
+
 ## Doodle, collage and the postcard back side
 
 - **Doodle** (`DoodleLayer.jsx`): strokes are normalized (0..1) point
@@ -331,6 +401,10 @@ separate lazy-load step.
   wasm-pack builds (`npm run build:wasm:core` / `build:wasm:vibe`), and a
   green build of one proves nothing about the other, same reasoning as
   budget_planner's three-crate wasm32 CI job.
+- **`postcard-wasm-caption` is a third, equally independent wasm32
+  check** (`npm run build:wasm:caption`) — its `tokenizers` dependency in
+  particular was confirmed to compile for `wasm32-unknown-unknown` before
+  being relied on at all, not assumed from it working natively.
 - **A `ResizeObserver` that resizes the element it's observing, inside its
   own callback, can trigger "ResizeObserver loop completed with
   undelivered notifications"** — spec-legal, but webpack's dev overlay

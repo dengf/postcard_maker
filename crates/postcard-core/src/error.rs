@@ -30,4 +30,10 @@ pub enum PostcardError {
 
     #[error("could not detect faces in this photo: {0}")]
     FaceDetectFailed(String),
+
+    #[error("could not load the captioning model: {0}")]
+    CaptionModelLoadFailed(String),
+
+    #[error("could not write a caption for this photo: {0}")]
+    CaptionGenerateFailed(String),
 }
