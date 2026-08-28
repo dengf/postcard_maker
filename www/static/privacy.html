@@ -104,13 +104,18 @@
 
     <h2>Third-party models</h2>
     <p>
-      "Suggest a look" downloads a small photo-classification model —
+      "Suggest a look" downloads two small models the first time you tap
+      that button, and only then: a photo-classification model —
       MobileNetV3-Small, trained on ImageNet-1000, licensed
       <a href="https://github.com/pytorch/vision/blob/main/LICENSE">BSD-3-Clause</a>
-      — the first time you tap that button, and only then. That download
-      is a one-way fetch of the model file itself; your photo never goes
-      anywhere. The model then runs entirely in your browser, the same as
-      every other calculation in this app.
+      — and a face-counting model —
+      <a href="https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB">Ultra-Light-Fast-Generic-Face-Detector-1MB</a>,
+      licensed <a href="https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/blob/master/LICENSE">MIT</a>,
+      used only to count face-shaped regions in a photo — never to
+      identify, recognize, or analyze anyone. Both downloads are one-way
+      fetches of the model files themselves; your photo never goes
+      anywhere. Both models then run entirely in your browser, the same
+      as every other calculation in this app.
     </p>
 
     <h2>Children</h2>

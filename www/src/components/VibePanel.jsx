@@ -5,6 +5,7 @@ import { buildCandidates } from '../vibeSuggestions';
 import { captionFor } from '../vibeCaptions';
 import { photoTone } from '../photoTone';
 import { suggestExposure } from '../exposureSuggestion';
+import { suggestGroup, groupCaptionFor } from '../groupSuggestion';
 
 // 2, not 3: every vibe has exactly 3 look variants (see
 // vibeSuggestions.js), and the single most common outcome is one matched
@@ -21,13 +22,16 @@ const VISIBLE_COUNT = 2;
  * Shows up to `VISIBLE_COUNT` look candidates at once (built from the
  * model's own top matched vibes plus each vibe's alternate looks, plus
  * an `exposureSuggestion.js` brightness/contrast/saturation candidate
- * when the photo's own pixel statistics call for one), with a "Try other
- * ideas" button that rotates the window over the rest of the candidate
- * pool rather than re-running the model -- classification only ever runs
- * once per tap. The exposure candidate needs no object recognition at
- * all, so it's the one thing here that still has something to offer a
- * photo the vibe classifier can't -- a photo of people, most notably,
- * since ImageNet has almost no classes for that.
+ * and a `groupSuggestion.js` "people are together" candidate, either of
+ * which can fire even when `matches` is empty), with a "Try other ideas"
+ * button that rotates the window over the rest of the candidate pool
+ * rather than re-running the model -- classification only ever runs once
+ * per tap. Exposure and group are the two things here that still have
+ * something to offer a photo the vibe classifier structurally can't --
+ * a photo of people, most notably, since ImageNet has almost no classes
+ * for that. Neither needs object recognition: exposure reads the
+ * photo's own pixel statistics, group reads a face count from a second,
+ * much smaller model (`count_faces`) downloaded alongside the vibe one.
  */
 export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }) {
   const { t } = useI18n();
@@ -35,6 +39,7 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
   const [candidates, setCandidates] = useState([]);
   const [cursor, setCursor] = useState(0);
   const [topVibe, setTopVibe] = useState(null);
+  const [faceCount, setFaceCount] = useState(0);
   // 0..1 while the ~10MB model downloads, or null before any progress
   // has arrived yet (nothing to show) -- see `vibe.js`'s own doc comment
   // for why this exists: on a slow connection this download can be the
@@ -65,8 +70,13 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
       // still has something useful to offer even when `matches` is
       // empty.
       const exposure = suggestExposure(tone);
+      // Same reasoning as `exposure`: `count_faces` needs no object
+      // recognition either, so a photo of two or more people still gets
+      // something useful even when `matches` is empty -- see
+      // `groupSuggestion.js`.
+      const group = suggestGroup(result?.faceCount ?? 0);
       const vibeCandidates = buildCandidates(matches, tone);
-      const allCandidates = exposure ? [...vibeCandidates, exposure] : vibeCandidates;
+      const allCandidates = [...vibeCandidates, exposure, group].filter(Boolean);
       if (allCandidates.length === 0) {
         setPhase('empty');
         return;
@@ -74,6 +84,7 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
       setCandidates(allCandidates);
       setCursor(0);
       setTopVibe(matches[0]?.vibe ?? null);
+      setFaceCount(result?.faceCount ?? 0);
       setPhase('result');
     } catch (err) {
       onError({ text: err?.message ?? String(err) });
@@ -99,7 +110,10 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
 
   const dismiss = () => setPhase('idle');
 
-  const caption = topVibe ? captionFor(topVibe) : null;
+  // Vibe's own caption wins when there is one; a group caption is the
+  // fallback for the case that's likeliest to have no vibe at all --
+  // people, with nothing else in frame the classifier recognizes.
+  const caption = (topVibe ? captionFor(topVibe) : null) ?? groupCaptionFor(faceCount);
   const useCaption = () => {
     if (caption) onSetMessage(t(caption));
   };

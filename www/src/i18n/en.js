@@ -49,6 +49,8 @@ export default {
   'exposure.dim': 'This photo looks a bit bright — tone it down?',
   'exposure.contrast': 'This photo looks a little flat — add more contrast?',
   'exposure.saturate': 'Colors look a little muted — make them pop?',
+  'group.together': 'Looks like a great get-together — add some confetti?',
+  'group.caption': 'So glad we could all be together for this.',
   'vibe.chip.beach': 'Looks like a beach photo — try the Vintage filter and a wave sticker?',
   'vibe.chip.beach.alt': 'Or keep it warm with Sepia and a palm tree?',
   'vibe.chip.beach.alt2': 'Or a moodier Black & white with the wave sticker?',

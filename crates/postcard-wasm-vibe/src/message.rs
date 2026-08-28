@@ -5,7 +5,10 @@ pub use postcard_core::Message;
 
 #[cfg(test)]
 mod no_debug_formatted_errors {
-    const BINDINGS: &[(&str, &str)] = &[("vibe.rs", include_str!("vibe.rs"))];
+    const BINDINGS: &[(&str, &str)] = &[
+        ("vibe.rs", include_str!("vibe.rs")),
+        ("face.rs", include_str!("face.rs")),
+    ];
 
     #[test]
     fn every_binding_serializes_through_the_json_compatible_helper() {

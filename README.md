@@ -43,8 +43,13 @@ stay empty.
 - **Suggest a look**: on-device photo classification (MobileNetV3-Small,
   lazily loaded only when tapped) suggests a filter and sticker matching
   what's in the photo — beach, mountain, water, architecture, winter,
-  food, or a pet. See `CLAUDE.md` for the real ImageNet-vs-scene-dataset
-  finding behind the category list.
+  food, or a pet. A second, much smaller on-device model counts faces to
+  suggest a warm "you're together" look for photos of people, which the
+  classifier structurally can't recognize on its own (ImageNet has almost
+  no "person" classes). A third check reads the photo's own brightness/
+  contrast/saturation to suggest an exposure fix on any photo at all, no
+  recognition needed. See `CLAUDE.md` for the real findings behind all
+  three.
 - **Draw**: a freehand doodle layer over the postcard
 - **Collage**: 2 or 3 photos in one postcard, three curated layouts per
   template shape
@@ -122,9 +127,14 @@ browser's own system font stack, never shipped as files. Re-check this
 if a new dependency is ever added — `cargo metadata --format-version=1`
 for Rust, `npx license-checker --production` for npm.
 
-**One vendored model**, added after this audit: `www/static/vibe/mobilenetv3-small.onnx`
-is MobileNetV3-Small trained on ImageNet-1000, **BSD-3-Clause**
-(torchvision lineage), exported directly from
-`torchvision.models.mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.IMAGENET1K_V1)`.
+**Two vendored models**, added after this audit:
+- `www/static/vibe/mobilenetv3-small.onnx` is MobileNetV3-Small trained
+  on ImageNet-1000, **BSD-3-Clause** (torchvision lineage), exported
+  directly from
+  `torchvision.models.mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.IMAGENET1K_V1)`.
+- `www/static/face/ultra-light-face-detector.onnx` is
+  [Ultra-Light-Fast-Generic-Face-Detector-1MB](https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB)
+  (`version-slim-320_simplified.onnx`), **MIT**.
+
 Same disclosure duty as budget_planner's OCR models — see
 `www/static/privacy.html`'s "Third-party models" section.

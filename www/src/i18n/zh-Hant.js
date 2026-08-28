@@ -49,6 +49,8 @@ export default {
   'exposure.dim': '這張照片有點過曝——調暗一些？',
   'exposure.contrast': '這張照片看起來有點平——增加些對比度？',
   'exposure.saturate': '顏色有點淡——讓它們更鮮豔？',
+  'group.together': '看起來是個熱鬧的聚會——加點彩紙屑？',
+  'group.caption': '真高興我們能聚在一起。',
   'vibe.chip.beach': '看起來像海灘照片——試試復古濾鏡和海浪貼紙？',
   'vibe.chip.beach.alt': '也可以試試棕褐色濾鏡搭配棕櫚樹貼紙？',
   'vibe.chip.beach.alt2': '或者更有意境的黑白效果搭配海浪貼紙？',

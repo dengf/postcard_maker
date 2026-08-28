@@ -5,6 +5,7 @@
 //! boundary this crate sits on.
 
 pub mod crop;
+pub mod face;
 pub mod filters;
 pub mod pipeline;
 pub mod template;
@@ -14,5 +15,7 @@ pub use pipeline::process_photo;
 pub use template::{collage_layouts, geometry as template_geometry, TemplateGeometry};
 pub use vibe::{classify_top_vibes, classify_vibe, Vibe};
 
+#[cfg(feature = "vibe")]
+pub use face::count_faces;
 #[cfg(feature = "vibe")]
 pub use vibe::run_inference;

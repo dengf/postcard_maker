@@ -24,4 +24,10 @@ pub enum PostcardError {
 
     #[error("could not analyze this photo: {0}")]
     VibeClassifyFailed(String),
+
+    #[error("could not load the face-detection model: {0}")]
+    FaceModelLoadFailed(String),
+
+    #[error("could not detect faces in this photo: {0}")]
+    FaceDetectFailed(String),
 }

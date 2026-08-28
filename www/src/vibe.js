@@ -32,13 +32,18 @@ function getWorker() {
 /**
  * Classifies `photoBytes` (the original encoded photo, JPEG/PNG -- the
  * same bytes already held for `process_photo`) and resolves to
- * `{ matches, error, error_message }`. An empty `matches` means the
- * model has no suggestion worth showing, not necessarily an error -- see
- * `postcard_calc::vibe::classify_top_vibes`.
+ * `{ matches, faceCount, error, error_message }`. An empty `matches`
+ * means the vibe model has no suggestion worth showing, not necessarily
+ * an error -- see `postcard_calc::vibe::classify_top_vibes`. `faceCount`
+ * is always present (`0` if none were found, or if the separate face
+ * model failed to load/run for any reason) -- see `vibeWorker.js` for
+ * why that second model's own failures never surface as an error here;
+ * it's a best-effort supplement to the classifier, not a required part
+ * of the result.
  *
  * `onProgress`, if given, is called with a 0..1 fraction while the
- * ~10MB model downloads (only on whichever call is in flight when that
- * download actually happens -- see `vibeWorker.js`). On a slow
+ * ~10MB vibe model downloads (only on whichever call is in flight when
+ * that download actually happens -- see `vibeWorker.js`). On a slow
  * connection this download is the entire multi-second wait "Suggest a
  * look" can have; without this, the button just sits on "Analyzing…"
  * with nothing else changing, which reads as stuck rather than working.

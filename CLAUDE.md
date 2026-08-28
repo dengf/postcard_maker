@@ -190,6 +190,54 @@ facts, not estimates:
   `www/static/privacy.html`'s "Third-party models" section and this
   repo's README — keep both in sync if the model is ever swapped.
 
+## The face-counting model -- covering what the vibe classifier structurally can't
+
+Even a wide `IMAGENET_CLASS_TO_VIBE` table can't help a photo of people:
+ImageNet has almost no "person" classes at all, so a portrait or group
+photo -- likely the majority of real postcard photos -- rarely matches
+any `Vibe` no matter how much curation goes into that table. Widening it
+further (already done once) was never going to close this specific gap.
+A person/social-relationship-inference model ("is this family, friends,
+a couple?") was researched and explicitly ruled out: it's an active,
+*unsolved* computer-vision research problem (see e.g. arXiv:1812.05917),
+no pretrained deployable model exists for it, and a shipped app
+confidently guessing wrong about people's relationships would be a worse
+failure than saying nothing.
+
+What's real and shipped instead: `postcard_calc::face::count_faces`
+counts face-shaped regions -- not identity, not expression, not age or
+gender, nothing biometric beyond "a face-shaped region is here" -- via
+[Ultra-Light-Fast-Generic-Face-Detector-1MB](https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB)
+(`version-slim-320_simplified.onnx`, **MIT**, ~1MB — smaller than the
+vibe model). Same crate, same `rten` runtime, same lazy-loaded
+`postcard-wasm-vibe`, downloaded alongside the vibe model on the same
+"Suggest a look" tap (see `vibeWorker.js`) rather than as a third
+separate lazy-load step.
+
+- **A real finding, verified with a standalone spike before writing any
+  of the shipped code**: this model's ONNX export does *not* bake in box
+  decoding. Its raw output is SSD-style anchor-offset regressions, not
+  ready-to-use coordinates -- treating them as normalized coordinates
+  produces nonsense (boxes far outside the photo, dozens of phantom faces
+  on a 4-person photo). The correct decode (anchor-box generation +
+  center/size-variance offset formula) was ported from the reference
+  repo's actual `box_utils.py`/`fd_config.py`, not guessed, and verified
+  against real photos with known face counts before being trusted: exact
+  matches on a 4-person and a 5-person photo, a plausible 47 on a
+  ~50-person crowd photo.
+- **2+ faces unlocks one deliberately generic suggestion** (`www/src/
+  groupSuggestion.js`): a "you're together" look and caption, never a
+  guess at *who* these people are to each other. This mirrors
+  `exposureSuggestion.js`'s role exactly -- the two things in "Suggest a
+  look" that still have something to offer when the vibe classifier finds
+  nothing, neither needing object recognition (one reads pixel
+  statistics, the other reads a face count).
+- **Face-detection failures are silent, not surfaced**, unlike vibe
+  classification failures: if the model fails to load or run for any
+  reason, `vibeWorker.js` treats it as "0 faces" and the rest of "Suggest
+  a look" proceeds normally. It's a best-effort supplement riding along
+  with the required vibe download, not a required part of the result.
+
 ## Doodle, collage and the postcard back side
 
 - **Doodle** (`DoodleLayer.jsx`): strokes are normalized (0..1) point

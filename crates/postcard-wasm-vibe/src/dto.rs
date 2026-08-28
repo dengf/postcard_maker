@@ -25,3 +25,17 @@ pub struct SuggestVibeResult {
     pub error: Option<String>,
     pub error_message: Option<Message>,
 }
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CountFacesResult {
+    /// How many face-shaped regions the model found -- not who they are,
+    /// see `postcard_calc::face`'s own doc comment. `0` on either a
+    /// genuinely faceless photo or a failure; the caller (`vibeWorker.js`)
+    /// treats this analysis as best-effort and doesn't distinguish the
+    /// two, so `error`/`error_message` exist for parity with
+    /// `SuggestVibeResult` rather than because anything reads them today.
+    pub face_count: u32,
+    pub error: Option<String>,
+    pub error_message: Option<Message>,
+}

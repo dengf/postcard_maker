@@ -1,5 +1,7 @@
-//! Lazily-loaded WebAssembly bindings for "Suggest a look" photo
-//! classification.
+//! Lazily-loaded WebAssembly bindings for "Suggest a look": photo
+//! classification (`suggest_vibe`) and face counting (`count_faces`),
+//! two independent models sharing one crate and one `rten` runtime
+//! since both are downloaded together on the same tap.
 //!
 //! Split out from `postcard-wasm` for the same reason `budget-wasm-ocr`
 //! is split from `budget-wasm`: `rten` (a full ML tensor runtime) is most
@@ -10,20 +12,22 @@
 //! entirely, not just unreached at runtime.
 //!
 //! `www/src/vibeWorker.js` `import()`s this crate's own `pkg-vibe` output
-//! only the first time someone taps that button, and fetches the model
-//! file itself just as lazily.
+//! only the first time someone taps that button, and fetches both model
+//! files themselves just as lazily.
 //!
-//! No business logic lives in this crate either -- `suggest_vibe` parses
-//! bytes, calls into `postcard-calc`, and serializes the result back. See
-//! CLAUDE.md and `postcard-wasm`'s own identical rule.
+//! No business logic lives in this crate either -- each binding parses
+//! bytes, calls into `postcard-calc`, and serializes the result back.
+//! See CLAUDE.md and `postcard-wasm`'s own identical rule.
 
 mod convert;
 mod dto;
+mod face;
 mod message;
 mod vibe;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
+pub use face::count_faces;
 pub use vibe::suggest_vibe;
 
 #[wasm_bindgen(start)]
