@@ -1,18 +1,44 @@
-import React, { useMemo, useState } from 'react';
-import { useI18n } from '../i18n';
-import { suggestVibe } from '../vibe';
-import { buildCandidates } from '../vibeSuggestions';
-import { captionFor } from '../vibeCaptions';
-import { photoTone } from '../photoTone';
-import { suggestExposure } from '../exposureSuggestion';
-import { suggestGroup, groupCaptionFor } from '../groupSuggestion';
+import React, { useMemo, useState } from "react";
+import { useI18n } from "../i18n";
+import { suggestVibe } from "../vibe";
+import { buildCandidates } from "../vibeSuggestions";
+import { captionFor } from "../vibeCaptions";
+import { photoTone } from "../photoTone";
+import { suggestExposure } from "../exposureSuggestion";
+import { suggestGroup, groupCaptionFor } from "../groupSuggestion";
 
-// 2, not 3: every vibe has exactly 3 look variants (see
-// vibeSuggestions.js), and the single most common outcome is one matched
-// vibe -- a pool of 3. Showing 2 up front always leaves at least one
-// candidate for "Try other ideas" to shuffle into, even in that
-// overwhelmingly common case; showing all 3 up front never would.
+// 2, not more: every vibe has a large pool of look variants (see
+// vibeSuggestions.js's filter x sticker cross product), and the single
+// most common outcome is one matched vibe -- still a pool well over 2.
+// Showing 2 up front always leaves plenty for "Try other ideas" to
+// shuffle into, even in that overwhelmingly common single-vibe case.
 const VISIBLE_COUNT = 2;
+
+/**
+ * Vibe-based candidates (from `buildCandidates`) carry an `openerKey` +
+ * `closerKey` pair plus three sub-keys (`vibeLabelKey`/`filterLabelKey`/
+ * `stickerLabelKey`) instead of one fixed `labelKey` -- see
+ * `vibeSuggestions.js`'s module doc comment for why: composing the full
+ * sentence from small already-translated pieces at render time is what
+ * makes a 124-look pool with ~100 possible phrasings maintainable
+ * without hundreds of hand-translated strings. Exposure and group
+ * candidates (`exposureSuggestion.js`/`groupSuggestion.js`) have no
+ * cross product to compose from, so they still carry one plain
+ * `labelKey` -- this falls back to that whenever `openerKey` is absent.
+ */
+function labelFor(t, candidate) {
+  if (!candidate.openerKey) return t(candidate.labelKey);
+  const opener = t(candidate.openerKey, {
+    vibeLabel: t(candidate.vibeLabelKey),
+  });
+  const closer = t(candidate.closerKey, {
+    filterLabel: t(candidate.filterLabelKey),
+    stickerLabel: candidate.stickerLabelKey
+      ? t(candidate.stickerLabelKey)
+      : undefined,
+  });
+  return `${opener} — ${closer}`;
+}
 
 /**
  * "Suggest a look" -- see CLAUDE.md for the full architecture. Never
@@ -33,9 +59,14 @@ const VISIBLE_COUNT = 2;
  * photo's own pixel statistics, group reads a face count from a second,
  * much smaller model (`count_faces`) downloaded alongside the vibe one.
  */
-export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }) {
+export default function VibePanel({
+  photoBytes,
+  onApply,
+  onSetMessage,
+  onError,
+}) {
   const { t } = useI18n();
-  const [phase, setPhase] = useState('idle'); // idle | loading | result | empty
+  const [phase, setPhase] = useState("idle"); // idle | loading | result | empty
   const [candidates, setCandidates] = useState([]);
   const [cursor, setCursor] = useState(0);
   const [caption, setCaption] = useState(null);
@@ -47,13 +78,13 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
   const [progress, setProgress] = useState(null);
 
   const runSuggest = async () => {
-    setPhase('loading');
+    setPhase("loading");
     setProgress(null);
     try {
       const result = await suggestVibe(photoBytes, setProgress);
       if (result?.error) {
         onError(result.error_message ?? { text: result.error });
-        setPhase('idle');
+        setPhase("idle");
         return;
       }
       const matches = result?.matches ?? [];
@@ -75,9 +106,11 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
       // `groupSuggestion.js`.
       const group = suggestGroup(result?.faceCount ?? 0);
       const vibeCandidates = buildCandidates(matches, tone);
-      const allCandidates = [...vibeCandidates, exposure, group].filter(Boolean);
+      const allCandidates = [...vibeCandidates, exposure, group].filter(
+        Boolean,
+      );
       if (allCandidates.length === 0) {
-        setPhase('empty');
+        setPhase("empty");
         return;
       }
       setCandidates(allCandidates);
@@ -87,11 +120,14 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
       // change the displayed line for reasons that have nothing to do
       // with the caption itself.
       const topVibe = matches[0]?.vibe ?? null;
-      setCaption((topVibe ? captionFor(topVibe) : null) ?? groupCaptionFor(result?.faceCount ?? 0));
-      setPhase('result');
+      setCaption(
+        (topVibe ? captionFor(topVibe) : null) ??
+          groupCaptionFor(result?.faceCount ?? 0),
+      );
+      setPhase("result");
     } catch (err) {
       onError({ text: err?.message ?? String(err) });
-      setPhase('idle');
+      setPhase("idle");
     }
   };
 
@@ -106,12 +142,13 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
 
   const apply = (candidate) => {
     onApply(candidate.filter, candidate.sticker, candidate.adjustments);
-    setPhase('idle');
+    setPhase("idle");
   };
 
-  const shuffle = () => setCursor((c) => (c + VISIBLE_COUNT) % candidates.length);
+  const shuffle = () =>
+    setCursor((c) => (c + VISIBLE_COUNT) % candidates.length);
 
-  const dismiss = () => setPhase('idle');
+  const dismiss = () => setPhase("idle");
 
   const useCaption = () => {
     if (caption) onSetMessage(t(caption));
@@ -119,38 +156,58 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
 
   return (
     <div className="panel vibe-panel">
-      <button type="button" className="btn secondary" onClick={runSuggest} disabled={phase === 'loading'}>
-        {phase === 'loading'
+      <button
+        type="button"
+        className="btn secondary"
+        onClick={runSuggest}
+        disabled={phase === "loading"}
+      >
+        {phase === "loading"
           ? progress != null
-            ? t('vibe.analyzingProgress', { percent: Math.round(progress * 100) })
-            : t('vibe.analyzing')
-          : t('vibe.suggest')}
+            ? t("vibe.analyzingProgress", {
+                percent: Math.round(progress * 100),
+              })
+            : t("vibe.analyzing")
+          : t("vibe.suggest")}
       </button>
 
-      {phase === 'loading' && (
+      {phase === "loading" && (
         <div
           className="vibe-progress-track"
           role="progressbar"
-          aria-label={t('vibe.analyzing')}
+          aria-label={t("vibe.analyzing")}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={progress != null ? Math.round(progress * 100) : undefined}
+          aria-valuenow={
+            progress != null ? Math.round(progress * 100) : undefined
+          }
         >
           <div
-            className={progress != null ? 'vibe-progress-fill' : 'vibe-progress-fill indeterminate'}
-            style={progress != null ? { width: `${Math.max(6, progress * 100)}%` } : undefined}
+            className={
+              progress != null
+                ? "vibe-progress-fill"
+                : "vibe-progress-fill indeterminate"
+            }
+            style={
+              progress != null
+                ? { width: `${Math.max(6, progress * 100)}%` }
+                : undefined
+            }
           />
         </div>
       )}
 
-      {phase === 'result' && visible.length > 0 && (
+      {phase === "result" && visible.length > 0 && (
         <div className="vibe-results">
           {visible.map((c, i) => (
-            <div className="vibe-chip" key={`${c.vibe}-${c.labelKey}-${i}`}>
-              <span>{t(c.labelKey)}</span>
+            <div
+              className="vibe-chip"
+              key={`${c.vibe ?? "x"}-${c.filter ?? ""}-${c.sticker ?? ""}-${c.labelKey ?? c.openerKey}-${i}`}
+            >
+              <span>{labelFor(t, c)}</span>
               <div className="vibe-chip-actions">
                 <button type="button" className="btn" onClick={() => apply(c)}>
-                  {t('vibe.apply')}
+                  {t("vibe.apply")}
                 </button>
               </div>
             </div>
@@ -159,11 +216,11 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
           <div className="vibe-panel-actions">
             {candidates.length > VISIBLE_COUNT && (
               <button type="button" className="btn ghost" onClick={shuffle}>
-                {t('vibe.shuffle')}
+                {t("vibe.shuffle")}
               </button>
             )}
             <button type="button" className="btn ghost" onClick={dismiss}>
-              {t('vibe.dismiss')}
+              {t("vibe.dismiss")}
             </button>
           </div>
 
@@ -171,14 +228,16 @@ export default function VibePanel({ photoBytes, onApply, onSetMessage, onError }
             <div className="vibe-caption">
               <p className="text-option-note">{t(caption)}</p>
               <button type="button" className="btn ghost" onClick={useCaption}>
-                {t('vibe.useCaption')}
+                {t("vibe.useCaption")}
               </button>
             </div>
           )}
         </div>
       )}
 
-      {phase === 'empty' && <p className="text-option-note">{t('vibe.noSuggestion')}</p>}
+      {phase === "empty" && (
+        <p className="text-option-note">{t("vibe.noSuggestion")}</p>
+      )}
     </div>
   );
 }

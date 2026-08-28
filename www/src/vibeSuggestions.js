@@ -1,3 +1,5 @@
+import { toneAdjustments } from "./exposureSuggestion";
+
 /**
  * What to recommend for each `Vibe` the classifier can return -- which
  * filter, and optionally which sticker. This is curatorial/copy, not a
@@ -5,57 +7,96 @@
  * which is `postcard_calc::vibe`'s job), so it lives here in the host
  * layer, same as `stickers.js`'s own labels.
  *
- * Each vibe maps to a *list* of three look variants, not just one --
- * "Suggest a look" surfaces a small set of candidates rather than a
- * single answer, and `buildCandidates` below layers those variants
- * across the model's own top-matched vibes for "show a couple, then let
- * me shuffle for different ones." Three per vibe, not two: the single
- * most common case is exactly one matched vibe (most photos don't
- * confidently clear the confidence floor for a second one -- see
- * `postcard_calc::vibe::classify_top_vibes`), and with `VibePanel.jsx`
- * showing 2 at a time, two variants alone would never leave anything to
- * shuffle into for that overwhelmingly common single-vibe case.
+ * Rather than hand-writing (and translating into three languages) one
+ * full sentence per look, each vibe declares a small curated set of
+ * plausible filters and stickers (`VIBE_LOOKS`); `looksFor` takes their
+ * cross product. That is a real, if informal, photo-editing judgment
+ * call for each vibe -- same as the filters/stickers list was before --
+ * but multiplying two short curated lists gives a much larger, still
+ * tasteful pool (124 looks across the 7 vibes) without maintaining 124
+ * hand-translated strings.
+ *
+ * The sentence itself is a second, independent composition on top of
+ * that: an "opener" naming the vibe (`vibe.opener.*`, 10 variants) plus
+ * a "closer" naming the filter and, if there is one, the sticker
+ * (`vibe.closer.withSticker.*`/`vibe.closer.noSticker.*`, 5 variants
+ * each) -- see `VibePanel.jsx`'s `labelFor`, which joins
+ * `${opener} — ${closer}`. 10 openers x 5 closers is 50 distinct
+ * sentence shapes for a with-sticker look and 50 more for a
+ * without-sticker one -- ~100 phrasings, from 20 short translated
+ * pieces rather than 100 full hand-translated sentences, layered on top
+ * of the 124-look filter/sticker pool so the wording doesn't repeat
+ * itself every time a candidate cycles back to the same filter/sticker.
  */
-export const VIBE_SUGGESTIONS = {
-  beach: [
-    { labelKey: 'vibe.chip.beach', filter: 'vintage', sticker: 'wave' },
-    { labelKey: 'vibe.chip.beach.alt', filter: 'sepia', sticker: 'palm' },
-    { labelKey: 'vibe.chip.beach.alt2', filter: 'grayscale', sticker: 'wave' },
-  ],
-  mountain: [
-    { labelKey: 'vibe.chip.mountain', filter: 'none', sticker: null },
-    { labelKey: 'vibe.chip.mountain.alt', filter: 'grayscale', sticker: null },
-    { labelKey: 'vibe.chip.mountain.alt2', filter: 'none', sticker: 'sun' },
-  ],
-  water: [
-    { labelKey: 'vibe.chip.water', filter: 'none', sticker: 'wave' },
-    { labelKey: 'vibe.chip.water.alt', filter: 'vintage', sticker: 'wave' },
-    { labelKey: 'vibe.chip.water.alt2', filter: 'grayscale', sticker: 'wave' },
-  ],
-  architecture: [
-    { labelKey: 'vibe.chip.architecture', filter: 'grayscale', sticker: null },
-    { labelKey: 'vibe.chip.architecture.alt', filter: 'sepia', sticker: null },
-    { labelKey: 'vibe.chip.architecture.alt2', filter: 'none', sticker: null },
-  ],
-  winter: [
-    { labelKey: 'vibe.chip.winter', filter: 'grayscale', sticker: null },
-    { labelKey: 'vibe.chip.winter.alt', filter: 'none', sticker: 'cloud' },
-    { labelKey: 'vibe.chip.winter.alt2', filter: 'sepia', sticker: null },
-  ],
-  food: [
-    { labelKey: 'vibe.chip.food', filter: 'vintage', sticker: null },
-    { labelKey: 'vibe.chip.food.alt', filter: 'sepia', sticker: null },
-    { labelKey: 'vibe.chip.food.alt2', filter: 'none', sticker: null },
-  ],
-  pet: [
-    { labelKey: 'vibe.chip.pet', filter: 'none', sticker: 'heart' },
-    { labelKey: 'vibe.chip.pet.alt', filter: 'vintage', sticker: 'heart' },
-    { labelKey: 'vibe.chip.pet.alt2', filter: 'none', sticker: 'star' },
-  ],
+export const VIBE_LOOKS = {
+  beach: {
+    filters: ["vintage", "sepia", "grayscale", "none"],
+    stickers: [null, "wave", "palm", "sun", "star"],
+  },
+  mountain: {
+    filters: ["none", "grayscale", "sepia", "vintage"],
+    stickers: [null, "sun", "cloud", "star", "arrow"],
+  },
+  water: {
+    filters: ["none", "vintage", "grayscale", "sepia"],
+    stickers: [null, "wave", "cloud", "star"],
+  },
+  architecture: {
+    filters: ["grayscale", "sepia", "none", "vintage"],
+    stickers: [null, "arrow", "star", "stamp", "washi"],
+  },
+  winter: {
+    filters: ["grayscale", "none", "sepia", "vintage"],
+    stickers: [null, "cloud", "star", "blossom"],
+  },
+  food: {
+    filters: ["vintage", "sepia", "none", "grayscale"],
+    stickers: [null, "heart", "star", "washi"],
+  },
+  pet: {
+    filters: ["none", "vintage", "sepia", "grayscale"],
+    stickers: [null, "heart", "star", "confetti"],
+  },
 };
 
+const OPENER_COUNT = 10;
+const CLOSER_COUNT = 5;
+
+/**
+ * Every (filter, sticker) pair for one vibe, in the vibe's own curated
+ * preference order (used as the tie-break when no photo tone is known).
+ * A pure cross product, not a further hand-curated list -- see the
+ * module doc comment for why that is the deliberate design here.
+ *
+ * `openerIndex`/`closerIndex` are picked independently (different
+ * strides through the pair's own position in the cross product) rather
+ * than from the same index, so two looks that happen to land on the
+ * same opener don't also always land on the same closer -- a small
+ * decorrelation that spreads the ~100 possible sentence shapes out
+ * across the pool instead of visibly cycling in lockstep.
+ */
 export function looksFor(vibe) {
-  return VIBE_SUGGESTIONS[vibe] ?? [];
+  const spec = VIBE_LOOKS[vibe];
+  if (!spec) return [];
+  const looks = [];
+  spec.filters.forEach((filter, fi) => {
+    spec.stickers.forEach((sticker, si) => {
+      const index = fi * spec.stickers.length + si;
+      looks.push({
+        vibe,
+        filter,
+        sticker,
+        vibeLabelKey: `vibe.label.${vibe}`,
+        filterLabelKey: `editor.filter.${filter}`,
+        stickerLabelKey: sticker ? `stickers.${sticker}` : null,
+        openerKey: `vibe.opener.${index % OPENER_COUNT}`,
+        closerKey: sticker
+          ? `vibe.closer.withSticker.${(index * 3 + 1) % CLOSER_COUNT}`
+          : `vibe.closer.noSticker.${(index * 3 + 1) % CLOSER_COUNT}`,
+      });
+    });
+  });
+  return looks;
 }
 
 /**
@@ -75,13 +116,13 @@ export function looksFor(vibe) {
  */
 function scoreForTone(filter, { brightness, saturation }) {
   switch (filter) {
-    case 'grayscale':
+    case "grayscale":
       return brightness * 0.6 + saturation * 0.4;
-    case 'vintage':
+    case "vintage":
       return brightness * 0.4 + saturation * 0.6;
-    case 'sepia':
+    case "sepia":
       return (1 - brightness) * 0.5 + (1 - saturation) * 0.5;
-    case 'none':
+    case "none":
     default:
       return 1 - Math.abs(brightness - 0.5) * 2;
   }
@@ -90,22 +131,31 @@ function scoreForTone(filter, { brightness, saturation }) {
 /**
  * Flattens the classifier's top vibe matches into one ordered candidate
  * list: every vibe's own looks ranked by fit against `tone` first (see
- * `scoreForTone`), then every vibe's primary pick ahead of any vibe's
- * alternates, mirroring the model's own confidence order across vibes.
- * The panel shows a front slice of this list and "shuffles" through the
+ * `scoreForTone`), then every vibe's top pick ahead of any vibe's other
+ * looks, mirroring the model's own confidence order across vibes. The
+ * panel shows a front slice of this list and "shuffles" through the
  * rest, rather than needing separate per-vibe state. `tone` is optional
  * -- omitting it (or passing `null`) falls back to each vibe's own
  * curated order, same as before this existed.
+ *
+ * Every candidate also carries whatever `toneAdjustments(tone)` returns
+ * (a brightness/contrast/saturation nudge -- see `exposureSuggestion.js`)
+ * when the photo's own pixel statistics call for one, so applying a
+ * vibe-based look never leaves an under/overexposed or washed-out photo
+ * uncorrected just because it happened to also match a `Vibe`.
  */
 export function buildCandidates(matches, tone = null) {
+  const adjustments = toneAdjustments(tone);
   const primary = [];
   const alternates = [];
   for (const m of matches) {
     const looks = tone
-      ? [...looksFor(m.vibe)].sort((a, b) => scoreForTone(b.filter, tone) - scoreForTone(a.filter, tone))
+      ? [...looksFor(m.vibe)].sort(
+          (a, b) => scoreForTone(b.filter, tone) - scoreForTone(a.filter, tone),
+        )
       : looksFor(m.vibe);
     looks.forEach((look, i) => {
-      const candidate = { ...look, vibe: m.vibe, confidence: m.confidence };
+      const candidate = { ...look, confidence: m.confidence, adjustments };
       (i === 0 ? primary : alternates).push(candidate);
     });
   }
