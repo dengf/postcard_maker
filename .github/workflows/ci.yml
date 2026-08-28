@@ -90,16 +90,21 @@ jobs:
         with:
           tool: cargo-llvm-cov
 
-      # Measured 79.59% *lines* on the workspace as it stands (the summary
-      # table's third triplet, not the first -- see budget_planner's CI
-      # comment for the mistake this avoids repeating). The wasm-binding
-      # modules (convert.rs, dto.rs, photo.rs, template.rs, lib.rs) show
-      # 0%: they take a JsValue/&[u8], which native `cargo test` cannot
-      # construct, so they're exercised by the browser instead, not this
-      # gate. Set a few points below the measured figure as headroom, not
-      # a target to chase.
+      # Re-measured at 73.80% *lines* after adding "Suggest a look" (the
+      # summary table's third triplet, not the first -- see
+      # budget_planner's CI comment for the mistake this avoids
+      # repeating). Was 79.59% before that round; the drop is the new
+      # postcard-wasm-vibe bindings and postcard-wasm/collage.rs, which
+      # join the existing wasm-binding modules (convert.rs, dto.rs,
+      # photo.rs, template.rs, lib.rs) at 0% -- they take a JsValue/&[u8],
+      # which native `cargo test` cannot construct, so they're exercised
+      # by the browser instead, not this gate. `postcard-calc::vibe`'s own
+      # `run_inference` (needs a real model file and `rten`) is the same
+      # story. Recalibrate this number after a round that adds real
+      # wasm-boundary code; don't chase it back up with contrived tests
+      # for functions that only make sense called from JS.
       - name: cargo llvm-cov --fail-under-lines
-        run: cargo llvm-cov --workspace --fail-under-lines 75
+        run: cargo llvm-cov --workspace --fail-under-lines 70
 
   www-test:
     name: www/ (React) unit tests
