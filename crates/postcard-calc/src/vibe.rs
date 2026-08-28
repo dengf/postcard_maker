@@ -70,13 +70,22 @@ impl Vibe {
 }
 
 /// Hand-curated from the standard torchvision ImageNet-1000 class list
-/// (index order fixed by the dataset, never reordered). Two dense ranges
-/// (dog breeds, cat breeds) cover `Pet` -- ImageNet's single best-supported
-/// category by far -- everything else is an explicit index because
-/// scene/architecture/food classes are scattered individually through the
-/// list, not grouped.
+/// (index order fixed by the dataset, never reordered), verified index by
+/// index against the canonical class list rather than assumed from
+/// memory. Two dense ranges (dog breeds, cat breeds) cover `Pet` --
+/// ImageNet's single best-supported category by far -- everything else
+/// is an explicit index because scene/architecture/food classes are
+/// scattered individually through the list, not grouped.
+///
+/// `Food` is by far the largest explicit list here, disproportionate to
+/// the other six -- not an oversight, a reflection of the dataset: 1000
+/// classes include dozens of individual fruits, vegetables and dishes
+/// (this list doesn't even exhaust them), the same reason `Pet`'s two
+/// ranges alone dwarf every other category. Widened once already after
+/// early real-world use turned up too many "no suggestion" results.
 const IMAGENET_CLASS_TO_VIBE: &[(u16, Vibe)] = &[
     // Beach / coast
+    (144, Vibe::Beach), // pelican
     (460, Vibe::Beach), // breakwater
     (536, Vibe::Beach), // dock
     (972, Vibe::Beach), // cliff
@@ -89,36 +98,111 @@ const IMAGENET_CLASS_TO_VIBE: &[(u16, Vibe)] = &[
     (979, Vibe::Mountain), // valley
     (980, Vibe::Mountain), // volcano
     // Water
+    (107, Vibe::Water), // jellyfish
+    (108, Vibe::Water), // sea anemone
+    (109, Vibe::Water), // brain coral
+    (146, Vibe::Water), // albatross
+    (147, Vibe::Water), // grey whale
+    (148, Vibe::Water), // killer whale
+    (149, Vibe::Water), // dugong
+    (150, Vibe::Water), // sea lion
+    (392, Vibe::Water), // rock beauty
+    (393, Vibe::Water), // anemone fish
+    (396, Vibe::Water), // lionfish
+    (397, Vibe::Water), // puffer
+    (449, Vibe::Water), // boathouse
+    (484, Vibe::Water), // catamaran
+    (576, Vibe::Water), // gondola
+    (801, Vibe::Water), // snorkel
+    (814, Vibe::Water), // speedboat
     (973, Vibe::Water), // coral reef
     (975, Vibe::Water), // lakeside
     // Architecture / city
+    (415, Vibe::Architecture), // bakery
+    (425, Vibe::Architecture), // barn
     (483, Vibe::Architecture), // castle
     (497, Vibe::Architecture), // church
+    (498, Vibe::Architecture), // cinema
+    (500, Vibe::Architecture), // cliff dwelling
     (538, Vibe::Architecture), // dome
+    (562, Vibe::Architecture), // fountain
+    (624, Vibe::Architecture), // library
+    (649, Vibe::Architecture), // megalith
     (663, Vibe::Architecture), // monastery
+    (668, Vibe::Architecture), // mosque
     (698, Vibe::Architecture), // palace
+    (821, Vibe::Architecture), // steel arch bridge
     (829, Vibe::Architecture), // streetcar
+    (832, Vibe::Architecture), // stupa
     (839, Vibe::Architecture), // suspension bridge
+    (873, Vibe::Architecture), // triumphal arch
     (888, Vibe::Architecture), // viaduct
     (900, Vibe::Architecture), // water tower
+    (915, Vibe::Architecture), // yurt
     // Winter
+    (145, Vibe::Winter), // king penguin
+    (296, Vibe::Winter), // ice bear
+    (658, Vibe::Winter), // mitten
     (795, Vibe::Winter), // ski
     (796, Vibe::Winter), // ski mask
     (802, Vibe::Winter), // snowmobile
+    (803, Vibe::Winter), // snowplow
     // Food
     (532, Vibe::Food), // dining table
+    (599, Vibe::Food), // honeycomb
+    (809, Vibe::Food), // soup bowl
     (907, Vibe::Food), // wine bottle
     (922, Vibe::Food), // menu
     (923, Vibe::Food), // plate
     (924, Vibe::Food), // guacamole
+    (925, Vibe::Food), // consomme
+    (926, Vibe::Food), // hot pot
     (927, Vibe::Food), // trifle
     (928, Vibe::Food), // ice cream
+    (929, Vibe::Food), // ice lolly
+    (930, Vibe::Food), // French loaf
+    (931, Vibe::Food), // bagel
     (932, Vibe::Food), // pretzel
     (933, Vibe::Food), // cheeseburger
     (934, Vibe::Food), // hotdog
+    (935, Vibe::Food), // mashed potato
+    (936, Vibe::Food), // head cabbage
+    (937, Vibe::Food), // broccoli
+    (938, Vibe::Food), // cauliflower
+    (939, Vibe::Food), // zucchini
+    (940, Vibe::Food), // spaghetti squash
+    (941, Vibe::Food), // acorn squash
+    (942, Vibe::Food), // butternut squash
+    (943, Vibe::Food), // cucumber
+    (944, Vibe::Food), // artichoke
+    (947, Vibe::Food), // mushroom
+    (948, Vibe::Food), // Granny Smith
+    (949, Vibe::Food), // strawberry
+    (950, Vibe::Food), // orange
+    (951, Vibe::Food), // lemon
+    (952, Vibe::Food), // fig
+    (953, Vibe::Food), // pineapple
+    (954, Vibe::Food), // banana
+    (955, Vibe::Food), // jackfruit
+    (956, Vibe::Food), // custard apple
+    (957, Vibe::Food), // pomegranate
+    (959, Vibe::Food), // carbonara
+    (960, Vibe::Food), // chocolate sauce
+    (962, Vibe::Food), // meat loaf
     (963, Vibe::Food), // pizza
+    (964, Vibe::Food), // potpie
     (965, Vibe::Food), // burrito
+    (966, Vibe::Food), // red wine
     (967, Vibe::Food), // espresso
+    (969, Vibe::Food), // eggnog
+    // Pet (beyond the dog/cat ranges below)
+    (87, Vibe::Pet),  // African grey
+    (88, Vibe::Pet),  // macaw
+    (89, Vibe::Pet),  // sulphur-crested cockatoo
+    (90, Vibe::Pet),  // lorikeet
+    (332, Vibe::Pet), // Angora
+    (333, Vibe::Pet), // hamster
+    (338, Vibe::Pet), // guinea pig
 ];
 
 /// Dog breeds, Chihuahua through Mexican hairless -- verified against the
@@ -367,6 +451,19 @@ mod tests {
     fn every_curated_index_is_within_imagenet_1000_bounds() {
         for &(idx, _) in IMAGENET_CLASS_TO_VIBE {
             assert!(idx < 1000, "index {idx} out of range");
+        }
+    }
+
+    #[test]
+    fn no_curated_index_appears_twice() {
+        // Every entry is a distinct class -- a duplicate would mean one
+        // of the two mappings is silently ignored (`vibe_for_class` just
+        // returns the first match), most likely a copy-paste mistake
+        // rather than an intentional choice. Cheap enough to check
+        // outright now that this table has ~120 explicit entries.
+        let mut seen = std::collections::HashSet::new();
+        for &(idx, _) in IMAGENET_CLASS_TO_VIBE {
+            assert!(seen.insert(idx), "index {idx} appears more than once");
         }
     }
 

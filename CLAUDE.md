@@ -124,6 +124,16 @@ facts, not estimates:
   Architecture, Winter, Food, Pet) reflects what this specific model can
   actually see, curated by hand against the real class list — see that
   module's own doc comment before ever expanding the category set.
+  `IMAGENET_CLASS_TO_VIBE` was widened once already (~37 entries to
+  ~120) after early real-world use turned up too many "no suggestion"
+  results — every index was checked against the canonical class list's
+  actual label before merging (a common, easy-to-make mistake here is a
+  transcribed index that's off by one), and `Food` ended up by far the
+  largest list, a real reflection of how fruit/vegetable/dish-dense the
+  dataset is, not an oversight. `no_curated_index_appears_twice` (Rust
+  test) guards against a copy-paste duplicate at this size, but does not
+  and cannot check that a label's comment actually matches its index --
+  re-verify against the canonical list by hand for any future addition.
 - **Multiple candidates, not one verdict.** `classify_top_vibes` (Rust)
   returns up to 3 *distinct* vibes ranked by confidence, deduped across
   the many ImageNet classes that map to the same vibe (six separate
