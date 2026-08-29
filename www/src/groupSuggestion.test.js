@@ -14,6 +14,12 @@ describe('suggestGroup', () => {
     expect(suggestGroup(2)).toMatchObject({ labelKey: 'group.together', sticker: 'confetti' });
     expect(suggestGroup(6)).toMatchObject({ labelKey: 'group.together', sticker: 'confetti' });
   });
+
+  it('carries the same fixed, safe font/color starting point for both tiers', () => {
+    const safe = { fontChoice: 'system', fontScale: 1, textColor: 'auto' };
+    expect(suggestGroup(1)).toMatchObject(safe);
+    expect(suggestGroup(2)).toMatchObject(safe);
+  });
 });
 
 describe('groupCaptionFor', () => {

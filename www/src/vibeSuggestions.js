@@ -28,36 +28,59 @@ import { toneAdjustments } from "./exposureSuggestion";
  * of the 124-look filter/sticker pool so the wording doesn't repeat
  * itself every time a candidate cycles back to the same filter/sticker.
  */
+// Each vibe also names one curated `fontChoice` -- a judgment call same
+// as the filter/sticker lists above, not a calculation: architecture and
+// winter's stiller, more formal moods suit `serif`; food and pet's
+// warmer, playful moods suit `decorative`; beach/mountain/water stay
+// `system`, the safest default for outdoor scenic shots.
 export const VIBE_LOOKS = {
   beach: {
     filters: ["vintage", "sepia", "grayscale", "none"],
     stickers: [null, "wave", "palm", "sun", "star"],
+    fontChoice: "system",
   },
   mountain: {
     filters: ["none", "grayscale", "sepia", "vintage"],
     stickers: [null, "sun", "cloud", "star", "arrow"],
+    fontChoice: "system",
   },
   water: {
     filters: ["none", "vintage", "grayscale", "sepia"],
     stickers: [null, "wave", "cloud", "star"],
+    fontChoice: "system",
   },
   architecture: {
     filters: ["grayscale", "sepia", "none", "vintage"],
     stickers: [null, "arrow", "star", "stamp", "washi"],
+    fontChoice: "serif",
   },
   winter: {
     filters: ["grayscale", "none", "sepia", "vintage"],
     stickers: [null, "cloud", "star", "blossom"],
+    fontChoice: "serif",
   },
   food: {
     filters: ["vintage", "sepia", "none", "grayscale"],
     stickers: [null, "heart", "star", "washi"],
+    fontChoice: "decorative",
   },
   pet: {
     filters: ["none", "vintage", "sepia", "grayscale"],
     stickers: [null, "heart", "star", "confetti"],
+    fontChoice: "decorative",
   },
 };
+
+// How often a look also suggests splitting the photo/message layout,
+// instead of the full-bleed default -- 1 in `LAYOUT_VARIETY_STRIDE`
+// candidates. This app has no real photo-composition/saliency signal (no
+// model tells it which side of a photo matters), so which side the photo
+// lands on is picked from the look's own index, not "detected" -- same
+// honesty this module already applies to filter/sticker scoring being a
+// judgment call, not a calculation. `fillStyle` is always 'auto' here
+// (sampled from the photo -- the default this feature ships with); it's
+// simply unused when the coverage stays 'full'.
+const LAYOUT_VARIETY_STRIDE = 6;
 
 const OPENER_COUNT = 10;
 const CLOSER_COUNT = 5;
@@ -93,6 +116,16 @@ export function looksFor(vibe) {
         closerKey: sticker
           ? `vibe.closer.withSticker.${(index * 3 + 1) % CLOSER_COUNT}`
           : `vibe.closer.noSticker.${(index * 3 + 1) % CLOSER_COUNT}`,
+        fontChoice: spec.fontChoice,
+        textColor: "auto",
+        // Occasional "Larger" variant, same low-stakes variety as the
+        // font choice above -- not a legibility fix (fitText.js's own
+        // auto-fit already handles that), just a stylistic option to
+        // start from.
+        fontScale: index % 4 === 0 ? 1.3 : 1,
+        photoCoverage: index % LAYOUT_VARIETY_STRIDE === 0 ? (index % (LAYOUT_VARIETY_STRIDE * 2) === 0 ? "half" : "bigSmall") : "full",
+        photoSide: index % 2 === 0 ? "first" : "second",
+        fillStyle: "auto",
       });
     });
   });

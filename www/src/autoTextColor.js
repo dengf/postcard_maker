@@ -37,7 +37,7 @@ function contrastRatio(lumA, lumB) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-function hexToRgb(hex) {
+export function hexToRgb(hex) {
   const n = parseInt(hex.replace('#', ''), 16);
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }

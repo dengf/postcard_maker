@@ -60,11 +60,15 @@ const GROUP_CAPTIONS = [
   "group.caption.12",
 ];
 
+// Same fixed, safe starting point as `exposureSuggestion.js`'s own
+// candidate -- no layout variety here either, see that file's comment.
+const SAFE_LOOK_DEFAULTS = { fontChoice: 'system', fontScale: 1, textColor: 'auto' };
+
 export function suggestGroup(faceCount) {
   if (faceCount >= GROUP_THRESHOLD)
-    return { labelKey: "group.together", sticker: "confetti" };
+    return { labelKey: "group.together", sticker: "confetti", ...SAFE_LOOK_DEFAULTS };
   if (faceCount === SOLO_COUNT)
-    return { labelKey: "group.solo", sticker: "heart" };
+    return { labelKey: "group.solo", sticker: "heart", ...SAFE_LOOK_DEFAULTS };
   return null;
 }
 

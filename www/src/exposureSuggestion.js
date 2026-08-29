@@ -39,7 +39,15 @@ function labelFor(adjustments) {
   return "exposure.saturate";
 }
 
+// A fixed, simple starting point for the fields "Suggest a look" now also
+// offers (layout, font, color) -- this candidate is the always-safe
+// fallback for a photo the vibe classifier can't help with (see the
+// module doc comment), so it deliberately doesn't vary these the way
+// `vibeSuggestions.js`'s own candidates occasionally do: no layout
+// variety, just full-bleed, system font, auto text color.
 export function suggestExposure(tone) {
   const adjustments = toneAdjustments(tone);
-  return adjustments ? { labelKey: labelFor(adjustments), adjustments } : null;
+  return adjustments
+    ? { labelKey: labelFor(adjustments), adjustments, fontChoice: 'system', fontScale: 1, textColor: 'auto' }
+    : null;
 }

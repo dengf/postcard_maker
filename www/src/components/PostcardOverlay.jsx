@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { FONT_STACKS } from '../fonts';
 import { fitFontSize, getMeasureContext } from '../fitText';
-import { bestContrastColor, sampleFrameColor } from '../autoTextColor';
+import { bestContrastColor, sampleFrameColor, hexToRgb } from '../autoTextColor';
 import StickerIcon from './StickerIcon';
 import { stickerById } from '../stickers';
 
@@ -34,9 +34,11 @@ export default function PostcardOverlay({
   photoUrl,
   crop,
   cssFilter,
+  fillStyle,
+  fillColor,
 }) {
   const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
-  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry);
+  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor);
 
   return (
     <>
@@ -139,14 +141,33 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * `export.js`'s `renderCollage` still resolves 'auto' correctly against
  * the real composited pixels regardless, since it samples the canvas
  * directly rather than going through this hook.
+ *
+ * When the photo doesn't cover the whole card (`geometry.photoArea` is
+ * less than the full unit square), the message sits over the *fill*
+ * behind the blank area, not the photo -- sampling `messageArea` out of
+ * the cropped photo the way the full-bleed case does would sample the
+ * wrong pixels entirely. `fillStyle`/`fillColor` resolve that case
+ * instead: a `solid` fill has one fixed, known color, no sampling needed;
+ * `auto`/`blur` both approximate to roughly the photo's own overall tone
+ * (a blur barely changes an average color), so sampling the *whole*
+ * cropped photo rather than just the sliver behind `messageArea` is the
+ * closer approximation. Either way this stays a preview approximation --
+ * `export.js`'s own `renderPostcard` computes the real fill color from
+ * the actual composited pixels, same "preview approximates, export is
+ * authoritative" split as everywhere else in this file.
  */
-function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry) {
+function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor) {
   const [resolved, setResolved] = useState(textColor);
   const imgRef = useRef(null);
+  const isFullCoverage = !geometry || (geometry.photoArea.w >= 1 && geometry.photoArea.h >= 1);
 
   useEffect(() => {
     if (textColor !== 'auto') {
       setResolved(textColor);
+      return undefined;
+    }
+    if (!isFullCoverage && fillStyle === 'solid') {
+      setResolved(bestContrastColor(hexToRgb(fillColor ?? AUTO_COLOR_FALLBACK)));
       return undefined;
     }
     if (!photoUrl || !crop || !geometry) {
@@ -163,7 +184,8 @@ function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry) {
       const img = imgRef.current;
       if (!img || !img.complete || img.naturalWidth === 0) return;
       try {
-        const avg = sampleFrameColor(img, crop, cssFilter, geometry.messageArea);
+        const sampleArea = isFullCoverage ? geometry.messageArea : { x: 0, y: 0, w: 1, h: 1 };
+        const avg = sampleFrameColor(img, crop, cssFilter, sampleArea);
         setResolved(bestContrastColor(avg));
       } catch {
         setResolved(AUTO_COLOR_FALLBACK);
@@ -189,7 +211,7 @@ function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
     // fields are the real dependency, not its object identity, which
     // changes on every pan/zoom dispatch.
-  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, geometry]);
+  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, geometry, isFullCoverage, fillStyle, fillColor]);
 
   return resolved;
 }

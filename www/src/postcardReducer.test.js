@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS } from './postcardReducer';
+import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, DEFAULT_FILL_COLOR } from './postcardReducer';
 
 const photo = { bytes: new Uint8Array([1]), url: 'blob:x', naturalW: 100, naturalH: 50, mimeType: 'image/jpeg' };
 const base = { x: 0, y: 0, w: 100, h: 50 };
@@ -158,5 +158,93 @@ describe('postcardReducer', () => {
   it('an unknown action type returns the same state unchanged', () => {
     const state = initialState('landscape');
     expect(postcardReducer(state, { type: 'NOPE' })).toBe(state);
+  });
+
+  it('initialState defaults to full-bleed with an auto, cream-colored fill', () => {
+    const state = initialState('landscape');
+    expect(state.photoCoverage).toBe('full');
+    expect(state.photoSide).toBe('first');
+    expect(state.fillStyle).toBe('auto');
+    expect(state.fillColor).toBe(DEFAULT_FILL_COLOR);
+  });
+
+  it('OPEN_PHOTO restores a prior layout/fill choice from a draft', () => {
+    const restored = { photoCoverage: 'bigSmall', photoSide: 'second', fillStyle: 'solid', fillColor: '#ffffff' };
+    const state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+      restored,
+    });
+    expect(state.photoCoverage).toBe('bigSmall');
+    expect(state.photoSide).toBe('second');
+    expect(state.fillStyle).toBe('solid');
+    expect(state.fillColor).toBe('#ffffff');
+  });
+
+  it('SET_LAYOUT changes coverage/side and re-suggests the crop, like CHANGE_ASPECT does for aspect', () => {
+    let state = postcardReducer(initialState('landscape'), { type: 'OPEN_PHOTO', photo, aspect: 'landscape', base, geometry: geo });
+    state = postcardReducer(state, { type: 'CHANGE_ZOOM', crop: { x: 5, y: 5, w: 50, h: 25 }, zoom: 2 });
+    const splitBase = { x: 0, y: 0, w: 40, h: 50 };
+    const splitGeo = { ...geo, photoArea: { x: 0, y: 0, w: 0.5, h: 1 } };
+    state = postcardReducer(state, { type: 'SET_LAYOUT', coverage: 'half', side: 'first', base: splitBase, geometry: splitGeo });
+    expect(state.photoCoverage).toBe('half');
+    expect(state.photoSide).toBe('first');
+    expect(state.crop).toBe(splitBase);
+    expect(state.zoom).toBe(1);
+    expect(state.geometry).toBe(splitGeo);
+  });
+
+  it('SET_FILL_STYLE and SET_FILL_COLOR only touch their own field', () => {
+    let state = initialState('landscape');
+    state = postcardReducer(state, { type: 'SET_FILL_STYLE', fillStyle: 'blur' });
+    state = postcardReducer(state, { type: 'SET_FILL_COLOR', fillColor: '#123456' });
+    expect(state.fillStyle).toBe('blur');
+    expect(state.fillColor).toBe('#123456');
+  });
+
+  it('APPLY_VIBE folds in font/color/fill fields alongside filter and sticker', () => {
+    const state = postcardReducer(initialState('landscape'), {
+      type: 'APPLY_VIBE',
+      filter: 'vintage',
+      stickerId: 'wave',
+      key: 'k1',
+      fontChoice: 'serif',
+      fontScale: 1.3,
+      textColor: 'auto',
+      fillStyle: 'auto',
+      fillColor: '#ffffff',
+    });
+    expect(state.fontChoice).toBe('serif');
+    expect(state.fontScale).toBe(1.3);
+    expect(state.textColor).toBe('auto');
+    expect(state.fillStyle).toBe('auto');
+    expect(state.fillColor).toBe('#ffffff');
+  });
+
+  it('APPLY_VIBE with no layout leaves photoCoverage/photoSide/geometry untouched', () => {
+    let state = postcardReducer(initialState('landscape'), { type: 'OPEN_PHOTO', photo, aspect: 'landscape', base, geometry: geo });
+    state = postcardReducer(state, { type: 'APPLY_VIBE', filter: 'sepia' });
+    expect(state.photoCoverage).toBe('full');
+    expect(state.geometry).toBe(geo);
+  });
+
+  it('APPLY_VIBE with a layout patch changes coverage/side/crop/geometry in the same step', () => {
+    let state = postcardReducer(initialState('landscape'), { type: 'OPEN_PHOTO', photo, aspect: 'landscape', base, geometry: geo });
+    const splitBase = { x: 0, y: 0, w: 40, h: 50 };
+    const splitGeo = { ...geo, photoArea: { x: 0, y: 0, w: 0.5, h: 1 } };
+    state = postcardReducer(state, {
+      type: 'APPLY_VIBE',
+      filter: 'sepia',
+      layout: { coverage: 'half', side: 'second', base: splitBase, geometry: splitGeo },
+    });
+    expect(state.filter).toBe('sepia');
+    expect(state.photoCoverage).toBe('half');
+    expect(state.photoSide).toBe('second');
+    expect(state.crop).toBe(splitBase);
+    expect(state.zoom).toBe(1);
+    expect(state.geometry).toBe(splitGeo);
   });
 });

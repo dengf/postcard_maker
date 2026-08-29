@@ -74,6 +74,8 @@ impl From<postcard_core::NormRect> for NormRectDto {
 #[serde(rename_all = "camelCase")]
 pub struct TemplateGeometryDto {
     pub safe_margin: f32,
+    pub photo_area: NormRectDto,
+    pub blank_area: NormRectDto,
     pub stamp_box: NormRectDto,
     pub message_area: NormRectDto,
 }
@@ -82,6 +84,8 @@ impl From<postcard_calc::TemplateGeometry> for TemplateGeometryDto {
     fn from(g: postcard_calc::TemplateGeometry) -> Self {
         Self {
             safe_margin: g.safe_margin,
+            photo_area: g.photo_area.into(),
+            blank_area: g.blank_area.into(),
             stamp_box: g.stamp_box.into(),
             message_area: g.message_area.into(),
         }

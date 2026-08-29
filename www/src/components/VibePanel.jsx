@@ -141,7 +141,7 @@ export default function VibePanel({
   }, [candidates, cursor]);
 
   const apply = (candidate) => {
-    onApply(candidate.filter, candidate.sticker, candidate.adjustments);
+    onApply(candidate);
     setPhase("idle");
   };
 

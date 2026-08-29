@@ -230,16 +230,30 @@ label.btn { cursor: pointer; }
   overflow: hidden;
   border-radius: 12px;
   background: var(--panel-alt);
-  background-repeat: no-repeat;
-  touch-action: none;
-  cursor: grab;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
   /* Lets the message text and sticker sizes scale with the frame's own
      box (`cqw`/`cqmin` in PostcardCanvas.jsx) rather than the viewport --
      the frame's rendered size varies with the sidebar layout breakpoint. */
   container-type: size;
 }
-.postcard-frame:active { cursor: grabbing; }
+/* Behind the photo box, visible wherever a split layout's photo doesn't
+   cover -- a plain color for 'solid'/'auto', or (via an inline
+   background-image) a blurred, frame-covering copy of the photo for
+   'blur'. Absent entirely for a full-bleed photo (see PostcardCanvas.jsx). */
+.postcard-fill {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.postcard-photo-box {
+  position: absolute;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  touch-action: none;
+  cursor: grab;
+}
+.postcard-photo-box:active { cursor: grabbing; }
 .postcard-vignette {
   position: absolute;
   inset: 0;
@@ -357,6 +371,34 @@ label.btn { cursor: pointer; }
 
 .share-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .share-hint { font-size: 0.82rem; color: var(--muted); margin: 0; }
+
+.share-sticky-bar { display: none; }
+@media (max-width: 719px) {
+  /* The in-panel buttons above are replaced by the fixed bar below on
+     narrow viewports -- showing both would just be two copies of the same
+     two buttons on screen at once. */
+  .share-actions { display: none; }
+  .share-sticky-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+  }
+  .share-sticky-bar > .share-hint { text-align: center; }
+  .share-sticky-actions { display: flex; gap: 10px; }
+  .share-sticky-actions .btn { flex: 1; }
+  /* Room for the fixed bar so it never covers the last panel -- generous
+     rather than exact, since the bar's own height varies with whether the
+     hint line is showing. */
+  .editor-layout { padding-bottom: 110px; }
+}
 
 .toast-region {
   position: fixed; left: 0; right: 0; bottom: 0;

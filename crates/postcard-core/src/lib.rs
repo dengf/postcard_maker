@@ -11,6 +11,7 @@ mod export;
 mod filter;
 mod geometry;
 mod message;
+mod photo_layout;
 
 pub use aspect::Aspect;
 pub use collage::{CollageLayout, CollageSlot};
@@ -19,5 +20,6 @@ pub use export::ExportFormat;
 pub use filter::{Adjustments, Filter};
 pub use geometry::{NormRect, Rect};
 pub use message::Message;
+pub use photo_layout::{PhotoCoverage, PhotoSide};
 
 pub type PostcardResult<T> = Result<T, PostcardError>;

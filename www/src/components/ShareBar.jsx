@@ -87,6 +87,27 @@ export default function ShareBar({ renderFront, backSide, onError }) {
       {busy && <p className="share-hint">{t('share.processing')}</p>}
       {hint && !busy && <p className="share-hint">{hint}</p>}
       <CelebrationBurst trigger={celebrateAt} />
+
+      {/* Mobile-only duplicate of the buttons above -- on the single-column
+          layout this panel can sit two-plus screens below the fold, so a
+          fixed bottom bar keeps Share/Save one thumb-tap away regardless of
+          scroll position. CSS-only on narrow viewports; the desktop
+          two-column layout already keeps the postcard (and this panel) in
+          view via the sticky preview column, so it hides itself there. */}
+      <div className="share-sticky-bar">
+        {busy && <p className="share-hint">{t('share.processing')}</p>}
+        {hint && !busy && <p className="share-hint">{hint}</p>}
+        <div className="share-sticky-actions">
+          <button type="button" className="btn" onClick={handleShare} disabled={busy}>
+            <ShareIcon />
+            {t('share.share')}
+          </button>
+          <button type="button" className="btn secondary" onClick={handleSave} disabled={busy}>
+            <SaveIcon />
+            {t('share.save')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

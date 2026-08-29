@@ -40,4 +40,10 @@ describe('suggestExposure', () => {
     expect(suggestExposure(null)).toBeNull();
     expect(suggestExposure(undefined)).toBeNull();
   });
+
+  it('carries a fixed, safe font/color starting point -- no layout variety, since this fires on photos the vibe classifier cannot help', () => {
+    const result = suggestExposure({ brightness: 0.2, contrast: 0.3, saturation: 0.2 });
+    expect(result).toMatchObject({ fontChoice: 'system', fontScale: 1, textColor: 'auto' });
+    expect(result.photoCoverage).toBeUndefined();
+  });
 });

@@ -2,7 +2,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use postcard_core::{Aspect, ExportFormat, Filter};
+use postcard_core::{Aspect, ExportFormat, Filter, PhotoCoverage, PhotoSide};
 
 /// Serializes a result for JavaScript, JSON-compatible so a Rust map
 /// becomes a plain JS object rather than a `Map`. Not used for the
@@ -20,6 +20,23 @@ pub fn parse_aspect(value: &str) -> Option<Aspect> {
         "landscape" => Some(Aspect::Landscape),
         "square" => Some(Aspect::Square),
         "portrait" => Some(Aspect::Portrait),
+        _ => None,
+    }
+}
+
+pub fn parse_photo_coverage(value: &str) -> Option<PhotoCoverage> {
+    match value {
+        "full" => Some(PhotoCoverage::Full),
+        "half" => Some(PhotoCoverage::Half),
+        "big_small" => Some(PhotoCoverage::BigSmall),
+        _ => None,
+    }
+}
+
+pub fn parse_photo_side(value: &str) -> Option<PhotoSide> {
+    match value {
+        "first" => Some(PhotoSide::First),
+        "second" => Some(PhotoSide::Second),
         _ => None,
     }
 }

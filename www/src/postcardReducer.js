@@ -13,6 +13,10 @@
 export const DEFAULT_ADJUSTMENTS = { brightness: 0, contrast: 1, saturation: 1 };
 export const DEFAULT_STROKE_COLOR = '#e0355b';
 export const DEFAULT_STROKE_WIDTH = 4;
+// Same cream already used for the back side's paper background
+// (`export.js`'s `renderBackSide`) -- one consistent "postcard paper"
+// tone across the app rather than a second color invented for this.
+export const DEFAULT_FILL_COLOR = '#f4ede0';
 
 export function initialState(defaultAspect) {
   return {
@@ -37,6 +41,16 @@ export function initialState(defaultAspect) {
     strokeColor: DEFAULT_STROKE_COLOR,
     strokeWidth: DEFAULT_STROKE_WIDTH,
     backSide: { enabled: false, location: '' },
+    // 'full' | 'half' | 'bigSmall' -- how much of the card the photo
+    // covers; 'full' is the only behavior that existed before this field.
+    photoCoverage: 'full',
+    // 'first' | 'second' -- left/top vs right/bottom, meaningless (but
+    // still present) when photoCoverage is 'full'. See geometry.photoArea.
+    photoSide: 'first',
+    // 'auto' | 'solid' | 'blur' -- how the blank area behind the message
+    // is filled when photoCoverage isn't 'full'.
+    fillStyle: 'auto',
+    fillColor: DEFAULT_FILL_COLOR,
   };
 }
 
@@ -72,6 +86,10 @@ export function postcardReducer(state, action) {
         stickers: action.restored?.stickers ?? [],
         strokes: action.restored?.strokes ?? [],
         backSide: action.restored?.backSide ?? { enabled: false, location: '' },
+        photoCoverage: action.restored?.photoCoverage ?? 'full',
+        photoSide: action.restored?.photoSide ?? 'first',
+        fillStyle: action.restored?.fillStyle ?? 'auto',
+        fillColor: action.restored?.fillColor ?? DEFAULT_FILL_COLOR,
       };
 
     case 'CHANGE_ASPECT':
@@ -83,6 +101,27 @@ export function postcardReducer(state, action) {
         zoom: 1,
         geometry: action.geometry,
       };
+
+    // Changing how much of the card the photo covers (and which side)
+    // changes the photo's own on-card pixel ratio, so the crop has to be
+    // re-suggested against it -- same shape as CHANGE_ASPECT, since it's
+    // the same kind of "the template geometry changed" event.
+    case 'SET_LAYOUT':
+      return {
+        ...state,
+        photoCoverage: action.coverage,
+        photoSide: action.side,
+        baseCrop: action.base,
+        crop: action.base,
+        zoom: 1,
+        geometry: action.geometry,
+      };
+
+    case 'SET_FILL_STYLE':
+      return { ...state, fillStyle: action.fillStyle };
+
+    case 'SET_FILL_COLOR':
+      return { ...state, fillColor: action.fillColor };
 
     case 'CHANGE_ZOOM':
       return { ...state, crop: action.crop, zoom: action.zoom };
@@ -136,7 +175,12 @@ export function postcardReducer(state, action) {
     // rather than overwrite -- an exposure suggestion
     // (`exposureSuggestion.js`) only ever carries `adjustments`, no
     // filter or sticker, since it's based on pixel statistics alone,
-    // not the vibe classifier.
+    // not the vibe classifier. `action.layout` is present only when the
+    // candidate also changed the photo/blank split -- `App.jsx`'s
+    // `applyVibe` has already done the async wasm geometry/crop recompute
+    // by the time this dispatches, the same way a manual layout change
+    // does, so this reducer stays a synchronous merge like every other
+    // field here.
     case 'APPLY_VIBE':
       return {
         ...state,
@@ -145,6 +189,21 @@ export function postcardReducer(state, action) {
         stickers: action.stickerId
           ? [...state.stickers, { key: action.key, id: action.stickerId, x: 0.5, y: 0.5, scale: 1 }]
           : state.stickers,
+        fontChoice: action.fontChoice ?? state.fontChoice,
+        fontScale: action.fontScale ?? state.fontScale,
+        textColor: action.textColor ?? state.textColor,
+        fillStyle: action.fillStyle ?? state.fillStyle,
+        fillColor: action.fillColor ?? state.fillColor,
+        ...(action.layout
+          ? {
+              photoCoverage: action.layout.coverage,
+              photoSide: action.layout.side,
+              baseCrop: action.layout.base,
+              crop: action.layout.base,
+              zoom: 1,
+              geometry: action.layout.geometry,
+            }
+          : null),
       };
 
     case 'ADD_STROKE':

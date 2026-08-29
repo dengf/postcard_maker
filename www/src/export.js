@@ -26,6 +26,8 @@ export async function renderPostcard({
   stickers,
   strokes,
   geometry,
+  fillStyle = 'auto',
+  fillColor,
   maxDimension = 2000,
 }) {
   const bytes = wasmModule.process_photo(photoBytes, {
@@ -45,11 +47,55 @@ export async function renderPostcard({
   const baseUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
   try {
     const baseImg = await loadImage(baseUrl);
+    const photoArea = geometry.photoArea;
+    // `process_photo` already cropped/filtered/resized to `crop`'s own
+    // ratio -- `crop` was suggested against `photoArea`'s own on-card
+    // pixel ratio (see `photoLayout.js`), so `baseImg`'s dimensions are
+    // exactly the photo box's own size. The whole card's own pixel size
+    // follows from that plus the fraction of the card the photo box
+    // occupies -- for `photoArea` = the whole unit square (full-bleed),
+    // this reduces to exactly `baseImg`'s own dimensions, same as before
+    // this split layout existed.
     const canvas = document.createElement('canvas');
-    canvas.width = baseImg.naturalWidth;
-    canvas.height = baseImg.naturalHeight;
+    canvas.width = Math.max(1, Math.round(baseImg.naturalWidth / photoArea.w));
+    canvas.height = Math.max(1, Math.round(baseImg.naturalHeight / photoArea.h));
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(baseImg, 0, 0);
+
+    const split = photoArea.w < 1 || photoArea.h < 1;
+    const photoRect = {
+      x: photoArea.x * canvas.width,
+      y: photoArea.y * canvas.height,
+      w: photoArea.w * canvas.width,
+      h: photoArea.h * canvas.height,
+    };
+
+    if (split && fillStyle === 'blur') {
+      // A stretched, blurred copy of the photo across the whole canvas
+      // first -- the sharp photo drawn on top only touches its own area,
+      // so the blur shows through everywhere else without a second,
+      // separate "fill the blank rect" step.
+      const blurPx = Math.max(8, Math.round(Math.min(canvas.width, canvas.height) * 0.04));
+      ctx.filter = `blur(${blurPx}px)`;
+      ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+      ctx.filter = 'none';
+    } else if (split && fillStyle === 'solid') {
+      ctx.fillStyle = fillColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    ctx.drawImage(baseImg, photoRect.x, photoRect.y, photoRect.w, photoRect.h);
+
+    if (split && fillStyle === 'auto') {
+      // Sampled from the real pixels just drawn above -- exact, not an
+      // approximation, same reasoning `drawMessage`'s own 'auto' text
+      // color sampling below already relies on.
+      const [r, g, b] = averageColor(
+        ctx.getImageData(Math.round(photoRect.x), Math.round(photoRect.y), Math.max(1, Math.round(photoRect.w)), Math.max(1, Math.round(photoRect.h))),
+      );
+      ctx.fillStyle = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+      const blank = geometry.blankArea;
+      ctx.fillRect(blank.x * canvas.width, blank.y * canvas.height, blank.w * canvas.width, blank.h * canvas.height);
+    }
 
     drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry });
     await drawStickers(ctx, canvas, stickers);

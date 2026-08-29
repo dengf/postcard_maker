@@ -22,6 +22,8 @@ import { saveDraft, loadDraft, clearDraft } from './draftStore';
 import { detectLocation } from './location';
 import { renderPostcard } from './export';
 import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, nextStickerKey } from './postcardReducer';
+import { templateGeometry, suggestCropForLayout } from './photoLayout';
+import LayoutPanel from './components/LayoutPanel';
 
 const DEFAULT_ASPECT = ASPECTS[0].id;
 const AUTOSAVE_DELAY_MS = 800;
@@ -47,7 +49,7 @@ function AppShell({ wasmModule }) {
   const objectUrlRef = useRef(null);
   const { photo, aspectId, baseCrop, crop, zoom, geometry, adjustments, filter } = state;
   const { message, fontChoice, fontScale, textColor, textAlign, stickers, strokes, drawMode } = state;
-  const { strokeColor, strokeWidth, backSide } = state;
+  const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } = state;
 
   // A previously unfinished postcard, offered once at startup rather than
   // silently resumed -- someone landing fresh (a shared link, a second
@@ -71,8 +73,10 @@ function AppShell({ wasmModule }) {
       try {
         const { w, h } = await loadImageDimensions(url);
         const aspect = restored?.aspectId ?? DEFAULT_ASPECT;
-        const base = wasmModule.suggest_crop(w, h, aspect);
-        const geo = wasmModule.template_geometry(aspect);
+        const coverage = restored?.photoCoverage ?? 'full';
+        const side = restored?.photoSide ?? 'first';
+        const geo = templateGeometry(wasmModule, aspect, coverage, side);
+        const base = suggestCropForLayout(wasmModule, w, h, aspect, coverage, geo.photoArea, aspectRatio(aspect));
 
         dispatch({
           type: 'OPEN_PHOTO',
@@ -104,10 +108,41 @@ function AppShell({ wasmModule }) {
   const changeAspect = useCallback(
     (nextAspect) => {
       if (!photo) return;
-      const base = wasmModule.suggest_crop(photo.naturalW, photo.naturalH, nextAspect);
-      dispatch({ type: 'CHANGE_ASPECT', aspect: nextAspect, base, geometry: wasmModule.template_geometry(nextAspect) });
+      const geo = templateGeometry(wasmModule, nextAspect, photoCoverage, photoSide);
+      const base = suggestCropForLayout(
+        wasmModule,
+        photo.naturalW,
+        photo.naturalH,
+        nextAspect,
+        photoCoverage,
+        geo.photoArea,
+        aspectRatio(nextAspect),
+      );
+      dispatch({ type: 'CHANGE_ASPECT', aspect: nextAspect, base, geometry: geo });
     },
-    [photo, wasmModule],
+    [photo, wasmModule, photoCoverage, photoSide],
+  );
+
+  // Changing how much of the card the photo covers (and which side) needs
+  // the same "recompute geometry, re-suggest the crop" dance `changeAspect`
+  // already does -- the photo box's own on-card pixel ratio changed, so
+  // the previous crop no longer targets the right shape.
+  const changeLayout = useCallback(
+    (coverage, side) => {
+      if (!photo) return;
+      const geo = templateGeometry(wasmModule, aspectId, coverage, side);
+      const base = suggestCropForLayout(
+        wasmModule,
+        photo.naturalW,
+        photo.naturalH,
+        aspectId,
+        coverage,
+        geo.photoArea,
+        aspectRatio(aspectId),
+      );
+      dispatch({ type: 'SET_LAYOUT', coverage, side, base, geometry: geo });
+    },
+    [photo, wasmModule, aspectId],
   );
 
   const changeZoom = useCallback(
@@ -132,15 +167,47 @@ function AppShell({ wasmModule }) {
     [state.stickers.length],
   );
 
-  const applyVibe = useCallback((vibeFilter, stickerId, adjustments) => {
-    dispatch({
-      type: 'APPLY_VIBE',
-      filter: vibeFilter,
-      stickerId,
-      adjustments,
-      key: stickerId ? nextStickerKey() : undefined,
-    });
-  }, []);
+  // A "Suggest a look" candidate carries a full look, not just a filter --
+  // when it also names a `photoCoverage` different from the current one,
+  // that's the same "template geometry changed" event `changeLayout`
+  // handles manually, so this does the same wasm recompute first and
+  // folds the result into one `APPLY_VIBE` dispatch alongside everything
+  // else the candidate specifies.
+  const applyVibe = useCallback(
+    (candidate) => {
+      let layout = null;
+      if (candidate.photoCoverage && photo) {
+        const side = candidate.photoSide ?? 'first';
+        if (candidate.photoCoverage !== photoCoverage || side !== photoSide) {
+          const geo = templateGeometry(wasmModule, aspectId, candidate.photoCoverage, side);
+          const base = suggestCropForLayout(
+            wasmModule,
+            photo.naturalW,
+            photo.naturalH,
+            aspectId,
+            candidate.photoCoverage,
+            geo.photoArea,
+            aspectRatio(aspectId),
+          );
+          layout = { coverage: candidate.photoCoverage, side, base, geometry: geo };
+        }
+      }
+      dispatch({
+        type: 'APPLY_VIBE',
+        filter: candidate.filter,
+        stickerId: candidate.sticker,
+        adjustments: candidate.adjustments,
+        key: candidate.sticker ? nextStickerKey() : undefined,
+        fontChoice: candidate.fontChoice,
+        fontScale: candidate.fontScale,
+        textColor: candidate.textColor,
+        fillStyle: candidate.fillStyle,
+        fillColor: candidate.fillColor,
+        layout,
+      });
+    },
+    [photo, wasmModule, aspectId, photoCoverage, photoSide],
+  );
 
   // Pre-fills a best-guess location (timezone-derived, zero permission --
   // see location.js) the first time the back side is switched on, only
@@ -186,10 +253,33 @@ function AppShell({ wasmModule }) {
         stickers,
         strokes,
         backSide,
+        photoCoverage,
+        photoSide,
+        fillStyle,
+        fillColor,
       }).catch(() => {});
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(handle);
-  }, [photo, aspectId, crop, zoom, adjustments, filter, message, fontChoice, fontScale, textColor, textAlign, stickers, strokes, backSide]);
+  }, [
+    photo,
+    aspectId,
+    crop,
+    zoom,
+    adjustments,
+    filter,
+    message,
+    fontChoice,
+    fontScale,
+    textColor,
+    textAlign,
+    stickers,
+    strokes,
+    backSide,
+    photoCoverage,
+    photoSide,
+    fillStyle,
+    fillColor,
+  ]);
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -248,6 +338,8 @@ function AppShell({ wasmModule }) {
                 adjustments={adjustments}
                 filter={filter}
                 geometry={geometry}
+                fillStyle={fillStyle}
+                fillColor={fillColor}
                 message={message}
                 font={effFont}
                 fontScale={fontScale}
@@ -269,6 +361,22 @@ function AppShell({ wasmModule }) {
 
             <div className="editor-controls-col">
               <TemplatePicker aspectId={aspectId} onChange={changeAspect} />
+              <LayoutPanel
+                aspectId={aspectId}
+                coverage={photoCoverage}
+                side={photoSide}
+                onChangeLayout={changeLayout}
+                fillStyle={fillStyle}
+                onFillStyleChange={(f) => dispatch({ type: 'SET_FILL_STYLE', fillStyle: f })}
+                fillColor={fillColor}
+                onFillColorChange={(c) => dispatch({ type: 'SET_FILL_COLOR', fillColor: c })}
+              />
+              <VibePanel
+                photoBytes={photo.bytes}
+                onApply={applyVibe}
+                onSetMessage={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
+                onError={setError}
+              />
               <FilterPanel
                 zoom={zoom}
                 onZoomChange={changeZoom}
@@ -277,12 +385,6 @@ function AppShell({ wasmModule }) {
                 adjustments={adjustments}
                 onAdjustmentsChange={(a) => dispatch({ type: 'SET_ADJUSTMENTS', adjustments: a })}
                 onReset={() => dispatch({ type: 'RESET_ADJUSTMENTS' })}
-              />
-              <VibePanel
-                photoBytes={photo.bytes}
-                onApply={applyVibe}
-                onSetMessage={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
-                onError={setError}
               />
               <TextPanel
                 message={message}
@@ -333,6 +435,8 @@ function AppShell({ wasmModule }) {
                     stickers,
                     strokes,
                     geometry,
+                    fillStyle,
+                    fillColor,
                   })
                 }
                 backSide={

@@ -1,4 +1,4 @@
-use postcard_core::{Aspect, CollageLayout, CollageSlot, NormRect};
+use postcard_core::{Aspect, CollageLayout, CollageSlot, NormRect, PhotoCoverage, PhotoSide};
 
 /// The facts about "what a postcard layout is" -- proportions of the
 /// finished card, not pixels of any one photo, so they hold regardless of
@@ -9,35 +9,93 @@ use postcard_core::{Aspect, CollageLayout, CollageSlot, NormRect};
 pub struct TemplateGeometry {
     /// Uniform inset from every edge, as a fraction of the shorter side.
     pub safe_margin: f32,
-    /// Reserved for a stamp graphic -- top-right corner, by convention.
+    /// Where the photo sits -- the whole card for [`PhotoCoverage::Full`],
+    /// a half or 70/30 slice otherwise. `blank_area` is its exact
+    /// complement (equal to `photo_area`, i.e. the whole card, for
+    /// `Full` -- the message overlays the photo there, same as always).
+    pub photo_area: NormRect,
+    pub blank_area: NormRect,
+    /// Reserved for a stamp graphic -- top-right corner of `blank_area`,
+    /// by convention.
     pub stamp_box: NormRect,
-    /// Where the greeting message defaults to -- a band along the bottom,
-    /// clear of the stamp corner.
+    /// Where the greeting message defaults to -- a band along the bottom
+    /// of `blank_area`, clear of the stamp corner.
     pub message_area: NormRect,
 }
 
-/// Same formula for every aspect: a postcard's stamp corner and message
-/// band are proportional conventions, not a fact that varies by shape.
-/// Takes `Aspect` anyway (unused today) so a future template that *does*
-/// need a different layout -- e.g. a portrait card reserving a side
-/// column instead of a bottom band -- has a place to branch without
-/// changing this function's signature.
-pub fn geometry(_aspect: Aspect) -> TemplateGeometry {
-    const SAFE_MARGIN: f32 = 0.04;
+const SAFE_MARGIN: f32 = 0.04;
+const HALF_SHARE: f32 = 0.5;
+const BIG_SHARE: f32 = 0.7;
+
+/// `photo_area`/`blank_area` for one aspect+coverage+side. `Landscape`
+/// splits along x (left/right); `Square`/`Portrait` split along y
+/// (top/bottom) -- the same per-aspect axis convention
+/// [`collage_layouts`] already uses. `Full` ignores `side` and returns
+/// the whole card for both, since there's nothing to split.
+fn photo_and_blank_area(aspect: Aspect, coverage: PhotoCoverage, side: PhotoSide) -> (NormRect, NormRect) {
+    let whole = NormRect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 };
+    let photo_share = match coverage {
+        PhotoCoverage::Full => return (whole, whole),
+        PhotoCoverage::Half => HALF_SHARE,
+        PhotoCoverage::BigSmall => BIG_SHARE,
+    };
+    let blank_share = 1.0 - photo_share;
+    let splits_x = matches!(aspect, Aspect::Landscape);
+
+    let (photo_origin, blank_origin) = match side {
+        PhotoSide::First => (0.0, photo_share),
+        PhotoSide::Second => (blank_share, 0.0),
+    };
+
+    if splits_x {
+        (
+            NormRect { x: photo_origin, y: 0.0, w: photo_share, h: 1.0 },
+            NormRect { x: blank_origin, y: 0.0, w: blank_share, h: 1.0 },
+        )
+    } else {
+        (
+            NormRect { x: 0.0, y: photo_origin, w: 1.0, h: photo_share },
+            NormRect { x: 0.0, y: blank_origin, w: 1.0, h: blank_share },
+        )
+    }
+}
+
+/// The stamp box and message band, scaled into `container`'s own local
+/// coordinate frame. With `container` equal to the whole card (`Full`
+/// coverage's `blank_area`) this reduces to exactly the single fixed
+/// formula this function used to be -- same constants, same numbers --
+/// which is what keeps that default path provably unchanged.
+fn layout_within(container: NormRect) -> (NormRect, NormRect) {
+    let stamp_box = NormRect {
+        x: container.x + container.w * (1.0 - SAFE_MARGIN - 0.16),
+        y: container.y + container.h * SAFE_MARGIN,
+        w: container.w * 0.16,
+        h: container.h * 0.16,
+    };
+    let message_area = NormRect {
+        x: container.x + container.w * SAFE_MARGIN,
+        y: container.y + container.h * (1.0 - SAFE_MARGIN - 0.28),
+        w: container.w * (1.0 - 2.0 * SAFE_MARGIN),
+        h: container.h * 0.28,
+    };
+    (stamp_box, message_area)
+}
+
+/// The full layout for one template: a photo area, its complement, and
+/// where the stamp/message sit within that complement. For
+/// [`PhotoCoverage::Full`] the complement is the whole card and this is
+/// exactly today's single fixed layout; for `Half`/`BigSmall` it's scoped
+/// to whichever half/slice the photo doesn't occupy, so the message never
+/// has to fight the photo for the same pixels.
+pub fn geometry(aspect: Aspect, coverage: PhotoCoverage, side: PhotoSide) -> TemplateGeometry {
+    let (photo_area, blank_area) = photo_and_blank_area(aspect, coverage, side);
+    let (stamp_box, message_area) = layout_within(blank_area);
     TemplateGeometry {
         safe_margin: SAFE_MARGIN,
-        stamp_box: NormRect {
-            x: 1.0 - SAFE_MARGIN - 0.16,
-            y: SAFE_MARGIN,
-            w: 0.16,
-            h: 0.16,
-        },
-        message_area: NormRect {
-            x: SAFE_MARGIN,
-            y: 1.0 - SAFE_MARGIN - 0.28,
-            w: 1.0 - 2.0 * SAFE_MARGIN,
-            h: 0.28,
-        },
+        photo_area,
+        blank_area,
+        stamp_box,
+        message_area,
     }
 }
 
@@ -139,18 +197,23 @@ fn overlaps(a: NormRect, b: NormRect) -> bool {
 mod tests {
     use super::*;
 
+    const ALL_ASPECTS: [Aspect; 3] = [Aspect::Landscape, Aspect::Square, Aspect::Portrait];
+    const ALL_COVERAGES: [PhotoCoverage; 3] =
+        [PhotoCoverage::Full, PhotoCoverage::Half, PhotoCoverage::BigSmall];
+    const ALL_SIDES: [PhotoSide; 2] = [PhotoSide::First, PhotoSide::Second];
+
     #[test]
     fn stamp_box_and_message_area_never_overlap() {
-        for aspect in [Aspect::Landscape, Aspect::Square, Aspect::Portrait] {
-            let g = geometry(aspect);
+        for aspect in ALL_ASPECTS {
+            let g = geometry(aspect, PhotoCoverage::Full, PhotoSide::First);
             assert!(!overlaps(g.stamp_box, g.message_area), "{aspect:?}");
         }
     }
 
     #[test]
     fn every_area_stays_within_the_unit_square() {
-        for aspect in [Aspect::Landscape, Aspect::Square, Aspect::Portrait] {
-            let g = geometry(aspect);
+        for aspect in ALL_ASPECTS {
+            let g = geometry(aspect, PhotoCoverage::Full, PhotoSide::First);
             for area in [g.stamp_box, g.message_area] {
                 assert!(area.x >= 0.0 && area.y >= 0.0, "{aspect:?}");
                 assert!(
@@ -159,6 +222,124 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn full_coverage_gives_the_photo_the_whole_card_same_as_the_blank_area() {
+        // The exact invariant that keeps the default path unchanged: for
+        // `Full`, photo_area and blank_area are both the whole card, so
+        // stamp_box/message_area come out identical to the single fixed
+        // formula this function used to hard-code.
+        for aspect in ALL_ASPECTS {
+            let g = geometry(aspect, PhotoCoverage::Full, PhotoSide::First);
+            let whole = NormRect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 };
+            assert_eq!(g.photo_area, whole, "{aspect:?}");
+            assert_eq!(g.blank_area, whole, "{aspect:?}");
+            assert_eq!(g.stamp_box.x, 1.0 - SAFE_MARGIN - 0.16, "{aspect:?}");
+            assert_eq!(g.message_area.h, 0.28, "{aspect:?}");
+        }
+    }
+
+    #[test]
+    fn split_coverage_never_overlaps_photo_and_blank() {
+        for aspect in ALL_ASPECTS {
+            for coverage in [PhotoCoverage::Half, PhotoCoverage::BigSmall] {
+                for side in ALL_SIDES {
+                    let g = geometry(aspect, coverage, side);
+                    assert!(
+                        !overlaps(g.photo_area, g.blank_area),
+                        "{aspect:?} {coverage:?} {side:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn split_coverage_photo_and_blank_tile_the_card() {
+        for aspect in ALL_ASPECTS {
+            for coverage in [PhotoCoverage::Half, PhotoCoverage::BigSmall] {
+                for side in ALL_SIDES {
+                    let g = geometry(aspect, coverage, side);
+                    let total = g.photo_area.w * g.photo_area.h + g.blank_area.w * g.blank_area.h;
+                    assert!(
+                        (total - 1.0).abs() < 0.001,
+                        "{aspect:?} {coverage:?} {side:?} covered {total}, not 1.0"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn split_coverage_stamp_and_message_stay_inside_the_blank_area() {
+        fn contains(container: NormRect, area: NormRect) -> bool {
+            area.x >= container.x - 0.0001
+                && area.y >= container.y - 0.0001
+                && area.x + area.w <= container.x + container.w + 0.0001
+                && area.y + area.h <= container.y + container.h + 0.0001
+        }
+        for aspect in ALL_ASPECTS {
+            for coverage in ALL_COVERAGES {
+                for side in ALL_SIDES {
+                    let g = geometry(aspect, coverage, side);
+                    assert!(
+                        contains(g.blank_area, g.stamp_box),
+                        "{aspect:?} {coverage:?} {side:?} stamp_box"
+                    );
+                    assert!(
+                        contains(g.blank_area, g.message_area),
+                        "{aspect:?} {coverage:?} {side:?} message_area"
+                    );
+                    assert!(
+                        !overlaps(g.stamp_box, g.message_area),
+                        "{aspect:?} {coverage:?} {side:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn every_area_stays_within_the_unit_square_for_every_combination() {
+        for aspect in ALL_ASPECTS {
+            for coverage in ALL_COVERAGES {
+                for side in ALL_SIDES {
+                    let g = geometry(aspect, coverage, side);
+                    for area in [g.photo_area, g.blank_area, g.stamp_box, g.message_area] {
+                        assert!(
+                            area.x >= -0.0001 && area.y >= -0.0001,
+                            "{aspect:?} {coverage:?} {side:?}"
+                        );
+                        assert!(
+                            area.x + area.w <= 1.0001 && area.y + area.h <= 1.0001,
+                            "{aspect:?} {coverage:?} {side:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn landscape_splits_horizontally_square_and_portrait_split_vertically() {
+        let landscape = geometry(Aspect::Landscape, PhotoCoverage::Half, PhotoSide::First);
+        assert_eq!(landscape.photo_area.h, 1.0);
+        assert_eq!(landscape.photo_area.w, 0.5);
+
+        for aspect in [Aspect::Square, Aspect::Portrait] {
+            let g = geometry(aspect, PhotoCoverage::Half, PhotoSide::First);
+            assert_eq!(g.photo_area.w, 1.0, "{aspect:?}");
+            assert_eq!(g.photo_area.h, 0.5, "{aspect:?}");
+        }
+    }
+
+    #[test]
+    fn first_and_second_side_are_on_opposite_edges() {
+        let first = geometry(Aspect::Landscape, PhotoCoverage::BigSmall, PhotoSide::First);
+        let second = geometry(Aspect::Landscape, PhotoCoverage::BigSmall, PhotoSide::Second);
+        assert_eq!(first.photo_area.x, 0.0);
+        assert_eq!(second.photo_area.x, 1.0 - second.photo_area.w);
     }
 
     #[test]

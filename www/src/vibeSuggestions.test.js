@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildCandidates, looksFor, VIBE_LOOKS } from "./vibeSuggestions";
 
+const VALID_COVERAGES = ["full", "half", "bigSmall"];
+const VALID_SIDES = ["first", "second"];
+
 const ALL_VIBES = [
   "beach",
   "mountain",
@@ -138,6 +141,29 @@ describe("looksFor", () => {
           : /^vibe\.closer\.noSticker\.\d$/,
       );
     }
+  });
+
+  it("gives every look the vibe's own curated font choice, auto text color, and a valid layout/fill", () => {
+    for (const vibe of ALL_VIBES) {
+      for (const look of looksFor(vibe)) {
+        expect(look.fontChoice).toBe(VIBE_LOOKS[vibe].fontChoice);
+        expect(look.textColor).toBe("auto");
+        expect([1, 1.3]).toContain(look.fontScale);
+        expect(VALID_COVERAGES).toContain(look.photoCoverage);
+        expect(VALID_SIDES).toContain(look.photoSide);
+        expect(look.fillStyle).toBe("auto");
+      }
+    }
+  });
+
+  it("suggests a split layout only sometimes, not on every look", () => {
+    // Mostly full-bleed is the whole point (see the module's own comment
+    // on LAYOUT_VARIETY_STRIDE) -- assert both that split looks exist at
+    // all, and that they're a minority.
+    const allLooks = ALL_VIBES.flatMap((vibe) => looksFor(vibe));
+    const splitLooks = allLooks.filter((l) => l.photoCoverage !== "full");
+    expect(splitLooks.length).toBeGreaterThan(0);
+    expect(splitLooks.length).toBeLessThan(allLooks.length / 2);
   });
 });
 
