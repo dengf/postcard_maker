@@ -5,6 +5,8 @@ import { fitFontSize, getMeasureContext } from '../fitText';
 import { bestContrastColor, sampleFrameColor, hexToRgb } from '../autoTextColor';
 import StickerIcon from './StickerIcon';
 import { stickerById } from '../stickers';
+import { splitBoundary, toAddressArea } from '../photoLayout';
+import { ADDRESS_LINE_COUNT, parseAddressLines } from '../backAddress';
 
 // Used when 'auto' is selected but there's nothing to sample yet (no
 // photo loaded, or the shared collage overlay -- see `useAutoTextColor`)
@@ -28,6 +30,7 @@ export default function PostcardOverlay({
   fontScale,
   textColor,
   textAlign,
+  address,
   stickers,
   onStickerMove,
   onStickerRemove,
@@ -37,8 +40,20 @@ export default function PostcardOverlay({
   fillStyle,
   fillColor,
 }) {
+  const { t } = useI18n();
   const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
   const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor);
+  // Split-layout-only elements the user asked to carry over from the
+  // back side's own classic-postcard redesign: a real divider at the
+  // photo/blank boundary, a labeled stamp placeholder, and a "To" +
+  // address block in the space `stampBox`/`messageArea` already leave
+  // unused -- see `photoLayout.js`. `undefined` (not `false`) whenever
+  // there's nothing to split, so every `split &&` guard below stays a
+  // plain falsy check.
+  const split = geometry && (geometry.photoArea.w < 1 || geometry.photoArea.h < 1);
+  const divider = split && splitBoundary(geometry.photoArea, geometry.blankArea);
+  const toBlock = split && toAddressArea(geometry);
+  const addressLines = split ? parseAddressLines(address) : [];
 
   return (
     <>
@@ -51,7 +66,38 @@ export default function PostcardOverlay({
             width: `${geometry.stampBox.w * 100}%`,
             height: `${geometry.stampBox.h * 100}%`,
           }}
+        >
+          {split && <span className="postcard-stamp-label">{t('layout.placeStamp')}</span>}
+        </div>
+      )}
+
+      {divider && (
+        <div
+          className={`postcard-divider postcard-divider-${divider.axis}`}
+          style={divider.axis === 'x' ? { left: `${divider.pos * 100}%` } : { top: `${divider.pos * 100}%` }}
         />
+      )}
+
+      {toBlock && (
+        <div
+          className="postcard-to-block"
+          style={{
+            left: `${toBlock.x * 100}%`,
+            top: `${toBlock.y * 100}%`,
+            width: `${toBlock.w * 100}%`,
+            height: `${toBlock.h * 100}%`,
+            color: resolvedTextColor,
+          }}
+        >
+          <div className="postcard-to-label">{t('backSide.to')}</div>
+          <div className="postcard-to-lines">
+            {Array.from({ length: ADDRESS_LINE_COUNT }, (_, i) => (
+              <div key={i} className="postcard-to-line">
+                {addressLines[i] ?? ''}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {geometry && message?.trim() && (
@@ -147,11 +193,16 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * behind the blank area, not the photo -- sampling `messageArea` out of
  * the cropped photo the way the full-bleed case does would sample the
  * wrong pixels entirely. `fillStyle`/`fillColor` resolve that case
- * instead: a `solid` fill has one fixed, known color, no sampling needed;
- * `auto`/`blur` both approximate to roughly the photo's own overall tone
- * (a blur barely changes an average color), so sampling the *whole*
- * cropped photo rather than just the sliver behind `messageArea` is the
- * closer approximation. Either way this stays a preview approximation --
+ * instead: any shape paired with a concrete swatch (not the `'auto'`
+ * color sentinel) has one fixed, known base color -- every shape in
+ * `fillTreatments.js` shades symmetrically lighter/darker around that
+ * base, so contrasting against the base itself is a good approximation
+ * even for a gradient or a dotted pattern, not just a flat `solid` fill.
+ * `blur`, and any shape whose color is `'auto'`, instead approximate to
+ * roughly the photo's own overall tone (a blur barely changes an average
+ * color, and `'auto'` *is* that average), so sampling the *whole* cropped
+ * photo rather than just the sliver behind `messageArea` is the closer
+ * approximation there. Either way this stays a preview approximation --
  * `export.js`'s own `renderPostcard` computes the real fill color from
  * the actual composited pixels, same "preview approximates, export is
  * authoritative" split as everywhere else in this file.
@@ -160,14 +211,15 @@ function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillSt
   const [resolved, setResolved] = useState(textColor);
   const imgRef = useRef(null);
   const isFullCoverage = !geometry || (geometry.photoArea.w >= 1 && geometry.photoArea.h >= 1);
+  const fillShape = fillStyle ? fillStyle.split(':')[0] : 'solid';
 
   useEffect(() => {
     if (textColor !== 'auto') {
       setResolved(textColor);
       return undefined;
     }
-    if (!isFullCoverage && fillStyle === 'solid') {
-      setResolved(bestContrastColor(hexToRgb(fillColor ?? AUTO_COLOR_FALLBACK)));
+    if (!isFullCoverage && fillShape !== 'blur' && fillColor && fillColor !== 'auto') {
+      setResolved(bestContrastColor(hexToRgb(fillColor)));
       return undefined;
     }
     if (!photoUrl || !crop || !geometry) {

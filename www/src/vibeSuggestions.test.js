@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildCandidates, looksFor, VIBE_LOOKS } from "./vibeSuggestions";
+import { FILL_COLORS, parseFillStyle } from "./fillTreatments";
 
 const VALID_COVERAGES = ["full", "half", "bigSmall"];
 const VALID_SIDES = ["first", "second"];
+const VALID_FILL_SHAPES = ["solid", "gradient", "dots", "radial", "stripes", "lines"];
 
 const ALL_VIBES = [
   "beach",
@@ -151,7 +153,9 @@ describe("looksFor", () => {
         expect([1, 1.3]).toContain(look.fontScale);
         expect(VALID_COVERAGES).toContain(look.photoCoverage);
         expect(VALID_SIDES).toContain(look.photoSide);
-        expect(look.fillStyle).toBe("auto");
+        const { shape } = parseFillStyle(look.fillStyle);
+        expect(VALID_FILL_SHAPES).toContain(shape);
+        expect(look.fillColor === "auto" || FILL_COLORS.includes(look.fillColor)).toBe(true);
       }
     }
   });

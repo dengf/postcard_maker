@@ -1,3 +1,5 @@
+import { normalizeLegacyFill } from './fillTreatments';
+
 /**
  * All in-progress-postcard state in one reducer, replacing what had grown
  * to 15+ independent `useState` calls in `App.jsx` before the doodle
@@ -13,10 +15,6 @@
 export const DEFAULT_ADJUSTMENTS = { brightness: 0, contrast: 1, saturation: 1 };
 export const DEFAULT_STROKE_COLOR = '#e0355b';
 export const DEFAULT_STROKE_WIDTH = 4;
-// Same cream already used for the back side's paper background
-// (`export.js`'s `renderBackSide`) -- one consistent "postcard paper"
-// tone across the app rather than a second color invented for this.
-export const DEFAULT_FILL_COLOR = '#f4ede0';
 
 export function initialState(defaultAspect) {
   return {
@@ -40,17 +38,23 @@ export function initialState(defaultAspect) {
     drawMode: false,
     strokeColor: DEFAULT_STROKE_COLOR,
     strokeWidth: DEFAULT_STROKE_WIDTH,
-    backSide: { enabled: false, location: '' },
+    // `address` is free text, one recipient-address line per line of
+    // input (name / street / city-state-zip), drawn onto the classic
+    // ruled "To" lines -- see `export.js`'s `renderBackSide`.
+    backSide: { enabled: false, location: '', address: '' },
     // 'full' | 'half' | 'bigSmall' -- how much of the card the photo
     // covers; 'full' is the only behavior that existed before this field.
     photoCoverage: 'full',
     // 'first' | 'second' -- left/top vs right/bottom, meaningless (but
     // still present) when photoCoverage is 'full'. See geometry.photoArea.
     photoSide: 'first',
-    // 'auto' | 'solid' | 'blur' -- how the blank area behind the message
-    // is filled when photoCoverage isn't 'full'.
-    fillStyle: 'auto',
-    fillColor: DEFAULT_FILL_COLOR,
+    // Shape (+ optional ':variant') for how the blank area behind the
+    // message is filled when photoCoverage isn't 'full' -- see
+    // `fillTreatments.js`. 'auto' fillColor means "sample the photo",
+    // same default behavior a bare 'solid' shape had before that module
+    // existed.
+    fillStyle: 'solid',
+    fillColor: 'auto',
   };
 }
 
@@ -67,7 +71,8 @@ export function nextStickerKey() {
 
 export function postcardReducer(state, action) {
   switch (action.type) {
-    case 'OPEN_PHOTO':
+    case 'OPEN_PHOTO': {
+      const { fillStyle, fillColor } = normalizeLegacyFill(action.restored?.fillStyle, action.restored?.fillColor);
       return {
         ...initialState(action.aspect),
         photo: action.photo,
@@ -85,12 +90,17 @@ export function postcardReducer(state, action) {
         textAlign: action.restored?.textAlign ?? 'center',
         stickers: action.restored?.stickers ?? [],
         strokes: action.restored?.strokes ?? [],
-        backSide: action.restored?.backSide ?? { enabled: false, location: '' },
+        // Spread over the default rather than `?? {...}` whole -- an
+        // older draft saved before `address` existed would otherwise
+        // restore with that field simply missing (`undefined`), turning
+        // `BackSidePanel`'s address textarea into an uncontrolled input.
+        backSide: { enabled: false, location: '', address: '', ...action.restored?.backSide },
         photoCoverage: action.restored?.photoCoverage ?? 'full',
         photoSide: action.restored?.photoSide ?? 'first',
-        fillStyle: action.restored?.fillStyle ?? 'auto',
-        fillColor: action.restored?.fillColor ?? DEFAULT_FILL_COLOR,
+        fillStyle,
+        fillColor,
       };
+    }
 
     case 'CHANGE_ASPECT':
       return {
@@ -229,6 +239,9 @@ export function postcardReducer(state, action) {
 
     case 'SET_BACK_SIDE_LOCATION':
       return { ...state, backSide: { ...state.backSide, location: action.location } };
+
+    case 'SET_BACK_SIDE_ADDRESS':
+      return { ...state, backSide: { ...state.backSide, address: action.address } };
 
     case 'RESET':
       return initialState(action.defaultAspect);

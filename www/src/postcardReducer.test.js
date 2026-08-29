@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, DEFAULT_FILL_COLOR } from './postcardReducer';
+import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS } from './postcardReducer';
 
 const photo = { bytes: new Uint8Array([1]), url: 'blob:x', naturalW: 100, naturalH: 50, mimeType: 'image/jpeg' };
 const base = { x: 0, y: 0, w: 100, h: 50 };
@@ -141,11 +141,25 @@ describe('postcardReducer', () => {
     expect(state.adjustments).toEqual(DEFAULT_ADJUSTMENTS);
   });
 
-  it('SET_BACK_SIDE_ENABLED and SET_BACK_SIDE_LOCATION only touch backSide', () => {
+  it('SET_BACK_SIDE_ENABLED, SET_BACK_SIDE_LOCATION and SET_BACK_SIDE_ADDRESS only touch backSide', () => {
     let state = initialState('landscape');
     state = postcardReducer(state, { type: 'SET_BACK_SIDE_ENABLED', enabled: true });
     state = postcardReducer(state, { type: 'SET_BACK_SIDE_LOCATION', location: 'Singapore' });
-    expect(state.backSide).toEqual({ enabled: true, location: 'Singapore' });
+    state = postcardReducer(state, { type: 'SET_BACK_SIDE_ADDRESS', address: 'Jane Doe\n123 Main St' });
+    expect(state.backSide).toEqual({ enabled: true, location: 'Singapore', address: 'Jane Doe\n123 Main St' });
+  });
+
+  it('OPEN_PHOTO fills in a missing backSide.address from a draft saved before it existed', () => {
+    const restored = { backSide: { enabled: true, location: 'Singapore' } };
+    const state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+      restored,
+    });
+    expect(state.backSide).toEqual({ enabled: true, location: 'Singapore', address: '' });
   });
 
   it('RESET returns to a clean initial state', () => {
@@ -160,12 +174,12 @@ describe('postcardReducer', () => {
     expect(postcardReducer(state, { type: 'NOPE' })).toBe(state);
   });
 
-  it('initialState defaults to full-bleed with an auto, cream-colored fill', () => {
+  it('initialState defaults to full-bleed with a solid, photo-sampled fill', () => {
     const state = initialState('landscape');
     expect(state.photoCoverage).toBe('full');
     expect(state.photoSide).toBe('first');
-    expect(state.fillStyle).toBe('auto');
-    expect(state.fillColor).toBe(DEFAULT_FILL_COLOR);
+    expect(state.fillStyle).toBe('solid');
+    expect(state.fillColor).toBe('auto');
   });
 
   it('OPEN_PHOTO restores a prior layout/fill choice from a draft', () => {
@@ -182,6 +196,23 @@ describe('postcardReducer', () => {
     expect(state.photoSide).toBe('second');
     expect(state.fillStyle).toBe('solid');
     expect(state.fillColor).toBe('#ffffff');
+  });
+
+  it('OPEN_PHOTO migrates a draft saved before fillStyle became shape-based', () => {
+    const restored = { photoCoverage: 'half', photoSide: 'first', fillStyle: 'auto', fillColor: '#f4ede0' };
+    const state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+      restored,
+    });
+    // The old flat 'auto' shape ignored fillColor entirely; the migrated
+    // state keeps that behavior with the new 'solid' shape + 'auto' color
+    // sentinel, not the draft's stale hex.
+    expect(state.fillStyle).toBe('solid');
+    expect(state.fillColor).toBe('auto');
   });
 
   it('SET_LAYOUT changes coverage/side and re-suggests the crop, like CHANGE_ASPECT does for aspect', () => {

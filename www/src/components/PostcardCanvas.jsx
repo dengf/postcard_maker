@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { panCrop } from '../cropGesture';
 import { previewFilterCss } from '../previewFilter';
-import { sampleFrameColor } from '../autoTextColor';
+import { hexToRgb, sampleFrameColor } from '../autoTextColor';
+import { fillCss, parseFillStyle } from '../fillTreatments';
 import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
 
 const FULL_AREA = { x: 0, y: 0, w: 1, h: 1 };
 
 /**
- * A live-preview approximation of the "auto" blank-area fill: the
- * average color of the cropped photo, sampled the same way
+ * A live-preview approximation of the photo's own average color, used by
+ * both the `auto` and `gradient` blank-area fills (the latter builds two
+ * shades of it -- see `fillTreatments.js`): sampled the same way
  * `PostcardOverlay.jsx`'s own `useAutoTextColor` samples for a live
  * preview (a small offscreen canvas redraw, not a real composited
  * canvas) -- `export.js`'s `renderPostcard` computes the authoritative
@@ -17,12 +19,12 @@ const FULL_AREA = { x: 0, y: 0, w: 1, h: 1 };
  * is authoritative" split as everywhere else this app does this.
  */
 function useAutoFillColor(photoUrl, crop, cssFilter, active) {
-  const [color, setColor] = useState(null);
+  const [rgb, setRgb] = useState(null);
   const imgRef = useRef(null);
 
   useEffect(() => {
     if (!active || !photoUrl || !crop) {
-      setColor(null);
+      setRgb(null);
       return undefined;
     }
 
@@ -35,10 +37,10 @@ function useAutoFillColor(photoUrl, crop, cssFilter, active) {
       const img = imgRef.current;
       if (!img || !img.complete || img.naturalWidth === 0) return;
       try {
-        const [r, g, b] = sampleFrameColor(img, crop, cssFilter, FULL_AREA);
-        setColor(`rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`);
+        const sampled = sampleFrameColor(img, crop, cssFilter, FULL_AREA);
+        setRgb(sampled.map(Math.round));
       } catch {
-        setColor(null);
+        setRgb(null);
       }
     };
     const schedule = () => {
@@ -62,7 +64,7 @@ function useAutoFillColor(photoUrl, crop, cssFilter, active) {
     // fields are the real dependency, not its object identity.
   }, [photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, active]);
 
-  return color;
+  return rgb;
 }
 
 /**
@@ -80,10 +82,12 @@ function useAutoFillColor(photoUrl, crop, cssFilter, active) {
  * outer frame always keeps the card's own aspect ratio regardless, which
  * is why `PostcardOverlay`'s message/stamp/sticker positions (already
  * frame-relative fractions) need no changes for the split layout at all.
- * A `.postcard-fill` layer behind the photo box shows `fillStyle`: a
- * plain background color for `solid`/`auto`, or a second, blurred copy of
- * the photo stretched across the whole frame for `blur` -- visible
- * everywhere the sharp photo box doesn't cover.
+ * A `.postcard-fill` layer behind the photo box shows `fillStyle`: one of
+ * `fillTreatments.js`'s shape+variant treatments (solid/gradient/radial/
+ * dots/stripes) in either the picked swatch or the photo's own sampled
+ * average color, or a second, blurred copy of the photo stretched across
+ * the whole frame for the `blur` shape -- visible everywhere the sharp
+ * photo box doesn't cover.
  */
 export default function PostcardCanvas({
   photoUrl,
@@ -102,6 +106,7 @@ export default function PostcardCanvas({
   fontScale,
   textColor,
   textAlign,
+  address,
   stickers,
   onStickerMove,
   onStickerRemove,
@@ -158,7 +163,22 @@ export default function PostcardCanvas({
 
   const photoArea = geometry?.photoArea ?? FULL_AREA;
   const split = photoArea.w < 1 || photoArea.h < 1;
-  const autoFillColor = useAutoFillColor(photoUrl, crop, cssFilter, split && fillStyle === 'auto');
+  const { shape, variant } = parseFillStyle(fillStyle);
+  const needsAutoRgb = split && shape !== 'blur' && fillColor === 'auto';
+  const autoFillRgb = useAutoFillColor(photoUrl, crop, cssFilter, needsAutoRgb);
+
+  let fillBoxStyle;
+  if (shape === 'blur') {
+    fillBoxStyle = {
+      backgroundImage: `url(${photoUrl})`,
+      backgroundSize: `${bgSizeX}% ${bgSizeY}%`,
+      backgroundPosition: `${bgPosX}% ${bgPosY}%`,
+      filter: `${cssFilter} blur(18px)`,
+    };
+  } else {
+    const baseRgb = fillColor === 'auto' ? (autoFillRgb ?? [244, 237, 224]) : hexToRgb(fillColor);
+    fillBoxStyle = fillCss(shape, variant, baseRgb);
+  }
 
   const photoBoxStyle = {
     left: `${photoArea.x * 100}%`,
@@ -173,21 +193,7 @@ export default function PostcardCanvas({
 
   return (
     <div className="postcard-frame" style={{ aspectRatio, '--card-ratio': aspectRatio }} ref={frameRef}>
-      {split && (
-        <div
-          className="postcard-fill"
-          style={
-            fillStyle === 'blur'
-              ? {
-                  backgroundImage: `url(${photoUrl})`,
-                  backgroundSize: `${bgSizeX}% ${bgSizeY}%`,
-                  backgroundPosition: `${bgPosX}% ${bgPosY}%`,
-                  filter: `${cssFilter} blur(18px)`,
-                }
-              : { background: fillStyle === 'auto' ? (autoFillColor ?? fillColor) : fillColor }
-          }
-        />
-      )}
+      {split && <div className="postcard-fill" style={fillBoxStyle} />}
 
       <div
         ref={photoBoxRef}
@@ -214,6 +220,7 @@ export default function PostcardCanvas({
         cssFilter={cssFilter}
         fillStyle={fillStyle}
         fillColor={fillColor}
+        address={address}
         stickers={stickers}
         onStickerMove={onStickerMove}
         onStickerRemove={onStickerRemove}

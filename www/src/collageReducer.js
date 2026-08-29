@@ -32,7 +32,7 @@ export function initialCollageState(layoutId, slotCount) {
     drawMode: false,
     strokeColor: DEFAULT_STROKE_COLOR,
     strokeWidth: DEFAULT_STROKE_WIDTH,
-    backSide: { enabled: false, location: '' },
+    backSide: { enabled: false, location: '', address: '' },
   };
 }
 
@@ -132,6 +132,9 @@ export function collageReducer(state, action) {
 
     case 'SET_BACK_SIDE_LOCATION':
       return { ...state, backSide: { ...state.backSide, location: action.location } };
+
+    case 'SET_BACK_SIDE_ADDRESS':
+      return { ...state, backSide: { ...state.backSide, address: action.address } };
 
     default:
       return state;

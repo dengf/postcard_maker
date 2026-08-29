@@ -1,4 +1,5 @@
 import { toneAdjustments } from "./exposureSuggestion";
+import { FILL_COLORS, buildFillStyle } from "./fillTreatments";
 
 /**
  * What to recommend for each `Vibe` the classifier can return -- which
@@ -77,14 +78,28 @@ export const VIBE_LOOKS = {
 // model tells it which side of a photo matters), so which side the photo
 // lands on is picked from the look's own index, not "detected" -- same
 // honesty this module already applies to filter/sticker scoring being a
-// judgment call, not a calculation. `fillStyle` is always 'auto' here
-// (sampled from the photo -- the default this feature ships with); it's
-// simply unused when the coverage stays 'full'. Started at 6 (1-in-6);
-// raised to 3 (1-in-3) since 1-in-6 meant a user had to click "Try
-// another one" several times before ever seeing a split suggested at
-// all -- full-bleed still stays the majority (2 out of 3), just not as
-// rare an exception.
+// judgment call, not a calculation. Started at 6 (1-in-6); raised to 3
+// (1-in-3) since 1-in-6 meant a user had to click "Try another one"
+// several times before ever seeing a split suggested at all -- full-bleed
+// still stays the majority (2 out of 3), just not as rare an exception.
 const LAYOUT_VARIETY_STRIDE = 3;
+
+// A handful of `fillTreatments.js` shapes, cycled by index -- same
+// decorrelation idiom as `openerKey`/`closerKey` below, not a claim that
+// these are somehow the "best" of the ~300 shape/variant/color
+// combinations that module supports. `fillStyle`/`fillColor` are only
+// ever looked at when `photoCoverage` isn't `'full'` (see
+// `postcard-calc::template::geometry`'s `blank_area`), so cycling them
+// unconditionally here is harmless on the majority of looks that stay
+// full-bleed.
+const FILL_LOOKS = [
+  buildFillStyle("solid"),
+  buildFillStyle("gradient", "diagonal"),
+  buildFillStyle("dots", "medium"),
+  buildFillStyle("radial", "center"),
+  buildFillStyle("stripes", "diagonal"),
+  buildFillStyle("lines", "medium"),
+];
 
 const OPENER_COUNT = 10;
 const CLOSER_COUNT = 5;
@@ -129,7 +144,8 @@ export function looksFor(vibe) {
         fontScale: index % 4 === 0 ? 1.3 : 1,
         photoCoverage: index % LAYOUT_VARIETY_STRIDE === 0 ? (index % (LAYOUT_VARIETY_STRIDE * 2) === 0 ? "half" : "bigSmall") : "full",
         photoSide: index % 2 === 0 ? "first" : "second",
-        fillStyle: "auto",
+        fillStyle: FILL_LOOKS[index % FILL_LOOKS.length],
+        fillColor: index % 2 === 0 ? "auto" : FILL_COLORS[index % FILL_COLORS.length],
       });
     });
   });

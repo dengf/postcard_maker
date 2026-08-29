@@ -271,6 +271,8 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
           onToggle={toggleBackSide}
           location={state.backSide.location}
           onLocationChange={(location) => dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })}
+          address={state.backSide.address}
+          onAddressChange={(address) => dispatch({ type: 'SET_BACK_SIDE_ADDRESS', address })}
         />
 
         {!allSlotsFilled && <p className="text-option-note">{t('collage.fillAllSlots')}</p>}
@@ -308,7 +310,9 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
                     fontScale: state.fontScale,
                     textColor: state.textColor,
                     location: state.backSide.location,
+                    address: state.backSide.address,
                     date: postmarkDate,
+                    toLabel: t('backSide.to'),
                   }
                 : null
             }

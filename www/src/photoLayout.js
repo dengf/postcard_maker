@@ -35,3 +35,46 @@ export function suggestCropForLayout(wasmModule, naturalW, naturalH, aspectId, c
   }
   return wasmModule.suggest_crop_ratio(naturalW, naturalH, photoAreaRatio(photoArea, cardRatio));
 }
+
+/**
+ * Where `photoArea` and `blankArea` actually touch -- the boundary line
+ * between the photo and the blank side of a split layout. Derived purely
+ * from the two rects Rust already returned (not a new geometry fact of
+ * its own): whichever rect starts at 0 along the split axis, the
+ * boundary is where it ends; the other rect's own start is the same
+ * number, just computed the other way, which is why this doesn't need to
+ * know `photoSide` -- it works out the same regardless of which side the
+ * photo is on. Used by both the live preview (`PostcardOverlay.jsx`, a
+ * CSS line) and the export bake (`export.js`, a canvas line) so the two
+ * never disagree about where the card was actually split.
+ */
+export function splitBoundary(photoArea, blankArea) {
+  const vertical = photoArea.w < 1;
+  if (vertical) {
+    const pos = photoArea.x < blankArea.x ? photoArea.x + photoArea.w : blankArea.x + blankArea.w;
+    return { axis: 'x', pos };
+  }
+  const pos = photoArea.y < blankArea.y ? photoArea.y + photoArea.h : blankArea.y + blankArea.h;
+  return { axis: 'y', pos };
+}
+
+/**
+ * The unused strip of `blankArea` between the stamp corner and the
+ * greeting message -- exactly where a "To" + address block fits without
+ * touching either, mirroring the back side's own address block
+ * (`export.js`'s `renderBackSide`) but on the front's blank side of a
+ * split layout instead. Not a new Rust geometry fact: `stampBox` and
+ * `messageArea` already reserve their own space, so this is just "the
+ * gap left over," computed the same way in both the live preview and the
+ * export bake. Returns `null` if that gap is too thin to bother with
+ * (a very short blank area), rather than drawing an address block with
+ * negative height.
+ */
+export function toAddressArea(geometry) {
+  const { stampBox, messageArea, safeMargin } = geometry;
+  const gap = safeMargin;
+  const y = stampBox.y + stampBox.h + gap;
+  const h = messageArea.y - gap - y;
+  if (h <= 0) return null;
+  return { x: messageArea.x, y, w: messageArea.w, h };
+}

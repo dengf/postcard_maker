@@ -354,6 +354,7 @@ function AppShell({ wasmModule }) {
                 fontScale={fontScale}
                 textColor={textColor}
                 textAlign={textAlign}
+                address={backSide.address}
                 stickers={stickers}
                 onStickerMove={(index, x, y) => dispatch({ type: 'MOVE_STICKER', index, x, y })}
                 onStickerRemove={(index) => dispatch({ type: 'REMOVE_STICKER', index })}
@@ -432,6 +433,8 @@ function AppShell({ wasmModule }) {
                 onToggle={toggleBackSide}
                 location={backSide.location}
                 onLocationChange={(location) => dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })}
+                address={backSide.address}
+                onAddressChange={(address) => dispatch({ type: 'SET_BACK_SIDE_ADDRESS', address })}
               />
               <div id="finish-panel">
                 <ShareBar
@@ -452,6 +455,9 @@ function AppShell({ wasmModule }) {
                       geometry,
                       fillStyle,
                       fillColor,
+                      address: backSide.address,
+                      toLabel: t('backSide.to'),
+                      placeStampLabel: t('layout.placeStamp'),
                     })
                   }
                   backSide={
@@ -464,7 +470,9 @@ function AppShell({ wasmModule }) {
                           fontScale,
                           textColor,
                           location: backSide.location,
+                          address: backSide.address,
                           date: postmarkDate,
+                          toLabel: t('backSide.to'),
                         }
                       : null
                   }

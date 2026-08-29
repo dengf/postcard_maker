@@ -1,10 +1,9 @@
 import React from 'react';
 import { useI18n } from '../i18n';
 import CollapsiblePanel from './CollapsiblePanel';
+import { FILL_COLORS, FILL_SHAPES, FILL_VARIANTS, buildFillStyle, parseFillStyle } from '../fillTreatments';
 
 const COVERAGES = ['full', 'half', 'bigSmall'];
-const FILLS = ['auto', 'solid', 'blur'];
-const FILL_COLORS = ['#f4ede0', '#ffffff', '#241a1e', '#B01243', '#d9b46a'];
 
 // Landscape splits left/right; Square and Portrait split top/bottom --
 // same per-aspect axis convention `postcard-calc::template`'s collage
@@ -24,6 +23,11 @@ function sideLabelKey(aspectId, side) {
  * overlaying the photo. Side and fill controls only show once a split
  * coverage is picked -- there's nothing to choose when the photo still
  * covers everything.
+ *
+ * The fill itself is three independent picks -- shape, variant (when the
+ * shape has one), color -- crossed together rather than one flat list of
+ * named looks; see `fillTreatments.js`'s own doc comment for why that
+ * gets close to 300 distinct results from three short button rows.
  */
 export default function LayoutPanel({
   aspectId,
@@ -37,6 +41,8 @@ export default function LayoutPanel({
 }) {
   const { t } = useI18n();
   const split = coverage !== 'full';
+  const { shape, variant } = parseFillStyle(fillStyle);
+  const variants = FILL_VARIANTS[shape];
 
   return (
     <CollapsiblePanel title={t('layout.heading')}>
@@ -70,31 +76,56 @@ export default function LayoutPanel({
 
           <span className="text-option-label">{t('layout.fill')}</span>
           <div className="text-option-buttons">
-            {FILLS.map((f) => (
+            {FILL_SHAPES.map((s) => (
               <button
-                key={f}
+                key={s}
                 type="button"
-                className={f === fillStyle ? 'active' : ''}
-                onClick={() => onFillStyleChange(f)}
+                className={s === shape ? 'active' : ''}
+                onClick={() => onFillStyleChange(buildFillStyle(s, FILL_VARIANTS[s]?.[0]))}
               >
-                {t(`layout.fill.${f}`)}
+                {t(`layout.fill.shape.${s}`)}
               </button>
             ))}
           </div>
 
-          {fillStyle === 'solid' && (
+          {variants && (
             <div className="text-option-buttons">
-              {FILL_COLORS.map((c) => (
+              {variants.map((v) => (
                 <button
-                  key={c}
+                  key={v}
                   type="button"
-                  className={c === fillColor ? 'text-color-swatch active' : 'text-color-swatch'}
-                  style={{ background: c }}
-                  aria-label={c}
-                  onClick={() => onFillColorChange(c)}
-                />
+                  className={v === variant ? 'active' : ''}
+                  onClick={() => onFillStyleChange(buildFillStyle(shape, v))}
+                >
+                  {t(`layout.fill.variant.${v}`)}
+                </button>
               ))}
             </div>
+          )}
+
+          {shape !== 'blur' && (
+            <>
+              <span className="text-option-label">{t('layout.fill.colorLabel')}</span>
+              <div className="text-option-buttons">
+                <button
+                  type="button"
+                  className={fillColor === 'auto' ? 'active' : ''}
+                  onClick={() => onFillColorChange('auto')}
+                >
+                  {t('layout.fill.auto')}
+                </button>
+                {FILL_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={c === fillColor ? 'text-color-swatch active' : 'text-color-swatch'}
+                    style={{ background: c }}
+                    aria-label={c}
+                    onClick={() => onFillColorChange(c)}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </>
       )}
