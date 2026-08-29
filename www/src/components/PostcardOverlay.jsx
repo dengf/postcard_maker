@@ -30,6 +30,8 @@ export default function PostcardOverlay({
   fontScale,
   textColor,
   textAlign,
+  messagePosition,
+  onMessageMove,
   address,
   stickers,
   onStickerMove,
@@ -42,7 +44,7 @@ export default function PostcardOverlay({
 }) {
   const { t } = useI18n();
   const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
-  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor);
+  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor, messagePosition);
   // Split-layout-only elements the user asked to carry over from the
   // back side's own classic-postcard redesign: a real divider at the
   // photo/blank boundary, a labeled stamp placeholder, and a "To" +
@@ -55,6 +57,42 @@ export default function PostcardOverlay({
   const toBlock = split && toAddressArea(geometry);
   const addressLines = split ? parseAddressLines(address) : [];
 
+  // `messagePosition` overrides where `messageArea` puts the box, not its
+  // size -- see `postcardReducer.js`'s own doc comment on the field.
+  const msgArea = geometry?.messageArea;
+  const msgX = messagePosition?.x ?? msgArea?.x ?? 0;
+  const msgY = messagePosition?.y ?? msgArea?.y ?? 0;
+  const messageDrag = useRef(null);
+
+  const onMessagePointerDown = useCallback(
+    (e) => {
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      messageDrag.current = { x: e.clientX, y: e.clientY, startX: msgX, startY: msgY };
+    },
+    [msgX, msgY],
+  );
+
+  const onMessagePointerMove = useCallback(
+    (e) => {
+      if (!messageDrag.current || !frameRef.current || !msgArea) return;
+      const rect = frameRef.current.getBoundingClientRect();
+      const dx = (e.clientX - messageDrag.current.x) / rect.width;
+      const dy = (e.clientY - messageDrag.current.y) / rect.height;
+      // Clamped to keep the box fully on the card -- its size
+      // (`msgArea.w`/`.h`) never changes, only its position does.
+      const nextX = Math.min(Math.max(0, 1 - msgArea.w), Math.max(0, messageDrag.current.startX + dx));
+      const nextY = Math.min(Math.max(0, 1 - msgArea.h), Math.max(0, messageDrag.current.startY + dy));
+      onMessageMove(nextX, nextY);
+    },
+    [frameRef, msgArea, onMessageMove],
+  );
+
+  const onMessagePointerUp = useCallback((e) => {
+    e.stopPropagation();
+    messageDrag.current = null;
+  }, []);
+
   return (
     <>
       {geometry && (
@@ -66,9 +104,7 @@ export default function PostcardOverlay({
             width: `${geometry.stampBox.w * 100}%`,
             height: `${geometry.stampBox.h * 100}%`,
           }}
-        >
-          {split && <span className="postcard-stamp-label">{t('layout.placeStamp')}</span>}
-        </div>
+        />
       )}
 
       {divider && (
@@ -104,15 +140,19 @@ export default function PostcardOverlay({
         <div
           className="postcard-message"
           style={{
-            left: `${geometry.messageArea.x * 100}%`,
-            top: `${geometry.messageArea.y * 100}%`,
-            width: `${geometry.messageArea.w * 100}%`,
-            height: `${geometry.messageArea.h * 100}%`,
+            left: `${msgX * 100}%`,
+            top: `${msgY * 100}%`,
+            width: `${msgArea.w * 100}%`,
+            height: `${msgArea.h * 100}%`,
             color: resolvedTextColor,
             textAlign,
             fontFamily: FONT_STACKS[font] ?? FONT_STACKS.system,
             fontSize: `${fittedSize}px`,
           }}
+          onPointerDown={onMessagePointerDown}
+          onPointerMove={onMessagePointerMove}
+          onPointerUp={onMessagePointerUp}
+          onPointerCancel={onMessagePointerUp}
         >
           {message}
         </div>
@@ -188,6 +228,11 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * the real composited pixels regardless, since it samples the canvas
  * directly rather than going through this hook.
  *
+ * Samples wherever the message box actually is (`messagePosition`, once
+ * dragged, overrides `messageArea`'s default spot) -- not the original
+ * position, since the whole point of dragging is that the box no longer
+ * sits where the fixed formula would have put it.
+ *
  * When the photo doesn't cover the whole card (`geometry.photoArea` is
  * less than the full unit square), the message sits over the *fill*
  * behind the blank area, not the photo -- sampling `messageArea` out of
@@ -207,7 +252,7 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * the actual composited pixels, same "preview approximates, export is
  * authoritative" split as everywhere else in this file.
  */
-function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor) {
+function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor, messagePosition) {
   const [resolved, setResolved] = useState(textColor);
   const imgRef = useRef(null);
   const isFullCoverage = !geometry || (geometry.photoArea.w >= 1 && geometry.photoArea.h >= 1);
@@ -236,7 +281,14 @@ function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillSt
       const img = imgRef.current;
       if (!img || !img.complete || img.naturalWidth === 0) return;
       try {
-        const sampleArea = isFullCoverage ? geometry.messageArea : { x: 0, y: 0, w: 1, h: 1 };
+        const sampleArea = isFullCoverage
+          ? {
+              x: messagePosition?.x ?? geometry.messageArea.x,
+              y: messagePosition?.y ?? geometry.messageArea.y,
+              w: geometry.messageArea.w,
+              h: geometry.messageArea.h,
+            }
+          : { x: 0, y: 0, w: 1, h: 1 };
         const avg = sampleFrameColor(img, crop, cssFilter, sampleArea);
         setResolved(bestContrastColor(avg));
       } catch {
@@ -263,7 +315,7 @@ function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillSt
     // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
     // fields are the real dependency, not its object identity, which
     // changes on every pan/zoom dispatch.
-  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, geometry, isFullCoverage, fillStyle, fillColor]);
+  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, geometry, isFullCoverage, fillStyle, fillColor, messagePosition?.x, messagePosition?.y]);
 
   return resolved;
 }

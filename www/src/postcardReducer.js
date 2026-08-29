@@ -33,6 +33,11 @@ export function initialState(defaultAspect) {
     fontScale: 1,
     textColor: '#ffffff',
     textAlign: 'center',
+    // `null` means "wherever `geometry.messageArea` puts it" (the only
+    // behavior that existed before dragging did) -- an explicit
+    // `{x, y}` (normalized, top-left corner) once the user drags the
+    // message, overriding the default position but not its size.
+    messagePosition: null,
     stickers: [],
     strokes: [],
     drawMode: false,
@@ -88,6 +93,7 @@ export function postcardReducer(state, action) {
         fontScale: action.restored?.fontScale ?? 1,
         textColor: action.restored?.textColor ?? '#ffffff',
         textAlign: action.restored?.textAlign ?? 'center',
+        messagePosition: action.restored?.messagePosition ?? null,
         stickers: action.restored?.stickers ?? [],
         strokes: action.restored?.strokes ?? [],
         // Spread over the default rather than `?? {...}` whole -- an
@@ -110,6 +116,11 @@ export function postcardReducer(state, action) {
         crop: action.base,
         zoom: 1,
         geometry: action.geometry,
+        // A new aspect means a new `messageArea` shape and position --
+        // a dragged offset for the old one could easily land off-card or
+        // over the stamp corner on the new one, same reasoning `crop`
+        // resets to `base` right above.
+        messagePosition: null,
       };
 
     // Changing how much of the card the photo covers (and which side)
@@ -125,6 +136,10 @@ export function postcardReducer(state, action) {
         crop: action.base,
         zoom: 1,
         geometry: action.geometry,
+        // Same reasoning as `CHANGE_ASPECT`: a split changes where
+        // `messageArea` sits entirely, so a dragged position from before
+        // no longer means anything.
+        messagePosition: null,
       };
 
     case 'SET_FILL_STYLE':
@@ -150,6 +165,9 @@ export function postcardReducer(state, action) {
 
     case 'SET_MESSAGE':
       return { ...state, message: action.message };
+
+    case 'SET_MESSAGE_POSITION':
+      return { ...state, messagePosition: { x: action.x, y: action.y } };
 
     case 'SET_FONT_CHOICE':
       return { ...state, fontChoice: action.fontChoice };
@@ -212,6 +230,8 @@ export function postcardReducer(state, action) {
               crop: action.layout.base,
               zoom: 1,
               geometry: action.layout.geometry,
+              // Same reasoning as `SET_LAYOUT`'s own reset.
+              messagePosition: null,
             }
           : null),
       };

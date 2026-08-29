@@ -35,7 +35,6 @@ export default {
   "layout.side.top": "Top",
   "layout.side.bottom": "Bottom",
   "layout.fill": "Blank area",
-  "layout.placeStamp": "Place stamp here",
   "layout.fill.auto": "Auto",
   "layout.fill.colorLabel": "Color",
   "layout.fill.shape.solid": "Solid",

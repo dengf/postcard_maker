@@ -33,7 +33,7 @@ export async function renderPostcard({
   fillColor,
   address,
   toLabel = 'To',
-  placeStampLabel,
+  messagePosition,
   maxDimension = 2000,
 }) {
   const bytes = wasmModule.process_photo(photoBytes, {
@@ -118,19 +118,19 @@ export async function renderPostcard({
     // The same classic-postcard elements added to the back side
     // (`renderBackSide` below) carried over to the front's own split
     // side, at the user's request: a real divider at the photo/blank
-    // boundary, a labeled stamp placeholder (today's dashed guide is
-    // preview-only and never bakes into the export), and a "To" +
-    // address block in the gap `stampBox`/`messageArea` already leave
-    // unused. Gated on `split` so a full-bleed card's export is
+    // boundary, a dashed stamp placeholder (today's `.postcard-stamp-
+    // guide` is preview-only and never bakes into the export), and a
+    // "To" + address block in the gap `stampBox`/`messageArea` already
+    // leave unused. Gated on `split` so a full-bleed card's export is
     // completely unaffected -- same "default path provably unchanged"
     // guarantee the split layout itself was built with.
     if (split) {
       drawSplitDivider(ctx, canvas, geometry);
-      drawStampPlaceholder(ctx, canvas, geometry, placeStampLabel, font);
+      drawStampPlaceholder(ctx, canvas, geometry);
       drawFrontAddressBlock(ctx, canvas, geometry, { toLabel, address, font, textColor });
     }
 
-    drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry });
+    drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry, messagePosition });
     await drawStickers(ctx, canvas, stickers);
     drawStrokes(ctx, canvas, strokes);
 
@@ -175,11 +175,11 @@ function roundedRectPath(ctx, x, y, w, h, r) {
 }
 
 /** Bakes the live-preview-only `.postcard-stamp-guide` (see
- * `PostcardOverlay.jsx`) into the export, with its label, but only for a
- * split layout -- a full-bleed card's guide stays exactly what it's
- * always been, a hint for where to drag an actual stamp sticker, not
- * something that appears in the exported image. */
-function drawStampPlaceholder(ctx, canvas, geometry, label, font) {
+ * `PostcardOverlay.jsx`) into the export -- a plain dashed square, no
+ * label -- but only for a split layout: a full-bleed card's guide stays
+ * exactly what it's always been, a hint for where to drag an actual
+ * stamp sticker, not something that appears in the exported image. */
+function drawStampPlaceholder(ctx, canvas, geometry) {
   const box = geometry.stampBox;
   const x = box.x * canvas.width;
   const y = box.y * canvas.height;
@@ -194,22 +194,6 @@ function drawStampPlaceholder(ctx, canvas, geometry, label, font) {
   roundedRectPath(ctx, x, y, w, h, radius);
   ctx.stroke();
   ctx.restore();
-
-  if (!label?.trim()) return;
-  const fontFamily = FONT_STACKS[font] ?? FONT_STACKS.system;
-  const pad = Math.min(w, h) * 0.14;
-  const fontSize = fitFontSize(ctx, label, w - pad * 2, h - pad * 2, { min: 6, max: h * 0.22, fontFamily });
-  ctx.font = `${fontSize}px ${fontFamily}`;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const lines = wrapText(ctx, label, w - pad * 2);
-  const lineHeight = fontSize * 1.25;
-  let ly = y + (h - lines.length * lineHeight) / 2;
-  for (const line of lines) {
-    ctx.fillText(line, x + w / 2, ly);
-    ly += lineHeight;
-  }
 }
 
 function hexToRgba(hex, alpha) {
@@ -301,6 +285,7 @@ export async function renderCollage({
   stickers,
   strokes,
   geometry,
+  messagePosition,
   longSide = 1600,
 }) {
   const canvasW = aspectRatio >= 1 ? longSide : Math.round(longSide * aspectRatio);
@@ -341,7 +326,7 @@ export async function renderCollage({
     }
   }
 
-  drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry });
+  drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry, messagePosition });
   await drawStickers(ctx, canvas, stickers);
   drawStrokes(ctx, canvas, strokes);
 
@@ -529,11 +514,15 @@ function loadImage(url) {
   });
 }
 
-function drawMessage(ctx, canvas, { message, font, fontScale = 1, textColor, textAlign, geometry }) {
+function drawMessage(ctx, canvas, { message, font, fontScale = 1, textColor, textAlign, geometry, messagePosition }) {
   if (!message?.trim()) return;
   const area = geometry.messageArea;
-  const x = area.x * canvas.width;
-  const y = area.y * canvas.height;
+  // `messagePosition` overrides where the box sits (see
+  // `postcardReducer.js`), not its size -- same convention
+  // `PostcardOverlay.jsx`'s live preview uses when the message has been
+  // dragged.
+  const x = (messagePosition?.x ?? area.x) * canvas.width;
+  const y = (messagePosition?.y ?? area.y) * canvas.height;
   const w = area.w * canvas.width;
   const h = area.h * canvas.height;
   const fontFamily = FONT_STACKS[font] ?? FONT_STACKS.system;

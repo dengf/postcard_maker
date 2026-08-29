@@ -106,6 +106,8 @@ export default function PostcardCanvas({
   fontScale,
   textColor,
   textAlign,
+  messagePosition,
+  onMessageMove,
   address,
   stickers,
   onStickerMove,
@@ -215,6 +217,8 @@ export default function PostcardCanvas({
         fontScale={fontScale}
         textColor={textColor}
         textAlign={textAlign}
+        messagePosition={messagePosition}
+        onMessageMove={onMessageMove}
         photoUrl={photoUrl}
         crop={crop}
         cssFilter={cssFilter}

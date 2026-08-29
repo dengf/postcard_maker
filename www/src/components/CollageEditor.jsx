@@ -208,6 +208,8 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
             fontScale={state.fontScale}
             textColor={state.textColor}
             textAlign={state.textAlign}
+            messagePosition={state.messagePosition}
+            onMessageMove={(x, y) => dispatch({ type: 'SET_MESSAGE_POSITION', x, y })}
             stickers={state.stickers}
             onStickerMove={(index, x, y) => dispatch({ type: 'MOVE_STICKER', index, x, y })}
             onStickerRemove={(index) => dispatch({ type: 'REMOVE_STICKER', index })}
@@ -295,6 +297,7 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
                 fontScale: state.fontScale,
                 textColor: state.textColor,
                 textAlign: state.textAlign,
+                messagePosition: state.messagePosition,
                 stickers: state.stickers,
                 strokes: state.strokes,
                 geometry,

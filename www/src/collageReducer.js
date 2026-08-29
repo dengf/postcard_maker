@@ -27,6 +27,7 @@ export function initialCollageState(layoutId, slotCount) {
     fontScale: 1,
     textColor: '#ffffff',
     textAlign: 'center',
+    messagePosition: null,
     stickers: [],
     strokes: [],
     drawMode: false,
@@ -81,6 +82,9 @@ export function collageReducer(state, action) {
 
     case 'SET_MESSAGE':
       return { ...state, message: action.message };
+
+    case 'SET_MESSAGE_POSITION':
+      return { ...state, messagePosition: { x: action.x, y: action.y } };
 
     case 'SET_FONT_CHOICE':
       return { ...state, fontChoice: action.fontChoice };

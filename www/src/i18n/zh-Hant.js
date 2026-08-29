@@ -34,7 +34,6 @@ export default {
   "layout.side.top": "頂部",
   "layout.side.bottom": "底部",
   "layout.fill": "空白區域",
-  "layout.placeStamp": "郵票貼此處",
   "layout.fill.auto": "自動",
   "layout.fill.colorLabel": "顏色",
   "layout.fill.shape.solid": "純色",

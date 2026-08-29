@@ -48,7 +48,7 @@ function AppShell({ wasmModule }) {
 
   const objectUrlRef = useRef(null);
   const { photo, aspectId, baseCrop, crop, zoom, geometry, adjustments, filter } = state;
-  const { message, fontChoice, fontScale, textColor, textAlign, stickers, strokes, drawMode } = state;
+  const { message, fontChoice, fontScale, textColor, textAlign, messagePosition, stickers, strokes, drawMode } = state;
   const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } = state;
 
   // A previously unfinished postcard, offered once at startup rather than
@@ -354,6 +354,8 @@ function AppShell({ wasmModule }) {
                 fontScale={fontScale}
                 textColor={textColor}
                 textAlign={textAlign}
+                messagePosition={messagePosition}
+                onMessageMove={(x, y) => dispatch({ type: 'SET_MESSAGE_POSITION', x, y })}
                 address={backSide.address}
                 stickers={stickers}
                 onStickerMove={(index, x, y) => dispatch({ type: 'MOVE_STICKER', index, x, y })}
@@ -450,6 +452,7 @@ function AppShell({ wasmModule }) {
                       fontScale,
                       textColor,
                       textAlign,
+                      messagePosition,
                       stickers,
                       strokes,
                       geometry,
@@ -457,7 +460,6 @@ function AppShell({ wasmModule }) {
                       fillColor,
                       address: backSide.address,
                       toLabel: t('backSide.to'),
-                      placeStampLabel: t('layout.placeStamp'),
                     })
                   }
                   backSide={
