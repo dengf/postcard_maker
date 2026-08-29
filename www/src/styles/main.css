@@ -401,10 +401,14 @@ label.btn { cursor: pointer; }
 
 .share-sticky-bar { display: none; }
 @media (max-width: 719px) {
-  /* The in-panel buttons above are replaced by the fixed bar below on
-     narrow viewports -- showing both would just be two copies of the same
-     two buttons on screen at once. */
-  .share-actions { display: none; }
+  /* The in-panel Share/Save buttons are replaced by the fixed bar below
+     on narrow viewports -- showing both would just be two copies of the
+     same two buttons on screen at once. Scoped to .share-panel-actions
+     specifically (ShareBar.jsx's own extra class), NOT the shared
+     .share-actions class -- that one's also reused by the draft
+     resume/discard banner (App.jsx) and the doodle undo/clear row
+     (DoodleToolbar.jsx), which broke when this rule hid it by mistake. */
+  .share-panel-actions { display: none; }
   .share-sticky-bar {
     display: flex;
     flex-direction: column;

@@ -74,7 +74,7 @@ export default function ShareBar({ renderFront, backSide, onError }) {
   return (
     <div className="panel">
       <h2>{t('share.heading')}</h2>
-      <div className="share-actions">
+      <div className="share-actions share-panel-actions">
         <button type="button" className="btn" onClick={handleShare} disabled={busy}>
           <ShareIcon />
           {t('share.share')}
