@@ -216,11 +216,22 @@ label.btn { cursor: pointer; }
 .template-swatch { border: 1.5px solid currentColor; border-radius: 3px; }
 
 /* Editor layout: preview on top, controls below on narrow screens; side by
-   side once there's room. */
+   side once there's room. The preview column is sticky at every width,
+   not just the two-column desktop layout -- on a single-column phone
+   screen the controls are several panels tall, and pinning the photo
+   near the top lets a filter/text/sticker change several panels down
+   still show up live without scrolling back to check it. */
 .editor-layout { display: flex; flex-direction: column; gap: 20px; }
+.editor-preview-col {
+  position: sticky;
+  top: calc(8px + env(safe-area-inset-top));
+  z-index: 2;
+  background: var(--bg);
+  padding-bottom: 8px;
+}
 @media (min-width: 720px) {
   .editor-layout { flex-direction: row; align-items: flex-start; }
-  .editor-preview-col { flex: 1.1; position: sticky; top: 16px; }
+  .editor-preview-col { flex: 1.1; top: 16px; }
   .editor-controls-col { flex: 1; display: flex; flex-direction: column; gap: 16px; }
 }
 
