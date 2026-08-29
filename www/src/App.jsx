@@ -360,6 +360,12 @@ function AppShell({ wasmModule }) {
             </div>
 
             <div className="editor-controls-col">
+              <VibePanel
+                photoBytes={photo.bytes}
+                onApply={applyVibe}
+                onSetMessage={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
+                onError={setError}
+              />
               <TemplatePicker aspectId={aspectId} onChange={changeAspect} />
               <LayoutPanel
                 aspectId={aspectId}
@@ -370,12 +376,6 @@ function AppShell({ wasmModule }) {
                 onFillStyleChange={(f) => dispatch({ type: 'SET_FILL_STYLE', fillStyle: f })}
                 fillColor={fillColor}
                 onFillColorChange={(c) => dispatch({ type: 'SET_FILL_COLOR', fillColor: c })}
-              />
-              <VibePanel
-                photoBytes={photo.bytes}
-                onApply={applyVibe}
-                onSetMessage={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
-                onError={setError}
               />
               <FilterPanel
                 zoom={zoom}

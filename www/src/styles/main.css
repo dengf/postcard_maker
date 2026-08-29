@@ -247,6 +247,22 @@ label.btn { cursor: pointer; }
      the frame's rendered size varies with the sidebar layout breakpoint. */
   container-type: size;
 }
+@media (max-width: 719px) {
+  /* On the single-column phone layout the preview is sticky (see
+     .editor-preview-col below) and the controls scroll underneath it, so
+     a tall template (Portrait's 5:7) eating most of the viewport leaves
+     almost no visible room to actually see/scroll those controls. Capping
+     the frame's height to a fixed share of the viewport -- via `width`,
+     not `height`, so the aspect-ratio box still derives its own height
+     correctly and the crop/pan pixel math (which assumes the rendered
+     frame matches the card's own ratio) stays valid -- only ever shrinks
+     a template that would otherwise exceed the cap; Landscape/Square
+     already fit under it today and are untouched. */
+  .postcard-frame {
+    width: min(100%, calc(38vh * var(--card-ratio, 1)));
+    margin: 0 auto;
+  }
+}
 /* Behind the photo box, visible wherever a split layout's photo doesn't
    cover -- a plain color for 'solid'/'auto', or (via an inline
    background-image) a blurred, frame-covering copy of the photo for

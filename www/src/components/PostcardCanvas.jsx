@@ -172,7 +172,7 @@ export default function PostcardCanvas({
   };
 
   return (
-    <div className="postcard-frame" style={{ aspectRatio }} ref={frameRef}>
+    <div className="postcard-frame" style={{ aspectRatio, '--card-ratio': aspectRatio }} ref={frameRef}>
       {split && (
         <div
           className="postcard-fill"
