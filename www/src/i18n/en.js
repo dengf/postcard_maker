@@ -56,7 +56,7 @@ export default {
   "vibe.analyzingProgress": "Downloading suggestion engine… {percent}%",
   "vibe.apply": "Apply",
   "vibe.dismiss": "Dismiss",
-  "vibe.shuffle": "Try other ideas",
+  "vibe.shuffle": "Try another one",
   "vibe.useCaption": "Use this message",
   "vibe.noSuggestion": "No suggestion for this photo.",
   "exposure.brighten": "This photo looks a bit dark — brighten it up?",

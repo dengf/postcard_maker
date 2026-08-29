@@ -79,8 +79,12 @@ export const VIBE_LOOKS = {
 // honesty this module already applies to filter/sticker scoring being a
 // judgment call, not a calculation. `fillStyle` is always 'auto' here
 // (sampled from the photo -- the default this feature ships with); it's
-// simply unused when the coverage stays 'full'.
-const LAYOUT_VARIETY_STRIDE = 6;
+// simply unused when the coverage stays 'full'. Started at 6 (1-in-6);
+// raised to 3 (1-in-3) since 1-in-6 meant a user had to click "Try
+// another one" several times before ever seeing a split suggested at
+// all -- full-bleed still stays the majority (2 out of 3), just not as
+// rare an exception.
+const LAYOUT_VARIETY_STRIDE = 3;
 
 const OPENER_COUNT = 10;
 const CLOSER_COUNT = 5;

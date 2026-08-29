@@ -55,3 +55,51 @@ export function SaveIcon() {
     </svg>
   );
 }
+
+/** Used by CollapsiblePanel -- rotated 180deg via CSS when its section is open. */
+export function ChevronIcon({ className }) {
+  return (
+    <svg {...ICON_PROPS} className={className ? `${ICON_PROPS.className} ${className}` : ICON_PROPS.className}>
+      <path d="M6 9 L12 15 L18 9" />
+    </svg>
+  );
+}
+
+export function FontGlyphIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <text x="2.5" y="17.5" fontSize="13" fontWeight="700" fill="currentColor" stroke="none" fontFamily="serif">
+        Aa
+      </text>
+    </svg>
+  );
+}
+
+export function SizeIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <text x="2" y="18" fontSize="16" fontWeight="700" fill="currentColor" stroke="none">
+        A
+      </text>
+      <text x="15" y="18" fontSize="9" fontWeight="700" fill="currentColor" stroke="none">
+        A
+      </text>
+    </svg>
+  );
+}
+
+export function AlignGlyphIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M4 6 H20 M4 11 H14 M4 16 H17" />
+    </svg>
+  );
+}
+
+export function ColorSwatchGlyphIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="7.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

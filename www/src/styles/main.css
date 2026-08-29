@@ -148,6 +148,25 @@ label.btn { cursor: pointer; }
 .btn.ghost { background: transparent; color: var(--muted); padding: 6px 12px; }
 .btn.danger { background: transparent; color: var(--negative); padding: 6px 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Same shape as .btn (8px radius, solid accent), just smaller. Currently
+   unused directly but kept as the general "smaller than .btn, same
+   shape" variant for anywhere that isn't a plain-word link. */
+.btn.small { min-height: 44px; min-width: 44px; padding: 6px 12px; font-size: 0.82rem; }
+/* A plain underlined-word action (e.g. a "Suggest a look" chip's Apply/
+   Dismiss/"Try another one") sitting on one line -- no button box at
+   all, but still a real 44px-tall tap target per this app's touch-target
+   rule, just invisible padding instead of a visible button shape.
+   `.primary` marks the one actually-affirmative action among them
+   (Apply) so it doesn't read as equally weighted with Dismiss/shuffle. */
+.btn.link {
+  min-height: 44px;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: underline;
+  padding: 6px 4px;
+  font-weight: 500;
+}
+.btn.link.primary { color: var(--accent); font-weight: 700; }
 
 /* icons.jsx's small inline outline icons (camera, image, share, save).
    Without an explicit size, an SVG with a viewBox but no width/height
@@ -234,6 +253,13 @@ label.btn { cursor: pointer; }
   .editor-preview-col { flex: 1.1; top: 16px; }
   .editor-controls-col { flex: 1; display: flex; flex-direction: column; gap: 16px; }
 }
+
+/* Start Over (left) / Finish (right) -- both terminal top-level actions,
+   kept reachable right under the preview instead of only at opposite
+   ends of a long scroll (Start Over already lived here; Finish jumps to
+   the Share/Save panel, #finish-panel, at the bottom of the controls
+   column -- see App.jsx's scrollToFinish). */
+.editor-preview-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
 
 .postcard-frame {
   position: relative;
@@ -355,7 +381,7 @@ label.btn { cursor: pointer; }
   resize: vertical;
   font-family: inherit;
 }
-.text-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+.text-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .text-option-group { display: flex; flex-direction: column; gap: 6px; }
 .text-option-label { font-size: 0.78rem; color: var(--muted); }
 .text-option-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -383,6 +409,64 @@ label.btn { cursor: pointer; }
 }
 .text-color-swatch.active { border-color: var(--accent); }
 .text-option-note { font-size: 0.76rem; color: var(--muted-2); margin: 0; }
+
+/* CollapsiblePanel (LayoutPanel/FilterPanel) -- collapsed by default on
+   phones, open by default on desktop; see CollapsiblePanel.jsx. The
+   header takes over the .panel h2's spot, so it needs no extra margin. */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.collapsible-header h2 { margin: 0; }
+.collapsible-body { display: flex; flex-direction: column; gap: 14px; }
+.chevron-icon { flex: none; transition: transform 0.15s ease; }
+.chevron-icon.open { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .chevron-icon { transition: none; }
+}
+
+/* TextPanel's font/size/align/color groups -- a Word-toolbar-style
+   compact toggle (icon + current value only, no spelled-out category
+   label) that expands to the actual option buttons on tap. Collapsed by
+   default on phones, open by default on desktop; see TextPanel.jsx's
+   OptionGroup. `align-items: flex-start` on the group keeps the toggle
+   sized to its own content instead of stretching full-width, the
+   default cross-axis behaviour a column flex container would otherwise
+   give it -- that stretch was what made 4 of these stack into 4 full-
+   width rows instead of sitting compactly side by side. */
+.text-option-group { align-items: flex-start; }
+.text-option-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  min-width: 44px;
+  border: 2px solid var(--input-border);
+  background: var(--panel-alt);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.text-option-toggle-value { color: var(--muted); }
+.text-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--input-border);
+  display: inline-block;
+}
 
 .sticker-palette { display: flex; gap: 8px; flex-wrap: wrap; }
 .sticker-button {

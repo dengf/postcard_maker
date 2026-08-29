@@ -6,13 +6,20 @@ import { captionFor } from "../vibeCaptions";
 import { photoTone } from "../photoTone";
 import { suggestExposure } from "../exposureSuggestion";
 import { suggestGroup, groupCaptionFor } from "../groupSuggestion";
+import { useIsNarrow } from "../useIsNarrow";
 
 // 2, not more: every vibe has a large pool of look variants (see
 // vibeSuggestions.js's filter x sticker cross product), and the single
 // most common outcome is one matched vibe -- still a pool well over 2.
 // Showing 2 up front always leaves plenty for "Try other ideas" to
 // shuffle into, even in that overwhelmingly common single-vibe case.
-const VISIBLE_COUNT = 2;
+// On the phone-width layout only 1 shows at a time -- each chip already
+// has its own label plus an Apply button, and this panel sits at the
+// very top of the control stack, so 2 full chips can push everything
+// else below the fold before a user has even opened a photo's worth of
+// controls.
+const DESKTOP_VISIBLE_COUNT = 2;
+const NARROW_VISIBLE_COUNT = 1;
 
 /**
  * Vibe-based candidates (from `buildCandidates`) carry an `openerKey` +
@@ -66,6 +73,8 @@ export default function VibePanel({
   onError,
 }) {
   const { t } = useI18n();
+  const narrow = useIsNarrow();
+  const visibleCount = narrow ? NARROW_VISIBLE_COUNT : DESKTOP_VISIBLE_COUNT;
   const [phase, setPhase] = useState("idle"); // idle | loading | result | empty
   const [candidates, setCandidates] = useState([]);
   const [cursor, setCursor] = useState(0);
@@ -134,11 +143,11 @@ export default function VibePanel({
   const visible = useMemo(() => {
     if (candidates.length === 0) return [];
     const out = [];
-    for (let i = 0; i < Math.min(VISIBLE_COUNT, candidates.length); i += 1) {
+    for (let i = 0; i < Math.min(visibleCount, candidates.length); i += 1) {
       out.push(candidates[(cursor + i) % candidates.length]);
     }
     return out;
-  }, [candidates, cursor]);
+  }, [candidates, cursor, visibleCount]);
 
   const apply = (candidate) => {
     onApply(candidate);
@@ -146,7 +155,7 @@ export default function VibePanel({
   };
 
   const shuffle = () =>
-    setCursor((c) => (c + VISIBLE_COUNT) % candidates.length);
+    setCursor((c) => (c + visibleCount) % candidates.length);
 
   const dismiss = () => setPhase("idle");
 
@@ -206,23 +215,34 @@ export default function VibePanel({
             >
               <span>{labelFor(t, c)}</span>
               <div className="vibe-chip-actions">
-                <button type="button" className="btn" onClick={() => apply(c)}>
+                <button type="button" className="btn link primary" onClick={() => apply(c)}>
                   {t("vibe.apply")}
                 </button>
+                <button type="button" className="btn link" onClick={dismiss}>
+                  {t("vibe.dismiss")}
+                </button>
+                {/* Only one card shows at a time on phones (visible.length
+                    === 1), so "try another one" belongs on that card's own
+                    action row. With 2+ cards shown at once (desktop), it
+                    cycles the whole shown set rather than any single card,
+                    so it stays in its own row below instead -- see the
+                    block right after this map. */}
+                {visible.length === 1 && candidates.length > visibleCount && (
+                  <button type="button" className="btn link" onClick={shuffle}>
+                    {t("vibe.shuffle")}
+                  </button>
+                )}
               </div>
             </div>
           ))}
 
-          <div className="vibe-panel-actions">
-            {candidates.length > VISIBLE_COUNT && (
+          {visible.length > 1 && candidates.length > visibleCount && (
+            <div className="vibe-panel-actions">
               <button type="button" className="btn ghost" onClick={shuffle}>
                 {t("vibe.shuffle")}
               </button>
-            )}
-            <button type="button" className="btn ghost" onClick={dismiss}>
-              {t("vibe.dismiss")}
-            </button>
-          </div>
+            </div>
+          )}
 
           {caption && (
             <div className="vibe-caption">

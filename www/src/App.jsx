@@ -233,6 +233,15 @@ function AppShell({ wasmModule }) {
     discardDraft();
   }, [confirm, t, discardDraft]);
 
+  // A one-tap jump to the Share/Save panel -- it's the last thing in a
+  // long single-column control stack on phones, and desktop has no
+  // sticky bottom bar shortcut to it the way mobile does (see
+  // .share-sticky-bar in main.css), so this gives both layouts a
+  // persistent way to reach it from right under the preview.
+  const scrollToFinish = useCallback(() => {
+    document.getElementById('finish-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   // Autosaves the in-progress postcard, debounced so a slider drag or a
   // keystroke doesn't open an IndexedDB write per frame.
   useEffect(() => {
@@ -354,9 +363,14 @@ function AppShell({ wasmModule }) {
                 strokeWidth={strokeWidth}
                 onAddStroke={(stroke) => dispatch({ type: 'ADD_STROKE', stroke })}
               />
-              <button type="button" className="btn ghost" onClick={startOver}>
-                {t('intro.startOver')}
-              </button>
+              <div className="editor-preview-actions">
+                <button type="button" className="btn ghost" onClick={startOver}>
+                  {t('intro.startOver')}
+                </button>
+                <button type="button" className="btn ghost" onClick={scrollToFinish}>
+                  {t('share.heading')}
+                </button>
+              </div>
             </div>
 
             <div className="editor-controls-col">
@@ -419,42 +433,44 @@ function AppShell({ wasmModule }) {
                 location={backSide.location}
                 onLocationChange={(location) => dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })}
               />
-              <ShareBar
-                renderFront={() =>
-                  renderPostcard({
-                    wasmModule,
-                    photoBytes: photo.bytes,
-                    crop,
-                    adjustments,
-                    filter,
-                    message,
-                    font: effFont,
-                    fontScale,
-                    textColor,
-                    textAlign,
-                    stickers,
-                    strokes,
-                    geometry,
-                    fillStyle,
-                    fillColor,
-                  })
-                }
-                backSide={
-                  backSide.enabled
-                    ? {
-                        enabled: true,
-                        aspectRatio: aspectRatio(aspectId),
-                        message,
-                        font: effFont,
-                        fontScale,
-                        textColor,
-                        location: backSide.location,
-                        date: postmarkDate,
-                      }
-                    : null
-                }
-                onError={setError}
-              />
+              <div id="finish-panel">
+                <ShareBar
+                  renderFront={() =>
+                    renderPostcard({
+                      wasmModule,
+                      photoBytes: photo.bytes,
+                      crop,
+                      adjustments,
+                      filter,
+                      message,
+                      font: effFont,
+                      fontScale,
+                      textColor,
+                      textAlign,
+                      stickers,
+                      strokes,
+                      geometry,
+                      fillStyle,
+                      fillColor,
+                    })
+                  }
+                  backSide={
+                    backSide.enabled
+                      ? {
+                          enabled: true,
+                          aspectRatio: aspectRatio(aspectId),
+                          message,
+                          font: effFont,
+                          fontScale,
+                          textColor,
+                          location: backSide.location,
+                          date: postmarkDate,
+                        }
+                      : null
+                  }
+                  onError={setError}
+                />
+              </div>
             </div>
           </div>
         )}

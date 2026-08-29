@@ -1,5 +1,6 @@
 import React from 'react';
 import { useI18n } from '../i18n';
+import CollapsiblePanel from './CollapsiblePanel';
 
 const FILTERS = ['none', 'grayscale', 'sepia', 'vintage'];
 
@@ -10,8 +11,7 @@ export default function FilterPanel({ zoom, onZoomChange, filter, onFilterChange
     onAdjustmentsChange({ ...adjustments, [key]: Number(e.target.value) });
 
   return (
-    <div className="panel">
-      <h2>{t('editor.filter')}</h2>
+    <CollapsiblePanel title={t('editor.filter')}>
       <p className="text-option-note">{t('editor.cropHint')}</p>
 
       <SliderField label={t('editor.zoom')} value={zoom} min={1} max={3} step={0.01} onChange={(e) => onZoomChange(Number(e.target.value))} display={`${zoom.toFixed(1)}x`} />
@@ -57,7 +57,7 @@ export default function FilterPanel({ zoom, onZoomChange, filter, onFilterChange
       <button type="button" className="btn ghost" onClick={onReset}>
         {t('editor.reset')}
       </button>
-    </div>
+    </CollapsiblePanel>
   );
 }
 

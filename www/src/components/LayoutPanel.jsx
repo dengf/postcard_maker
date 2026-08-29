@@ -1,5 +1,6 @@
 import React from 'react';
 import { useI18n } from '../i18n';
+import CollapsiblePanel from './CollapsiblePanel';
 
 const COVERAGES = ['full', 'half', 'bigSmall'];
 const FILLS = ['auto', 'solid', 'blur'];
@@ -38,8 +39,7 @@ export default function LayoutPanel({
   const split = coverage !== 'full';
 
   return (
-    <div className="panel">
-      <h2>{t('layout.heading')}</h2>
+    <CollapsiblePanel title={t('layout.heading')}>
       <div className="text-option-buttons">
         {COVERAGES.map((c) => (
           <button
@@ -98,6 +98,6 @@ export default function LayoutPanel({
           )}
         </>
       )}
-    </div>
+    </CollapsiblePanel>
   );
 }
