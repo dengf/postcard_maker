@@ -32,8 +32,17 @@ const BIG_SHARE: f32 = 0.7;
 /// (top/bottom) -- the same per-aspect axis convention
 /// [`collage_layouts`] already uses. `Full` ignores `side` and returns
 /// the whole card for both, since there's nothing to split.
-fn photo_and_blank_area(aspect: Aspect, coverage: PhotoCoverage, side: PhotoSide) -> (NormRect, NormRect) {
-    let whole = NormRect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 };
+fn photo_and_blank_area(
+    aspect: Aspect,
+    coverage: PhotoCoverage,
+    side: PhotoSide,
+) -> (NormRect, NormRect) {
+    let whole = NormRect {
+        x: 0.0,
+        y: 0.0,
+        w: 1.0,
+        h: 1.0,
+    };
     let photo_share = match coverage {
         PhotoCoverage::Full => return (whole, whole),
         PhotoCoverage::Half => HALF_SHARE,
@@ -49,13 +58,33 @@ fn photo_and_blank_area(aspect: Aspect, coverage: PhotoCoverage, side: PhotoSide
 
     if splits_x {
         (
-            NormRect { x: photo_origin, y: 0.0, w: photo_share, h: 1.0 },
-            NormRect { x: blank_origin, y: 0.0, w: blank_share, h: 1.0 },
+            NormRect {
+                x: photo_origin,
+                y: 0.0,
+                w: photo_share,
+                h: 1.0,
+            },
+            NormRect {
+                x: blank_origin,
+                y: 0.0,
+                w: blank_share,
+                h: 1.0,
+            },
         )
     } else {
         (
-            NormRect { x: 0.0, y: photo_origin, w: 1.0, h: photo_share },
-            NormRect { x: 0.0, y: blank_origin, w: 1.0, h: blank_share },
+            NormRect {
+                x: 0.0,
+                y: photo_origin,
+                w: 1.0,
+                h: photo_share,
+            },
+            NormRect {
+                x: 0.0,
+                y: blank_origin,
+                w: 1.0,
+                h: blank_share,
+            },
         )
     }
 }
@@ -198,8 +227,11 @@ mod tests {
     use super::*;
 
     const ALL_ASPECTS: [Aspect; 3] = [Aspect::Landscape, Aspect::Square, Aspect::Portrait];
-    const ALL_COVERAGES: [PhotoCoverage; 3] =
-        [PhotoCoverage::Full, PhotoCoverage::Half, PhotoCoverage::BigSmall];
+    const ALL_COVERAGES: [PhotoCoverage; 3] = [
+        PhotoCoverage::Full,
+        PhotoCoverage::Half,
+        PhotoCoverage::BigSmall,
+    ];
     const ALL_SIDES: [PhotoSide; 2] = [PhotoSide::First, PhotoSide::Second];
 
     #[test]
@@ -232,7 +264,12 @@ mod tests {
         // formula this function used to hard-code.
         for aspect in ALL_ASPECTS {
             let g = geometry(aspect, PhotoCoverage::Full, PhotoSide::First);
-            let whole = NormRect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 };
+            let whole = NormRect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+            };
             assert_eq!(g.photo_area, whole, "{aspect:?}");
             assert_eq!(g.blank_area, whole, "{aspect:?}");
             assert_eq!(g.stamp_box.x, 1.0 - SAFE_MARGIN - 0.16, "{aspect:?}");
@@ -337,7 +374,11 @@ mod tests {
     #[test]
     fn first_and_second_side_are_on_opposite_edges() {
         let first = geometry(Aspect::Landscape, PhotoCoverage::BigSmall, PhotoSide::First);
-        let second = geometry(Aspect::Landscape, PhotoCoverage::BigSmall, PhotoSide::Second);
+        let second = geometry(
+            Aspect::Landscape,
+            PhotoCoverage::BigSmall,
+            PhotoSide::Second,
+        );
         assert_eq!(first.photo_area.x, 0.0);
         assert_eq!(second.photo_area.x, 1.0 - second.photo_area.w);
     }
