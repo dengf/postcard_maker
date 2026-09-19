@@ -337,6 +337,7 @@ export default {
 
   "collage.layout": "Layout",
   "collage.addPhoto": "Add photo",
+  "collage.replacePhoto": "Use a different photo",
   "collage.fillAllSlots": "Add a photo to every slot to finish.",
 
   "text.heading": "Message",

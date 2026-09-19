@@ -49,6 +49,18 @@ export function CollageIcon() {
   );
 }
 
+// Two arrows doubling back on each other -- "swap this one out", which is
+// what the collage slot chip does. Distinct from a single circular-arrow
+// refresh, which would read as "undo my edits to this photo".
+export function SwapIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M4 8.5h12.5M13.5 5 17 8.5 13.5 12" />
+      <path d="M20 15.5H7.5M10.5 12 7 15.5 10.5 19" />
+    </svg>
+  );
+}
+
 export function ShareIcon() {
   return (
     <svg {...ICON_PROPS}>

@@ -265,6 +265,7 @@ export default {
 
   "collage.layout": "版面",
   "collage.addPhoto": "新增照片",
+  "collage.replacePhoto": "換一張照片",
   "collage.fillAllSlots": "為每個位置新增照片即可完成。",
 
   "text.heading": "祝福語",
