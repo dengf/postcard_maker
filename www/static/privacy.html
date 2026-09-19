@@ -104,8 +104,9 @@
 
     <h2>Third-party models</h2>
     <p>
-      "Suggest a look" downloads two small models the first time you tap
-      that button, and only then: a photo-classification model —
+      "Suggest a look" downloads two models the first time you tap that
+      button, and only then — about 11MB together: a photo-classification
+      model —
       MobileNetV3-Small, trained on ImageNet-1000, licensed
       <a href="https://github.com/pytorch/vision/blob/main/LICENSE">BSD-3-Clause</a>
       — and a face-counting model —
@@ -116,6 +117,24 @@
       fetches of the model files themselves; your photo never goes
       anywhere. Both models then run entirely in your browser, the same
       as every other calculation in this app.
+    </p>
+    <p>
+      Both ship exactly as they were downloaded from their projects — no
+      change to either model's architecture or its trained weights. Full
+      attribution, including the required copyright notices, is in
+      <a href="https://github.com/dengf/postcard_maker/blob/main/MODEL-LICENSES.md">MODEL-LICENSES.md</a>.
+    </p>
+
+    <h2>Open source components</h2>
+    <p>
+      Beyond those two models, the app is built from open-source software
+      — the Rust crates compiled into the WebAssembly engine, and the
+      JavaScript libraries that render the page. Their licenses require
+      that their copyright notices travel with the code, so the full
+      license text for every one of them is on the
+      <a href="third-party-licenses.html">open source licenses</a> page.
+      None of them is a network service: they are compiled into the files
+      your browser already downloaded.
     </p>
 
     <h2>Children</h2>
@@ -142,6 +161,8 @@
 
     <footer>
       <a href="./">&larr; Back to the app</a>
+      &nbsp;·&nbsp;
+      <a href="third-party-licenses.html">Open source licenses</a>
     </footer>
   </main>
 </body>
