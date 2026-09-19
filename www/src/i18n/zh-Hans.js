@@ -265,6 +265,9 @@ export default {
   "backSide.to": "收件人",
 
   "collage.layout": "版式",
+  "collage.shuffle": "换一批",
+  "collage.layoutOf": "{n} 张照片的版式",
+  "collage.layoutHint": "点「换一批」会出现另一组排列，已放好的照片不会丢失。",
   "collage.addPhoto": "添加照片",
   "collage.fillAllSlots": "为每个位置添加照片即可完成。",
 

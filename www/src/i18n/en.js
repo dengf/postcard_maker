@@ -338,6 +338,12 @@ export default {
   "backSide.to": "To",
 
   "collage.layout": "Layout",
+  "collage.shuffle": "Shuffle",
+  // The swatch is a picture of an arrangement and nothing else, so the
+  // accessible name has to say what the picture shows. `{n}` is filled in
+  // with the layout's slot count.
+  "collage.layoutOf": "Layout with {n} photos",
+  "collage.layoutHint": "Shuffle deals a different set. Your photos stay where they are.",
   "collage.addPhoto": "Add photo",
   "collage.fillAllSlots": "Add a photo to every slot to finish.",
 
