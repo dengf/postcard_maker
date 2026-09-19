@@ -423,6 +423,25 @@ shapes; keep it that way rather than trusting that it still works.
   script — React doesn't mount until after an async wasm load, so
   anything waiting on `theme.js` would flash the wrong theme for the
   length of that load.
+- **`.editor-preview-col` is `position: sticky` on phones, so anything put
+  inside it is pinned for the whole session and subtracted from the room
+  the controls have to scroll in.** Only the frame and its terminal
+  action belong there. The collage editor had Shape and Layout in it,
+  which pinned ~330px on top of the frame's own ~206px and left barely
+  200px of an 812px viewport for every other panel — they arrived
+  pre-squeezed between the pinned block and the fixed Share/Save bar.
+  Moving those two into the controls column (where `App.jsx` has always
+  kept its equivalents) took the pinned block from 537px to 258px and the
+  usable band from ~200px to 481px. When adding anything to an editor's
+  preview column, measure the pinned height at 375×812 first.
+- **A stray `*/` or a comment reopened after it was closed silently eats
+  the rule that follows it.** Inserting prose after a `*/` and closing it
+  again left `.finish-jump { display: none; }` unparsed, so the phone
+  layout showed a shortcut it was supposed to hide — with no error
+  anywhere, and the rules *after* the bad one still applying, which makes
+  it look like the selector is wrong rather than the comment. After
+  editing a comment in `main.css`, assert the neighbouring rule still
+  computes, don't just read the diff.
 - **Calling a wasm binding with too few arguments fails with a message
   that names nothing in this codebase.** wasm-bindgen reads `.length` off
   the missing `&str`, so you get `undefined is not an object (evaluating

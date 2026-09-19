@@ -511,7 +511,10 @@ function AppShell({ wasmModule }) {
                 address={backSide.address}
                 onAddressChange={(address) => dispatch({ type: 'SET_BACK_SIDE_ADDRESS', address })}
               />
-              <div id="finish-panel">
+              {/* The id is the scroll anchor for the Finish shortcut; the
+                  class is what the phone layout's chrome collapse keys
+                  off, so the collage editor can share it. */}
+              <div id="finish-panel" className="finish-panel">
                 <ShareBar
                   renderFront={() =>
                     renderPostcard({

@@ -150,37 +150,17 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
 
   return (
     <div className="editor-layout">
+      {/* Only the frame and its terminal action belong in here. On phones
+          `.editor-preview-col` is sticky, so whatever sits in it is pinned
+          to the top for the whole session and subtracted from the room the
+          controls get to scroll in. Shape and Layout used to live here,
+          which pinned ~330px of an 812px viewport on top of the frame's
+          own ~206px and left barely 200px of visible controls -- every
+          panel below arrived pre-squeezed between the pinned block and the
+          Share/Save bar. They're two panels you touch once and then scroll
+          past, so they belong in the controls column, which is where the
+          single-photo editor has always kept the same two (App.jsx). */}
       <div className="editor-preview-col">
-        <TemplatePicker aspectId={aspectId} onChange={setAspectId} />
-
-        <div className="panel">
-          <h2>{t('collage.layout')}</h2>
-          <div className="collage-layout-options">
-            {layouts.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                className={l.id === state.layoutId ? 'collage-layout-swatch active' : 'collage-layout-swatch'}
-                onClick={() => selectLayout(l)}
-              >
-                <span className="collage-layout-preview" style={{ aspectRatio: aspectRatio(aspectId) }}>
-                  {l.slots.map((s, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        left: `${s.area.x * 100}%`,
-                        top: `${s.area.y * 100}%`,
-                        width: `${s.area.w * 100}%`,
-                        height: `${s.area.h * 100}%`,
-                      }}
-                    />
-                  ))}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div ref={frameRef} className="postcard-frame collage-frame" style={{ aspectRatio: aspectRatio(aspectId) }}>
           {state.slots.map((slot, index) => (
             <div
@@ -239,6 +219,38 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
       </div>
 
       <div className="editor-controls-col">
+        {/* Shape then Layout, the same order and the same column as the
+            single-photo editor's TemplatePicker + LayoutPanel. */}
+        <TemplatePicker aspectId={aspectId} onChange={setAspectId} />
+
+        <div className="panel">
+          <h2>{t('collage.layout')}</h2>
+          <div className="collage-layout-options">
+            {layouts.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                className={l.id === state.layoutId ? 'collage-layout-swatch active' : 'collage-layout-swatch'}
+                onClick={() => selectLayout(l)}
+              >
+                <span className="collage-layout-preview" style={{ aspectRatio: aspectRatio(aspectId) }}>
+                  {l.slots.map((s, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        left: `${s.area.x * 100}%`,
+                        top: `${s.area.y * 100}%`,
+                        width: `${s.area.w * 100}%`,
+                        height: `${s.area.h * 100}%`,
+                      }}
+                    />
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {activeSlot?.photo && (
           <FilterPanel
             zoom={activeSlot.zoom}
@@ -290,47 +302,49 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
         {!allSlotsFilled && <p className="text-option-note">{t('collage.fillAllSlots')}</p>}
 
         {allSlotsFilled && (
-          <ShareBar
-            renderFront={() =>
-              renderCollage({
-                wasmModule,
-                aspectRatio: aspectRatio(aspectId),
-                slots: state.slots.map((s, i) => ({
-                  photoBytes: s.photo.bytes,
-                  crop: s.crop,
-                  adjustments: s.adjustments,
-                  filter: s.filter,
-                  area: layout.slots[i].area,
-                })),
-                message: state.message,
-                font: effFont,
-                fontScale: state.fontScale,
-                textColor: state.textColor,
-                textAlign: state.textAlign,
-                messagePosition: state.messagePosition,
-                stickers: state.stickers,
-                strokes: state.strokes,
-                geometry,
-              })
-            }
-            backSide={
-              state.backSide.enabled
-                ? {
-                    enabled: true,
-                    aspectRatio: aspectRatio(aspectId),
-                    message: state.message,
-                    font: effFont,
-                    fontScale: state.fontScale,
-                    textColor: state.textColor,
-                    location: state.backSide.location,
-                    address: state.backSide.address,
-                    date: postmarkDate,
-                    toLabel: t('backSide.to'),
-                  }
-                : null
-            }
-            onError={onError}
-          />
+          <div className="finish-panel">
+            <ShareBar
+              renderFront={() =>
+                renderCollage({
+                  wasmModule,
+                  aspectRatio: aspectRatio(aspectId),
+                  slots: state.slots.map((s, i) => ({
+                    photoBytes: s.photo.bytes,
+                    crop: s.crop,
+                    adjustments: s.adjustments,
+                    filter: s.filter,
+                    area: layout.slots[i].area,
+                  })),
+                  message: state.message,
+                  font: effFont,
+                  fontScale: state.fontScale,
+                  textColor: state.textColor,
+                  textAlign: state.textAlign,
+                  messagePosition: state.messagePosition,
+                  stickers: state.stickers,
+                  strokes: state.strokes,
+                  geometry,
+                })
+              }
+              backSide={
+                state.backSide.enabled
+                  ? {
+                      enabled: true,
+                      aspectRatio: aspectRatio(aspectId),
+                      message: state.message,
+                      font: effFont,
+                      fontScale: state.fontScale,
+                      textColor: state.textColor,
+                      location: state.backSide.location,
+                      address: state.backSide.address,
+                      date: postmarkDate,
+                      toLabel: t('backSide.to'),
+                    }
+                  : null
+              }
+              onError={onError}
+            />
+          </div>
         )}
       </div>
     </div>
