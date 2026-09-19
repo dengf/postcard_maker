@@ -15,6 +15,7 @@ import DoodleToolbar from './components/DoodleToolbar';
 import BackSidePanel from './components/BackSidePanel';
 import CollageEditor from './components/CollageEditor';
 import { PhotoPickerInput } from './components/ReplacePhotoButton';
+import { BackIcon } from './components/icons';
 import { useConfirm } from './components/ConfirmDialog';
 import { ASPECTS, aspectRatio } from './aspect';
 import { zoomedCrop } from './cropGesture';
@@ -29,6 +30,41 @@ import LayoutPanel from './components/LayoutPanel';
 
 const DEFAULT_ASPECT = ASPECTS[0].id;
 const AUTOSAVE_DELAY_MS = 800;
+
+/**
+ * The record `draftStore` keeps for a single-photo card. Named rather
+ * than built inline in the autosave effect because Back saves the same
+ * thing on the spot, without waiting out the debounce -- leaving the
+ * editor must not cost you the last thing you typed.
+ *
+ * No `kind` field: this is the shape the store has always written, and
+ * `isCollageDraft` reads its absence as "a postcard". See `draftStore.js`.
+ */
+function postcardDraft(state) {
+  return {
+    photoBlob: new Blob([state.photo.bytes], { type: state.photo.mimeType }),
+    aspectId: state.aspectId,
+    crop: state.crop,
+    zoom: state.zoom,
+    adjustments: state.adjustments,
+    filter: state.filter,
+    message: state.message,
+    fontChoice: state.fontChoice,
+    fontScale: state.fontScale,
+    textColor: state.textColor,
+    textAlign: state.textAlign,
+    // `OPEN_PHOTO` has always restored this and the autosave never wrote
+    // it, so a greeting someone dragged off centre came back centred.
+    messagePosition: state.messagePosition,
+    stickers: state.stickers,
+    strokes: state.strokes,
+    backSide: state.backSide,
+    photoCoverage: state.photoCoverage,
+    photoSide: state.photoSide,
+    fillStyle: state.fillStyle,
+    fillColor: state.fillColor,
+  };
+}
 
 function loadImageDimensions(url) {
   return new Promise((resolve, reject) => {
@@ -71,23 +107,24 @@ function AppShell({ wasmModule }) {
   // so showing it costs one `createObjectURL` and answers the question the
   // prompt used to leave open -- *which* unfinished postcard? A day later
   // the sentence alone doesn't tell you, and Discard is right next to it.
+  //
+  // Reusable because the intro is reachable again: Back leaves an editor
+  // without discarding anything, and the card someone just stepped away
+  // from is exactly what the banner should be offering when they land.
+  const showDraftBanner = useCallback(async () => {
+    const draft = await loadDraft().catch(() => null);
+    const blob = draftThumbBlob(draft);
+    if (!blob) return;
+    if (draftPreviewUrlRef.current) URL.revokeObjectURL(draftPreviewUrlRef.current);
+    const url = URL.createObjectURL(blob);
+    draftPreviewUrlRef.current = url;
+    setDraftPreview({ url, updatedAt: draft.updatedAt ?? null, collage: isCollageDraft(draft) });
+  }, []);
+
   useEffect(() => {
     if (wasmModule?.unavailable) return;
-    let cancelled = false;
-    loadDraft()
-      .then((draft) => {
-        if (cancelled || !draft) return;
-        const blob = draftThumbBlob(draft);
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        draftPreviewUrlRef.current = url;
-        setDraftPreview({ url, updatedAt: draft.updatedAt ?? null, collage: isCollageDraft(draft) });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [wasmModule]);
+    showDraftBanner();
+  }, [wasmModule, showDraftBanner]);
 
   // Drops the banner and its thumbnail without touching what's stored --
   // used whenever the banner stops being relevant (resumed, discarded, or
@@ -345,6 +382,32 @@ function AppShell({ wasmModule }) {
   }, [confirm, t, forgetDraft]);
 
   /**
+   * Back out of the single-photo editor to the intro. Not "Start over":
+   * nothing is discarded, the card is saved on the way out (rather than
+   * whenever the debounce next fires), and the banner on the intro is
+   * left offering it again.
+   *
+   * Until this existed the only control that reached the intro was Start
+   * over, which asks to throw the card away to get there -- so "go back
+   * and look at the front page" meant either losing your work or using
+   * the browser's own Back button.
+   */
+  const backToIntro = useCallback(async () => {
+    if (photo) await saveDraft(postcardDraft(state)).catch(() => {});
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = null;
+    dispatch({ type: 'RESET', defaultAspect: DEFAULT_ASPECT });
+    showDraftBanner();
+  }, [photo, state, showDraftBanner]);
+
+  /** The collage's own Back. The editor has already saved itself. */
+  const backFromCollage = useCallback(() => {
+    setCollageDraft(null);
+    setCollageActive(false);
+    showDraftBanner();
+  }, [showDraftBanner]);
+
+  /**
    * Leaving the collage editor by its own Start over. It asks first and
    * then forgets the saved collage: the point of "Start over" is that
    * there's nothing left to come back to, and a draft that outlived it
@@ -381,28 +444,12 @@ function AppShell({ wasmModule }) {
   useEffect(() => {
     if (!photo) return;
     const handle = setTimeout(() => {
-      saveDraft({
-        photoBlob: new Blob([photo.bytes], { type: photo.mimeType }),
-        aspectId,
-        crop,
-        zoom,
-        adjustments,
-        filter,
-        message,
-        fontChoice,
-        fontScale,
-        textColor,
-        textAlign,
-        stickers,
-        strokes,
-        backSide,
-        photoCoverage,
-        photoSide,
-        fillStyle,
-        fillColor,
-      }).catch(() => {});
+      saveDraft(postcardDraft(state)).catch(() => {});
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the saved
+    // fields are the real dependency, not every field `state` carries
+    // (drawMode and the stroke tools aren't part of the card).
   }, [
     photo,
     aspectId,
@@ -415,6 +462,7 @@ function AppShell({ wasmModule }) {
     fontScale,
     textColor,
     textAlign,
+    messagePosition,
     stickers,
     strokes,
     backSide,
@@ -499,6 +547,7 @@ function AppShell({ wasmModule }) {
             wasmModule={wasmModule}
             onError={setError}
             onExit={exitCollage}
+            onBack={backFromCollage}
             draft={collageDraft}
           />
         )}
@@ -538,6 +587,10 @@ function AppShell({ wasmModule }) {
               />
               <PhotoPickerInput inputRef={pickerRef} onPick={replacePhoto} />
               <div className="editor-preview-actions">
+                <button type="button" className="btn ghost" onClick={backToIntro}>
+                  <BackIcon />
+                  {t('editor.back')}
+                </button>
                 <button type="button" className="btn ghost" onClick={startOver}>
                   {t('intro.startOver')}
                 </button>
