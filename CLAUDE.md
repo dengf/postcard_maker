@@ -602,6 +602,18 @@ answer is `letterbox.js`, and the parts worth not re-deriving:
   fades -- a bed sized exactly to the frame leaves a pale rim, which
   the frame's `overflow: hidden` clips away once the bed is bigger than
   it.
+- **The export's blur is `blurBed.js`, never `ctx.filter`.** WebKit
+  accepts `ctx.filter = 'blur(...)'` and then ignores it -- measured
+  across `fillRect` and every `drawImage` source type, accelerated or
+  not -- so Safari saved a card with a second, pin-sharp copy of the
+  photo behind the first while Chromium and Firefox were fine. The
+  export now blurs in JS on a ~96px miniature (three separable box
+  passes ≈ a Gaussian; a blur is a low-pass filter, so the miniature
+  throws away only what the blur would have). One code path for every
+  browser, deliberately *not* a capability check: a file must not
+  depend on which browser saved it. The CSS side (`.photo-blur-bed`,
+  `previewFilter.js`) keeps using a real CSS `filter`, which WebKit has
+  always supported -- it is only the canvas property that is missing.
 - **The blur radius is `cqmin`, not pixels** (`BLUR_BED_RADIUS`, spent
   in `main.css` and multiplied out in `drawBlurBed`). The preview frame
   is a few hundred pixels across and the exported card a couple of
@@ -768,6 +780,33 @@ shapes; keep it that way rather than trusting that it still works.
   in sync with `Cargo.toml`'s `license = "MIT"`.
 - **`wasm-opt` is off deliberately**, same measured tradeoff recorded in
   the other two tools' `*-wasm/Cargo.toml`. Don't "fix" it here either.
+- **A headless-Chromium-only harness cannot answer "does this work in a
+  browser" -- run WebKit and Firefox too, and real Chrome for anything
+  about the canvas.** `scratchpad/review/harness.js` takes `ENGINE=`
+  (`chromium`/`firefox`/`webkit`/`chrome`), `HEADED=1` for a
+  GPU-accelerated canvas, and `BASE=` to point the same scenarios at
+  the deployed site. Two canvas APIs have already diverged silently:
+  `ctx.filter` does nothing in WebKit (above), and **WebKit aborts any
+  IndexedDB write whose value contains a `Blob`** -- a `Uint8Array`
+  stores fine -- which means `draftStore.js` writes nothing at all
+  there and "You have an unfinished postcard" never appears in Safari.
+  Both were found by measuring, and neither raised an error a `catch`
+  could see: the IndexedDB transaction aborts with a null `error`.
+- **Measure the *saved file*, not a screenshot, and pick a fixture with
+  real high-frequency detail.** The photo fixtures in
+  `scratchpad/review/photos` are smooth gradients, and a blur barely
+  changes a gradient -- a neighbour-difference metric over `photo-a`
+  cannot tell a blurred bed from a sharp one.
+  `mk-noise.js` writes `photo-noise*.jpg` for that. Beware the
+  complement too: a metric that only sees fine detail calls a
+  recognisable, softly-blurred second copy "blurred". Look at the file
+  as well as scoring it.
+- **A collage layout is generated per session, so two runs are not
+  comparable.** Sampling a fixed grid of the exported card and
+  comparing the numbers across a before/after pair is meaningless --
+  the slots moved. Read each slot's rectangle and its `.photo-fit`
+  rectangle out of the preview DOM and measure exactly those
+  (`scratchpad/review/s31`).
 - **The live preview and the exported image are never pixel-identical.**
   CSS `filter:` (preview) and the Rust filter math (export) are two
   different renderers by design — see the boundary section above. A
