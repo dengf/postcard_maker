@@ -36,6 +36,19 @@ export function ImageIcon() {
   );
 }
 
+// Three panes in the same 2-up-plus-tall-right arrangement the collage
+// editor's own layout picker offers, so the intro button previews what it
+// opens rather than showing a generic grid.
+export function CollageIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="3.5" y="4.5" width="9" height="7" rx="1.2" />
+      <rect x="3.5" y="12.5" width="9" height="7" rx="1.2" />
+      <rect x="14" y="4.5" width="6.5" height="15" rx="1.2" />
+    </svg>
+  );
+}
+
 export function ShareIcon() {
   return (
     <svg {...ICON_PROPS}>

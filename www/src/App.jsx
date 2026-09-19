@@ -18,6 +18,7 @@ import { useConfirm } from './components/ConfirmDialog';
 import { ASPECTS, aspectRatio } from './aspect';
 import { zoomedCrop } from './cropGesture';
 import { effectiveFont } from './fonts';
+import { unreadablePhotoError } from './photoFormat';
 import { saveDraft, loadDraft, clearDraft } from './draftStore';
 import { detectLocation } from './location';
 import { renderPostcard } from './export';
@@ -122,7 +123,13 @@ function AppShell({ wasmModule }) {
           restored,
         });
       } catch (err) {
-        setError(err);
+        // A coded failure came from the wasm boundary and already knows how
+        // to describe itself. An uncoded one at this point is
+        // `loadImageDimensions` rejecting, which means the browser's own
+        // decoder refused the file -- overwhelmingly HEIC from an iPhone,
+        // so say so instead of surfacing "could not read dimensions for
+        // blob:...", which named a URL the user has never seen.
+        setError(err?.code ? err : unreadablePhotoError(file));
       }
     },
     [wasmModule, releaseDraftPreview],

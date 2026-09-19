@@ -205,6 +205,17 @@ body {
 label.btn { cursor: pointer; }
 .btn.secondary { background: var(--panel-alt); color: var(--ink); }
 .btn.ghost { background: transparent; color: var(--muted); padding: 6px 12px; }
+/* Third tier below `.btn` (filled accent) and `.btn.secondary` (filled
+   panel): a real button box, drawn rather than filled. Distinct from
+   `.ghost`, which has no box at all and so only works where the
+   surrounding context already says "these are controls" -- on the intro,
+   where it sat alone under two filled chips, it just read as a caption. */
+.btn.outline {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--input-border);
+}
+.btn.outline:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn.danger { background: transparent; color: var(--negative); padding: 6px 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Same shape as .btn (8px radius, solid accent), just smaller. Currently
@@ -272,7 +283,6 @@ label.btn { cursor: pointer; }
 .intro { display: flex; flex-direction: column; gap: 6px; text-align: center; padding: 32px 0; }
 .intro-lede { font-size: 1.05rem; margin: 0; color: var(--muted); }
 .intro-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
-.intro-hint { margin: 12px auto 0; max-width: 420px; font-size: 0.82rem; color: var(--muted-2); }
 
 /* Template picker */
 .template-options { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -888,7 +898,12 @@ label.btn { cursor: pointer; }
 }
 
 /* Collage */
-.intro-collage-link { margin-top: 16px; }
+/* `align-self` because `.intro` is a column flex: without it the button
+   stretches the full column width, which made the outlined third-tier
+   action wider -- and so heavier -- than the two filled buttons above it,
+   inverting the hierarchy the outline was there to express. Sizing to its
+   own content puts it back underneath them. */
+.intro-collage-link { margin-top: 16px; align-self: center; }
 
 .collage-layout-options { display: flex; gap: 10px; flex-wrap: wrap; }
 .collage-layout-swatch {
