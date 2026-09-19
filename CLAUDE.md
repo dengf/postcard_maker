@@ -143,6 +143,18 @@ read back as single-photo drafts with no migration. That's why the
 discriminator is `isCollageDraft`, asking "is it a collage", not "is it a
 postcard". Things worth not re-deriving:
 
+- **The record holds the photo's *bytes*, never a `Blob`.** WebKit
+  aborts any IndexedDB write whose value contains a `Blob`, and aborts
+  it with a `null` error — so there was nothing for the `catch` around
+  every `saveDraft` call to report, and the draft silently wrote
+  *nothing at all* in Safari: no resume banner, no collage to come
+  back to, no sign anything had failed. A `Uint8Array` stores fine
+  everywhere. `packDraft`/`unpackDraft` convert at this boundary so
+  every caller still deals in `Blob`s, and a record written by an
+  older build holds a real `Blob` and falls straight through
+  `unpackPhoto` — there is no migration step, and that
+  fall-through is what keeps existing drafts readable. Don't put a
+  `Blob` (or a `File`) back into the record.
 - **The collage autosave is guarded on at least one slot being filled.**
   There is one record, so saving an empty collage is a *destructive*
   act — without the guard, merely tapping "Make a collage" would wipe an
@@ -787,11 +799,10 @@ shapes; keep it that way rather than trusting that it still works.
   GPU-accelerated canvas, and `BASE=` to point the same scenarios at
   the deployed site. Two canvas APIs have already diverged silently:
   `ctx.filter` does nothing in WebKit (above), and **WebKit aborts any
-  IndexedDB write whose value contains a `Blob`** -- a `Uint8Array`
-  stores fine -- which means `draftStore.js` writes nothing at all
-  there and "You have an unfinished postcard" never appears in Safari.
-  Both were found by measuring, and neither raised an error a `catch`
-  could see: the IndexedDB transaction aborts with a null `error`.
+  IndexedDB write whose value contains a `Blob`** (see the persistence
+  section). Both were found by measuring, and neither raised an error a
+  `catch` could see: the IndexedDB transaction aborts with a null
+  `error`, and `ctx.filter` reads back the value you assigned.
 - **Measure the *saved file*, not a screenshot, and pick a fixture with
   real high-frequency detail.** The photo fixtures in
   `scratchpad/review/photos` are smooth gradients, and a blur barely
