@@ -434,6 +434,7 @@ export default {
 
   "text.heading": "Message",
   "text.placeholder": "Write your greeting…",
+  "text.useSuggestion": "Use this message",
   "text.font": "Style",
   "text.font.system": "Plain",
   "text.font.serif": "Serif",

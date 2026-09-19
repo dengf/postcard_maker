@@ -385,12 +385,29 @@ in the dark, and a photo of nothing recognisable at all.
   worker boundary as a `code` since an `Error`'s own properties don't
   survive structured clone). Those were precisely the cases this signal
   was built for, and it was unreachable in both.
-- **What's still true: tapping "Suggest a look" is the only way into the
-  panel**, so on the happy path the greeting still appears after the
-  download rather than instead of it. A message suggestion reachable
-  without opening that panel at all remains the obvious next step; what
-  changed is that a failed or fruitless download no longer takes the
-  greeting down with it.
+- **It is no longer only that, and this is the part that makes the
+  placement argument above actually pay off.** `useMomentCaption` reads
+  it in both editors, next to the other per-photo derivations, and
+  `TextPanel` offers it under the message box — so a dated photo has a
+  greeting waiting the moment it opens, with **zero** requests for either
+  model (verified in-browser by counting `*.onnx`/`pkg-vibe` requests
+  across a whole session: none). "Suggest a look" is no longer the only
+  door to the one signal that was never supposed to need it.
+  - **Shown only while the message is empty.** A standing suggestion
+    under a box someone is already writing in is nagging, and there is
+    then no tap that could overwrite their own words. Clearing the box
+    brings it back.
+  - **Memoized on the photo's bytes**, because `momentCaptionFor` picks
+    at random from the season/time-of-day pool — an unmemoized call
+    rewords the suggestion mid-glance, the same trap `VibePanel` already
+    notes about rolling a caption on re-render. One photo, one line.
+  - **It returns an i18n key, not a sentence**, so the suggestion follows
+    a mid-edit language switch like everything else.
+  - **A collage names its source rather than picking per slot**: several
+    photos, one shared greeting, so it reads the first *filled* slot in
+    reading order — stable, and it doesn't change as the active slot
+    moves around. `moment-suggestion.test.js` is the source-text guard
+    that neither editor quietly puts this back behind the download.
 
 ## "Write a caption" was tried and removed -- real findings, for whoever proposes it again
 

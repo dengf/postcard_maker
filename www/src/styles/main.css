@@ -842,7 +842,12 @@ label.btn { cursor: pointer; }
 }
 .vibe-chip-actions { display: flex; gap: 10px; }
 .vibe-panel-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.vibe-caption {
+.vibe-caption,
+/* The date-suggested greeting under the message box (TextPanel.jsx).
+   Same treatment as the vibe panel's own caption card on purpose: it is
+   the same offer -- a line you can take or ignore -- just reached
+   without downloading anything. */
+.text-suggestion {
   background: var(--panel-alt);
   border-radius: 10px;
   padding: 12px;
@@ -850,7 +855,8 @@ label.btn { cursor: pointer; }
   flex-direction: column;
   gap: 8px;
 }
-.vibe-caption .text-option-note { margin: 0; }
+.vibe-caption .text-option-note,
+.text-suggestion .text-option-note { margin: 0; }
 
 /* "Suggest a look"'s loading bar -- see VibePanel.jsx. A determinate
    fill while the model download reports real progress; an indeterminate

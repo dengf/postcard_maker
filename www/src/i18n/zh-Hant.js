@@ -332,6 +332,7 @@ export default {
 
   "text.heading": "祝福語",
   "text.placeholder": "寫下你的祝福…",
+  "text.useSuggestion": "使用這句話",
   "text.font": "字體樣式",
   "text.font.system": "簡約",
   "text.font.serif": "襯線體",

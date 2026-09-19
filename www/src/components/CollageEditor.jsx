@@ -8,6 +8,7 @@ import { detectLocation } from '../location';
 import { renderCollage } from '../export';
 import { templateGeometry } from '../photoLayout';
 import { previewFilterCss } from '../previewFilter';
+import { useMomentCaption } from '../useMomentCaption';
 import { unreadablePhotoError } from '../photoFormat';
 import { COLLAGE_KIND, saveDraft } from '../draftStore';
 import { collageReducer, emptySlot, initialCollageState } from '../collageReducer';
@@ -466,6 +467,13 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     [state.backSide.location],
   );
 
+  // A collage has several photos but one shared greeting, so the date
+  // suggestion has to name a source rather than pick per slot. The
+  // first *filled* slot in reading order is the stable answer: slot 0 is
+  // always top-left (`collage_gen` guarantees reading order), and it
+  // doesn't change as the active slot moves around under the cursor.
+  const momentCaption = useMomentCaption(wasmModule, state.slots.find((s) => s.photo)?.photo.bytes);
+
   // Where the greeting actually sits, and therefore which slot's photo
   // the shared overlay's 'auto' ink should read -- see
   // `messageSlotSample` above.
@@ -687,6 +695,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
         <TextPanel
           message={state.message}
           onMessageChange={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
+          suggestion={momentCaption}
           font={state.fontChoice}
           onFontChange={(f) => dispatch({ type: 'SET_FONT_CHOICE', fontChoice: f })}
           fontScale={state.fontScale}
