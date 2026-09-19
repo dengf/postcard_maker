@@ -404,7 +404,18 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
           {state.slots.map((slot, index) => (
             <div
               key={index}
-              className={index === state.activeSlotIndex ? 'collage-slot active' : 'collage-slot'}
+              className={[
+                'collage-slot',
+                index === state.activeSlotIndex && 'active',
+                // An empty slot is a hole in the card, and `.empty` is
+                // what lifts it above the shared message/sticker overlay
+                // -- see main.css. Without it the greeting was drawn
+                // across the "Add photo" labels, two pieces of text on
+                // top of each other with neither readable.
+                !slot.photo && 'empty',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={{
                 left: `${layout.slots[index].area.x * 100}%`,
                 top: `${layout.slots[index].area.y * 100}%`,

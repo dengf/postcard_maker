@@ -976,6 +976,16 @@ label.btn { cursor: pointer; }
   outline-offset: -2px;
 }
 .collage-slot.active { outline-color: var(--accent); }
+/* An unfilled slot paints above the shared message/sticker/doodle overlay,
+   which is otherwise drawn over it by DOM order (the overlay comes after
+   the slots and nothing here sets a z-index). A greeting drawn across an
+   empty slot put its text on top of the "Add photo" label, leaving both
+   unreadable -- and the placeholder is the thing you still have to tap.
+   The rule this encodes: an empty slot is a *hole* in the card, so no
+   part of the card should paint over it. Once every slot is filled --
+   the only state you can Share from -- nothing is raised and the overlay
+   is exactly as it was. */
+.collage-slot.empty { z-index: 1; }
 .collage-photo-slot {
   position: relative;
   width: 100%;
