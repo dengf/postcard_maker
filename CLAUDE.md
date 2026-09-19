@@ -299,7 +299,17 @@ future attempt has to weigh, not a prompt-tuning problem.
   `postcard_calc::crop::suggest_for_ratio`/`suggest_crop_ratio` exist
   alongside the named-aspect versions rather than replacing them.
   Message/stickers/doodle are shared across the whole collage, never
-  per-slot.
+  per-slot. **A filled slot is refillable**, and it wasn't at first: the
+  only file input lived in `EmptySlot`, which unmounts the moment
+  `slot.photo` is set, so picking the wrong photo for a slot left "Start
+  over" — which discards the entire collage — as the only way back. The
+  replace chip renders on the *active* slot only (three chips over the
+  live card is a worse preview, and filling a slot already selects it, so
+  it still appears on each photo as it's added), and
+  `replaceSlotPhoto` revokes the previous object URL **only after the new
+  one decodes** — revoke first and an undecodable pick blanks a slot that
+  still had a good photo in it. `collage-slot-refill.test.js` guards the
+  control's existence, since nothing renders components in this suite.
 - **Back side** (`renderBackSide` in `export.js`) is pure host-layer
   canvas drawing — no photo, so no Rust involved at all. Optional and off
   by default; when on, `share.js`'s `shareFiles`/`saveFiles` carry two

@@ -6,6 +6,7 @@ import { effectiveFont } from '../fonts';
 import { detectLocation } from '../location';
 import { renderCollage } from '../export';
 import { templateGeometry } from '../photoLayout';
+import { unreadablePhotoError } from '../photoFormat';
 import { collageReducer, initialCollageState } from '../collageReducer';
 import { nextStickerKey } from '../postcardReducer';
 import TemplatePicker from './TemplatePicker';
@@ -18,7 +19,7 @@ import ShareBar from './ShareBar';
 import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
 import CollagePhotoSlot from './CollagePhotoSlot';
-import { ImageIcon } from './icons';
+import { ImageIcon, SwapIcon } from './icons';
 
 function loadImageDimensions(url) {
   return new Promise((resolve, reject) => {
@@ -90,9 +91,10 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
 
   const layout = layouts.find((l) => l.id === state.layoutId);
 
+  /** Fills or refills one slot. Returns whether it took. */
   const openSlotPhoto = useCallback(
     async (index, file) => {
-      if (!layout) return;
+      if (!layout) return false;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const url = URL.createObjectURL(file);
       objectUrlsRef.current.push(url);
@@ -107,11 +109,37 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
           base,
         });
         dispatch({ type: 'SET_ACTIVE_SLOT', index });
+        return true;
       } catch (err) {
-        onError(err);
+        // Same treatment the single-photo flow gives a photo the browser
+        // can't decode: an uncoded failure here is `loadImageDimensions`
+        // rejecting, and naming HEIC beats surfacing "could not read
+        // dimensions for blob:...".
+        onError(err?.code ? err : unreadablePhotoError(file));
+        return false;
       }
     },
     [layout, aspectId, wasmModule, onError],
+  );
+
+  /**
+   * Swaps the photo already in a slot. Until this existed a slot was a
+   * one-way door: the file input lives in `EmptySlot`, which is gone the
+   * moment a photo lands, so the only way to change your mind was Start
+   * over -- which discards the whole collage, not the one photo.
+   *
+   * The previous object URL is revoked only once the new photo is
+   * actually in, so a file the browser rejects (see above) leaves the
+   * slot showing what it showed before rather than a broken image.
+   */
+  const replaceSlotPhoto = useCallback(
+    async (index, file, previousUrl) => {
+      const ok = await openSlotPhoto(index, file);
+      if (!ok || !previousUrl) return;
+      URL.revokeObjectURL(previousUrl);
+      objectUrlsRef.current = objectUrlsRef.current.filter((u) => u !== previousUrl);
+    },
+    [openSlotPhoto],
   );
 
   const activeSlot = state.slots[state.activeSlotIndex];
@@ -175,15 +203,30 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
               onClick={() => dispatch({ type: 'SET_ACTIVE_SLOT', index })}
             >
               {slot.photo ? (
-                <CollagePhotoSlot
-                  photoUrl={slot.photo.url}
-                  naturalW={slot.photo.naturalW}
-                  naturalH={slot.photo.naturalH}
-                  crop={slot.crop}
-                  onCropChange={(crop) => dispatch({ type: 'SET_SLOT_CROP', index, crop })}
-                  adjustments={slot.adjustments}
-                  filter={slot.filter}
-                />
+                <>
+                  <CollagePhotoSlot
+                    photoUrl={slot.photo.url}
+                    naturalW={slot.photo.naturalW}
+                    naturalH={slot.photo.naturalH}
+                    crop={slot.crop}
+                    onCropChange={(crop) => dispatch({ type: 'SET_SLOT_CROP', index, crop })}
+                    adjustments={slot.adjustments}
+                    filter={slot.filter}
+                  />
+                  {/* On the selected slot only. Showing it on all of them
+                      would put up to three chips over the live preview of
+                      the card; following the selection keeps one. It is
+                      still seen without hunting, because filling a slot
+                      selects it (`openSlotPhoto` dispatches
+                      SET_ACTIVE_SLOT) -- so the chip appears on each photo
+                      right as it is added, and tapping a photo to change
+                      it is the same tap that selects it. */}
+                  {index === state.activeSlotIndex && (
+                    <ReplaceSlotPhoto
+                      onPick={(file) => replaceSlotPhoto(index, file, slot.photo.url)}
+                    />
+                  )}
+                </>
               ) : (
                 <EmptySlot onPick={(file) => openSlotPhoto(index, file)} />
               )}
@@ -348,6 +391,41 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The "use a different photo here" chip that sits over a filled slot.
+ *
+ * A `<label>` rather than a button for the same reason `EmptySlot` is
+ * one: the file input is the control, and a label lets the whole chip be
+ * its hit area. `stopPropagation` on pointerdown keeps the tap from
+ * reaching `CollagePhotoSlot`'s pan handler underneath, which would
+ * otherwise start a drag on the photo the moment you reach for the chip.
+ */
+function ReplaceSlotPhoto({ onPick }) {
+  const { t } = useI18n();
+  const onChange = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) onPick(file);
+  };
+  return (
+    <label
+      className="collage-replace"
+      title={t('collage.replacePhoto')}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <SwapIcon />
+      <span className="visually-hidden">{t('collage.replacePhoto')}</span>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={onChange}
+        className="visually-hidden"
+        aria-label={t('collage.replacePhoto')}
+      />
+    </label>
   );
 }
 
