@@ -24,6 +24,7 @@ import { effectiveFont } from './fonts';
 import { unreadablePhotoError } from './photoFormat';
 import { saveDraft, loadDraft, clearDraft, draftThumbBlob, isCollageDraft } from './draftStore';
 import { detectLocation } from './location';
+import { useMomentCaption } from './useMomentCaption';
 import { renderPostcard } from './export';
 import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, nextStickerKey } from './postcardReducer';
 import { templateGeometry, suggestCropForLayout, photoAreaRatio } from './photoLayout';
@@ -312,6 +313,12 @@ function AppShell({ wasmModule }) {
     () => (photo ? rotatedBounds(wasmModule, photo.naturalW, photo.naturalH, rotation) : null),
     [wasmModule, photo, rotation],
   );
+
+  /* A greeting suggested from the photo's own EXIF date. Free -- no
+   * model, no download, no worker -- so it is read here, next to the
+   * other per-photo derivations, rather than inside "Suggest a look".
+   * See `useMomentCaption`. */
+  const momentCaption = useMomentCaption(wasmModule, photo?.bytes);
 
   /* The rotated-crop geometry the pointer hook needs, bound to this photo
    * and the shape it has to fill. `usePhotoGestures` has no wasm of its
@@ -712,6 +719,7 @@ function AppShell({ wasmModule }) {
               <TextPanel
                 message={message}
                 onMessageChange={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}
+                suggestion={momentCaption}
                 font={fontChoice}
                 onFontChange={(f) => dispatch({ type: 'SET_FONT_CHOICE', fontChoice: f })}
                 fontScale={fontScale}

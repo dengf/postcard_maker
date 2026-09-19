@@ -53,6 +53,7 @@ function OptionGroup({ icon, label, preview, children }) {
 export default function TextPanel({
   message,
   onMessageChange,
+  suggestion,
   font,
   onFontChange,
   fontScale,
@@ -87,6 +88,21 @@ export default function TextPanel({
         placeholder={t('text.placeholder')}
         maxLength={280}
       />
+
+      {/* A line suggested from the photo's own date -- no model, no
+          download, no worker (see `useMomentCaption`). Shown only while
+          the message is empty: once someone has written something, a
+          standing suggestion under the box is nagging rather than
+          helpful, and there is no way to tap it that could overwrite
+          their own words. Clearing the box brings it back. */}
+      {suggestion && !message.trim() && (
+        <div className="text-suggestion">
+          <p className="text-option-note">{t(suggestion)}</p>
+          <button type="button" className="btn ghost" onClick={() => onMessageChange(t(suggestion))}>
+            {t('text.useSuggestion')}
+          </button>
+        </div>
+      )}
 
       <div className="text-row">
         <OptionGroup icon={<FontGlyphIcon />} label={t('text.font')} preview={t(`text.font.${font}`)}>
