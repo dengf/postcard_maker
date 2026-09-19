@@ -312,6 +312,56 @@ separate lazy-load step.
   a look" proceeds normally. It's a best-effort supplement riding along
   with the required vibe download, not a required part of the result.
 
+## The photo's own date -- the one suggestion signal that costs no download
+
+`postcard_calc::moment` reads the photo's EXIF `DateTimeOriginal` and
+reports a season and a time of day (`photoMoment.js` is its only host-layer
+caller). It covers what the vibe classifier structurally can't, same role
+`exposureSuggestion.js` and `groupSuggestion.js` already play -- a date
+needs no object recognition, so it answers for a photo of people, a photo
+in the dark, and a photo of nothing recognisable at all.
+
+- **It lives in the *main* `postcard-wasm` bundle, not `postcard-wasm-vibe`,
+  and that placement is the whole point.** Every other signal in "Suggest a
+  look" needs a lazily-fetched model (~10MB vibe + ~1MB face); this one
+  reads bytes already inside the photo. Putting it behind that download
+  would gate it on the very cost it exists to avoid. Measured price:
+  **+41KB raw / +14KB gzipped** on the main bundle (541KB/200KB -> 583KB/
+  214KB), all of it `kamadak-exif`, which `image`'s own `ImageDecoder` docs
+  point at -- `image` exposes the orientation tag and nothing else.
+- **`Belt` has three variants, not two, and the third is the reason the
+  type exists.** Seasons-from-months is a *temperate-zone* idea: upside
+  down south of the equator, and simply wrong in the tropics. `season_for`
+  answers `None` for `Tropical`, so a December photo in Singapore claims no
+  season rather than calling itself winter -- and `location.js` uses
+  `Asia/Singapore` as its own worked example, so that is not a hypothetical
+  audience. Callers must handle a `Moment` that only knows a time of day;
+  that is a normal result, not a degraded one.
+- **A photo's own GPS beats the timezone guess**, and the timezone table
+  (`belt_for_timezone`) is *deliberately partial* -- southern and tropical
+  zones listed, everything else falling through to northern. Enumerating
+  every IANA zone by hand is exactly the long-transcription hazard
+  `IMAGENET_CLASS_TO_VIBE` already warns about, and a wrong guess only ever
+  reaches a photo that carries no location at all.
+- **Season boundaries are meteorological (whole months), not astronomical.**
+  The solstice version puts the 1st of June in spring, which reads as a bug
+  to everyone who is not an astronomer.
+- **Worth knowing before hunting for a bug: a photo taken with this app's
+  own in-page camera has no EXIF date at all**, because `canvas.toBlob`
+  writes none. Neither do screenshots, downloaded images, or anything that
+  has been through a chat app. `read` returns `None` and the binding
+  returns `null` -- an ordinary outcome, not an error, which is why it
+  doesn't throw a `Message` the way the geometry bindings do. Verified
+  against real camera files during the build, not just the hand-spliced
+  fixtures: real iPhone JPEGs parse, and one with tropical GPS really did
+  come back with no season.
+- **Today it is only the last rung of `VibePanel`'s caption chain** (vibe
+  caption -> group caption -> moment caption), which means that in practice
+  it is still reached *after* the ~13MB download, since tapping "Suggest a
+  look" is the only way into that panel. That undercuts the placement
+  argument above and is the obvious next step: a message suggestion
+  reachable without downloading anything.
+
 ## "Write a caption" was tried and removed -- real findings, for whoever proposes it again
 
 Built and shipped once: a real generated sentence per photo via
@@ -591,7 +641,8 @@ shapes; keep it that way rather than trusting that it still works.
   real platform-specific code paths; always also run `cargo build -p
   postcard-wasm --target wasm32-unknown-unknown --release` before
   trusting a change that touches `postcard-calc` or `postcard-wasm`.
-  Measured via wasm-pack: **541KB raw / ~200KB gzipped** (was 530KB /
+  Measured via wasm-pack: **583KB raw / ~214KB gzipped** (was 541KB /
+  200KB before `moment`'s EXIF parser, 530KB /
   192KB before `rotate`, 514KB / 187KB before `collage_gen`, and the
   ~492KB this file used to record had gone stale long before that —
   re-measure rather than trusting the number here). If a change balloons

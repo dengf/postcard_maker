@@ -106,6 +106,40 @@ impl From<postcard_calc::TemplateGeometry> for TemplateGeometryDto {
     }
 }
 
+/// When a photo was taken, in the terms the message copy uses.
+///
+/// `season` is deliberately nullable: in the tropics there is no
+/// four-season cycle to name, and inventing one would be worse than
+/// saying nothing -- see `postcard_calc::moment::Belt`. Callers must
+/// handle a moment that only knows a time of day.
+///
+/// The enums cross as strings rather than numbers, same convention as
+/// `Vibe`'s own boundary: an i18n key is built from them in the host
+/// layer, and a shifted integer would silently rename every season.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MomentDto {
+    pub year: u16,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub season: Option<&'static str>,
+    pub time_of_day: &'static str,
+}
+
+impl From<postcard_calc::Moment> for MomentDto {
+    fn from(m: postcard_calc::Moment) -> Self {
+        Self {
+            year: m.year,
+            month: m.month,
+            day: m.day,
+            hour: m.hour,
+            season: m.season.map(|s| s.name()),
+            time_of_day: m.time_of_day.name(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct CollageSlotDto {
     pub area: NormRectDto,

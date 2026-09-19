@@ -7,12 +7,14 @@ mod collage;
 mod convert;
 mod dto;
 mod message;
+mod moment;
 mod photo;
 mod template;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
 pub use collage::{collage_layout, collage_shuffle};
+pub use moment::read_photo_moment;
 pub use photo::{
     fit_rotated_crop, process_photo, rotated_bounds, suggest_crop, suggest_crop_ratio,
     suggest_crop_rotated,

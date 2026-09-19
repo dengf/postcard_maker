@@ -130,6 +130,65 @@ export default {
   "group.caption.11": "Wish this table had one more chair pulled up for you.",
   "group.caption.12":
     "Though a thousand miles apart, may we still share this same moonlight — after Su Shi, from all of us to you.",
+  // Keyed off the photo's own EXIF date rather than anything a model
+  // saw -- see `photoMoment.js`. The season pool is skipped entirely in
+  // the tropics, so these have to stand on their own without one.
+  "moment.caption.spring.0":
+    "Spring finally turned up here — wish you could see it.",
+  "moment.caption.spring.1":
+    "Everything's coming back into bloom. Thought of you.",
+  "moment.caption.spring.2": "Spring light, and somewhere to send it.",
+  "moment.caption.spring.3":
+    "The whole place has gone green again. You'd love it.",
+  "moment.caption.summer.0":
+    "Deep summer here, and the days go on forever.",
+  "moment.caption.summer.1": "Sending you a little of this summer heat.",
+  "moment.caption.summer.2":
+    "A proper summer day — the kind you don't want to end.",
+  "moment.caption.summer.3":
+    "Summer's in full swing here. Wish you'd come along.",
+  "moment.caption.autumn.0": "Autumn has turned everything gold here.",
+  "moment.caption.autumn.1":
+    "The air's gone cool and the light's gone soft. Thinking of you.",
+  "moment.caption.autumn.2":
+    "Leaves everywhere, and one good view to send you.",
+  "moment.caption.autumn.3":
+    "An autumn day worth writing home about.",
+  "moment.caption.winter.0":
+    "Cold, bright and beautiful here this winter.",
+  "moment.caption.winter.1":
+    "Winter's settled in. Sending warm thoughts your way.",
+  "moment.caption.winter.2":
+    "The kind of winter day that's worth being out in.",
+  "moment.caption.winter.3":
+    "Everything's still and quiet here. Wish you were in it.",
+  "moment.caption.morning.0":
+    "Caught this early, before the day got going.",
+  "moment.caption.morning.1":
+    "A good morning here — starting it thinking of you.",
+  "moment.caption.morning.2": "Up early, and this was already waiting.",
+  "moment.caption.morning.3": "Morning light, and somewhere to send it.",
+  "moment.caption.afternoon.0":
+    "A slow afternoon here, and nowhere else to be.",
+  "moment.caption.afternoon.1":
+    "The middle of the day, and the middle of a good one.",
+  "moment.caption.afternoon.2":
+    "Spent the whole afternoon right here. You'd have liked it.",
+  "moment.caption.afternoon.3":
+    "An easy afternoon — sending a piece of it over.",
+  "moment.caption.evening.0":
+    "The light went golden this evening. Had to send it.",
+  "moment.caption.evening.1": "An evening worth standing still for.",
+  "moment.caption.evening.2":
+    "The day wound down like this. Thinking of you.",
+  "moment.caption.evening.3":
+    "Evening here, and the best hour of the day.",
+  "moment.caption.night.0":
+    "Late here, and still out. Thought of you.",
+  "moment.caption.night.1": "The place looks different after dark.",
+  "moment.caption.night.2": "A quiet night, and one view worth sending.",
+  "moment.caption.night.3":
+    "Still up, still out — sending this from the dark.",
   "vibe.label.beach": "a beach photo",
   "vibe.label.mountain": "a mountain view",
   "vibe.label.water": "water in this photo",
