@@ -48,6 +48,59 @@ describe('collageReducer', () => {
     expect(state.stickers).toHaveLength(1);
   });
 
+  describe('RESTORE_DRAFT', () => {
+    // SET_LAYOUT always runs first -- the layout decides how many slots
+    // there are, so it's what gives the restored photos somewhere to land.
+    const restored = (draft, slots) => {
+      const empty = collageReducer(initialCollageState('x', 1), {
+        type: 'SET_LAYOUT',
+        layoutId: 'landscape-side-by-side',
+        slotCount: 2,
+      });
+      return collageReducer(empty, { type: 'RESTORE_DRAFT', draft, slots });
+    };
+
+    const filled = [
+      { photo: photoA, baseCrop: base, crop: base, zoom: 1, adjustments: {}, filter: 'sepia' },
+      { photo: null, baseCrop: null, crop: null, zoom: 1, adjustments: {}, filter: 'none' },
+    ];
+
+    it('brings back the photos and everything shared across the card', () => {
+      const state = restored(
+        {
+          message: 'Greetings',
+          stickers: [{ key: 's1', id: 'heart', x: 0.5, y: 0.5, scale: 1 }],
+          strokes: [{ points: [], color: '#fff', width: 4 }],
+          textAlign: 'left',
+          backSide: { enabled: true, location: 'Lisbon' },
+        },
+        filled,
+      );
+      expect(state.slots[0].photo).toBe(photoA);
+      expect(state.slots[0].filter).toBe('sepia');
+      expect(state.slots[1].photo).toBeNull();
+      expect(state.message).toBe('Greetings');
+      expect(state.stickers).toHaveLength(1);
+      expect(state.strokes).toHaveLength(1);
+      expect(state.textAlign).toBe('left');
+      expect(state.layoutId).toBe('landscape-side-by-side');
+    });
+
+    // A record written before a field existed must restore as a new
+    // collage would, never as `undefined` -- BackSidePanel's textarea
+    // turns uncontrolled the moment `address` goes missing.
+    it('falls back to the fresh defaults for anything the record lacks', () => {
+      const state = restored({ message: 'Greetings', backSide: { enabled: true } }, filled);
+      expect(state.textColor).toBe('auto');
+      expect(state.textAlign).toBe('center');
+      expect(state.stickers).toEqual([]);
+      expect(state.strokes).toEqual([]);
+      expect(state.backSide.address).toBe('');
+      expect(state.backSide.location).toBe('');
+      expect(state.backSide.enabled).toBe(true);
+    });
+  });
+
   it('an unknown action returns the same state unchanged', () => {
     const state = initialCollageState('x', 2);
     expect(collageReducer(state, { type: 'NOPE' })).toBe(state);

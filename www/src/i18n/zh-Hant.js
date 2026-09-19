@@ -323,10 +323,13 @@ export default {
   "draft.resume": "繼續編輯",
   "draft.discard": "放棄",
   "draft.previewAlt": "你尚未完成的明信片",
+  "draft.restoredCollagePrompt": "你有一張尚未完成的拼貼明信片。",
+  "draft.previewAltCollage": "你尚未完成的拼貼明信片",
   "draft.lastEdited": "上次編輯：{date}",
 
   "confirm.startOverTitle": "開始製作新的明信片？",
   "confirm.startOverBody": "這會捨棄目前的照片以及已加入的所有內容。",
+  "confirm.startOverCollageBody": "這會捨棄拼貼中的所有照片以及已加入的所有內容。",
   "confirm.cancel": "取消",
   "confirm.confirm": "重新開始",
   "confirm.discardDraftBody": "這會刪除你尚未完成的明信片，且無法復原。",

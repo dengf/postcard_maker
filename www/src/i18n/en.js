@@ -395,11 +395,15 @@ export default {
   "draft.resume": "Resume",
   "draft.discard": "Discard",
   "draft.previewAlt": "Your unfinished postcard",
+  "draft.restoredCollagePrompt": "You have an unfinished collage.",
+  "draft.previewAltCollage": "Your unfinished collage",
   "draft.lastEdited": "Last edited {date}",
 
   "confirm.startOverTitle": "Start a new postcard?",
   "confirm.startOverBody":
     "This discards the photo and everything you’ve added so far.",
+  "confirm.startOverCollageBody":
+    "This discards every photo in the collage and everything you’ve added so far.",
   "confirm.cancel": "Cancel",
   "confirm.confirm": "Start over",
   "confirm.discardDraftBody":

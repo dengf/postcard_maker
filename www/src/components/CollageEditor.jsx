@@ -7,8 +7,9 @@ import { detectLocation } from '../location';
 import { renderCollage } from '../export';
 import { templateGeometry } from '../photoLayout';
 import { unreadablePhotoError } from '../photoFormat';
+import { COLLAGE_KIND, saveDraft } from '../draftStore';
 import { collageReducer, initialCollageState } from '../collageReducer';
-import { nextStickerKey } from '../postcardReducer';
+import { DEFAULT_ADJUSTMENTS, nextStickerKey } from '../postcardReducer';
 import TemplatePicker from './TemplatePicker';
 import FilterPanel from './FilterPanel';
 import TextPanel from './TextPanel';
@@ -21,6 +22,9 @@ import DoodleLayer from './DoodleLayer';
 import CollagePhotoSlot from './CollagePhotoSlot';
 import ReplacePhotoButton, { PhotoPickerInput } from './ReplacePhotoButton';
 import { ImageIcon } from './icons';
+
+/** Matches the single-photo flow's own debounce -- see `App.jsx`. */
+const AUTOSAVE_DELAY_MS = 800;
 
 function loadImageDimensions(url) {
   return new Promise((resolve, reject) => {
@@ -43,9 +47,9 @@ function slotPixelRatio(area, cardRatio) {
  * The multi-photo collage flow -- a parallel state machine to the
  * single-photo `App.jsx`, not a variant of it. See CLAUDE.md for why.
  */
-export default function CollageEditor({ wasmModule, onError, onExit }) {
+export default function CollageEditor({ wasmModule, onError, onExit, draft }) {
   const { t, locale } = useI18n();
-  const [aspectId, setAspectId] = useState(ASPECTS[0].id);
+  const [aspectId, setAspectId] = useState(draft?.aspectId ?? ASPECTS[0].id);
   const [layouts, setLayouts] = useState([]);
   const [geometry, setGeometry] = useState(null);
   const [state, dispatch] = useReducer(collageReducer, null, () => initialCollageState('', 0));
@@ -53,6 +57,11 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
   const frameRef = useRef(null);
   const pickerRef = useRef(null);
   const pendingSlotRef = useRef(0);
+  // A draft is consumed once. Both refs guard against the effects below
+  // re-running -- on a shape change, or on StrictMode's deliberate
+  // double-invoke in dev -- and restoring the same photos a second time.
+  const pendingDraftRef = useRef(draft ?? null);
+  const hydratingRef = useRef(false);
 
   const selectLayout = useCallback(
     (layout) => {
@@ -78,7 +87,13 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
       // `postcard_calc::template`'s own doc comment notes) but still
       // required.
       setGeometry(templateGeometry(wasmModule, aspectId, 'full', 'first'));
-      if (fetched[0]) selectLayout(fetched[0]);
+      // A draft restores onto the layout it was saved with, not the
+      // default one -- `SET_LAYOUT` is what decides how many slots there
+      // are, so the photos in the effect below have somewhere to land.
+      const saved = pendingDraftRef.current;
+      const restoring = saved && fetched.find((l) => l.id === saved.layoutId);
+      const target = restoring || fetched[0];
+      if (target) selectLayout(target);
     } catch (err) {
       onError(err);
     }
@@ -164,7 +179,114 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
     [replaceSlotPhoto, state.slots],
   );
 
+  /**
+   * Rebuilds a saved collage once its layout is in place. The blobs come
+   * back from IndexedDB as bytes, so every slot has to be decoded again
+   * to recover its natural size, and the base crop is recomputed rather
+   * than stored -- it's derived from the slot's own share of the card,
+   * which the layout already knows, and storing a derived value is how
+   * it goes stale when a layout's proportions change.
+   *
+   * A slot whose blob no longer decodes is left empty instead of failing
+   * the whole restore: getting three of four photos back beats getting a
+   * toast and an empty card.
+   */
+  useEffect(() => {
+    const saved = pendingDraftRef.current;
+    if (!saved || !layout || hydratingRef.current) return;
+    hydratingRef.current = true;
+    pendingDraftRef.current = null;
+
+    let cancelled = false;
+    (async () => {
+      const slots = await Promise.all(
+        state.slots.map(async (empty, index) => {
+          const stored = saved.slots?.[index];
+          if (!stored?.photoBlob) return empty;
+          const url = URL.createObjectURL(stored.photoBlob);
+          try {
+            const bytes = new Uint8Array(await stored.photoBlob.arrayBuffer());
+            const { w, h } = await loadImageDimensions(url);
+            const ratio = slotPixelRatio(layout.slots[index].area, aspectRatio(saved.aspectId));
+            const base = wasmModule.suggest_crop_ratio(w, h, ratio);
+            return {
+              photo: {
+                bytes,
+                url,
+                naturalW: w,
+                naturalH: h,
+                mimeType: stored.photoBlob.type || 'image/jpeg',
+              },
+              baseCrop: base,
+              crop: stored.crop ?? base,
+              zoom: stored.zoom ?? 1,
+              adjustments: stored.adjustments ?? DEFAULT_ADJUSTMENTS,
+              filter: stored.filter ?? 'none',
+            };
+          } catch {
+            URL.revokeObjectURL(url);
+            return empty;
+          }
+        }),
+      );
+      if (cancelled) {
+        for (const slot of slots) if (slot.photo) URL.revokeObjectURL(slot.photo.url);
+        return;
+      }
+      for (const slot of slots) if (slot.photo) objectUrlsRef.current.push(slot.photo.url);
+      dispatch({ type: 'RESTORE_DRAFT', draft: saved, slots });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when
+    // the saved layout arrives; `state.slots` is the empty set SET_LAYOUT just made.
+  }, [layout]);
+
   const activeSlot = state.slots[state.activeSlotIndex];
+  const anySlotFilled = state.slots.some((s) => s.photo);
+
+  /**
+   * Autosaves the collage, debounced like the single-photo flow's own
+   * autosave and guarded on there being at least one photo. Without that
+   * guard, merely tapping "Make a collage" would overwrite an unfinished
+   * single-photo draft with an empty collage -- the store holds one
+   * record, so an empty save is a destructive one.
+   */
+  useEffect(() => {
+    if (!anySlotFilled || !state.layoutId) return undefined;
+    const handle = setTimeout(() => {
+      saveDraft({
+        kind: COLLAGE_KIND,
+        aspectId,
+        layoutId: state.layoutId,
+        slots: state.slots.map((slot) =>
+          slot.photo
+            ? {
+                photoBlob: new Blob([slot.photo.bytes], { type: slot.photo.mimeType }),
+                crop: slot.crop,
+                zoom: slot.zoom,
+                adjustments: slot.adjustments,
+                filter: slot.filter,
+              }
+            : null,
+        ),
+        message: state.message,
+        fontChoice: state.fontChoice,
+        fontScale: state.fontScale,
+        textColor: state.textColor,
+        textAlign: state.textAlign,
+        messagePosition: state.messagePosition,
+        stickers: state.stickers,
+        strokes: state.strokes,
+        strokeColor: state.strokeColor,
+        strokeWidth: state.strokeWidth,
+        backSide: state.backSide,
+      }).catch(() => {});
+    }, AUTOSAVE_DELAY_MS);
+    return () => clearTimeout(handle);
+  }, [anySlotFilled, aspectId, state]);
 
   const changeActiveZoom = (nextZoom) => {
     if (!activeSlot?.photo) return;
@@ -281,7 +403,9 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
           />
         </div>
 
-        <button type="button" className="btn ghost" onClick={onExit}>
+        {/* Tells App whether there is anything to lose, so an empty
+            collage leaves without a confirmation nobody needs. */}
+        <button type="button" className="btn ghost" onClick={() => onExit(anySlotFilled)}>
           {t('intro.startOver')}
         </button>
       </div>
