@@ -76,6 +76,64 @@ describe('postcardReducer', () => {
     expect(state.stickers).toEqual(restored.stickers);
   });
 
+  // The whole reason REPLACE_PHOTO exists rather than reusing OPEN_PHOTO:
+  // swapping the photo on a card someone is in the middle of making must
+  // not take the card with it.
+  describe('REPLACE_PHOTO', () => {
+    const inProgress = () => {
+      let state = postcardReducer(initialState('landscape'), {
+        type: 'OPEN_PHOTO',
+        photo,
+        aspect: 'square',
+        base,
+        geometry: geo,
+      });
+      state = postcardReducer(state, { type: 'SET_MESSAGE', message: 'wish you were here' });
+      state = postcardReducer(state, {
+        type: 'ADD_STICKER',
+        id: 'heart',
+        key: 's1',
+        x: 0.4,
+        y: 0.6,
+      });
+      state = postcardReducer(state, { type: 'ADD_STROKE', stroke: { points: [], color: '#fff', width: 4 } });
+      state = postcardReducer(state, { type: 'SET_FILTER', filter: 'sepia' });
+      state = postcardReducer(state, { type: 'CHANGE_ZOOM', crop: { x: 5, y: 5, w: 50, h: 25 }, zoom: 2 });
+      return state;
+    };
+
+    const newPhoto = { ...photo, url: 'blob:y', naturalW: 400, naturalH: 300 };
+    const newBase = { x: 0, y: 0, w: 300, h: 300 };
+    const replaced = () =>
+      postcardReducer(inProgress(), { type: 'REPLACE_PHOTO', photo: newPhoto, base: newBase });
+
+    it('carries the new photo in on its own base crop', () => {
+      const state = replaced();
+      expect(state.photo).toBe(newPhoto);
+      expect(state.baseCrop).toBe(newBase);
+      expect(state.crop).toBe(newBase);
+      expect(state.zoom).toBe(1);
+    });
+
+    it('keeps everything the card owns rather than the photo', () => {
+      const state = replaced();
+      expect(state.message).toBe('wish you were here');
+      expect(state.stickers).toHaveLength(1);
+      expect(state.strokes).toHaveLength(1);
+      expect(state.aspectId).toBe('square');
+      expect(state.geometry).toBe(geo);
+    });
+
+    // A crop is in the old photo's pixel coordinates and a filter was
+    // picked to suit it, so both start fresh -- the same line
+    // collageReducer's OPEN_SLOT_PHOTO draws for a slot.
+    it('but starts the per-photo look over', () => {
+      const state = replaced();
+      expect(state.filter).toBe('none');
+      expect(state.adjustments).toEqual(DEFAULT_ADJUSTMENTS);
+    });
+  });
+
   it('CHANGE_ASPECT resets zoom and crop to the new base', () => {
     let state = postcardReducer(initialState('landscape'), {
       type: 'OPEN_PHOTO',

@@ -62,7 +62,8 @@ export default {
   "layout.fill.variant.tonal": "Tonal",
   "layout.fill.variant.mono": "Mono",
 
-  "editor.cropHint": "Drag to reposition, pinch or use the slider to zoom.",
+  "editor.cropHint": "Drag to reposition, pinch or use the slider to zoom. Double-tap a photo to swap it for another.",
+  "editor.replacePhoto": "Use a different photo",
   "editor.zoom": "Zoom",
   "editor.filter": "Filter",
   "editor.filter.none": "Original",
@@ -337,7 +338,6 @@ export default {
 
   "collage.layout": "Layout",
   "collage.addPhoto": "Add photo",
-  "collage.replacePhoto": "Use a different photo",
   "collage.fillAllSlots": "Add a photo to every slot to finish.",
 
   "text.heading": "Message",

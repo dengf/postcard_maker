@@ -19,7 +19,8 @@ import ShareBar from './ShareBar';
 import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
 import CollagePhotoSlot from './CollagePhotoSlot';
-import { ImageIcon, SwapIcon } from './icons';
+import ReplacePhotoButton, { PhotoPickerInput } from './ReplacePhotoButton';
+import { ImageIcon } from './icons';
 
 function loadImageDimensions(url) {
   return new Promise((resolve, reject) => {
@@ -50,6 +51,8 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
   const [state, dispatch] = useReducer(collageReducer, null, () => initialCollageState('', 0));
   const objectUrlsRef = useRef([]);
   const frameRef = useRef(null);
+  const pickerRef = useRef(null);
+  const pendingSlotRef = useRef(0);
 
   const selectLayout = useCallback(
     (layout) => {
@@ -142,6 +145,25 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
     [openSlotPhoto],
   );
 
+  /**
+   * Opens the picker for one slot. Both ways in -- the chip and a
+   * double-tap on the photo -- come through here, so there is one hidden
+   * input for the whole editor and the slot index lives in a ref beside
+   * it rather than in whichever chip happens to be mounted.
+   */
+  const requestReplace = useCallback((index) => {
+    pendingSlotRef.current = index;
+    pickerRef.current?.click();
+  }, []);
+
+  const onPickedReplacement = useCallback(
+    (file) => {
+      const index = pendingSlotRef.current;
+      replaceSlotPhoto(index, file, state.slots[index]?.photo?.url);
+    },
+    [replaceSlotPhoto, state.slots],
+  );
+
   const activeSlot = state.slots[state.activeSlotIndex];
 
   const changeActiveZoom = (nextZoom) => {
@@ -178,6 +200,8 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
 
   return (
     <div className="editor-layout">
+      <PhotoPickerInput inputRef={pickerRef} onPick={onPickedReplacement} />
+
       {/* Only the frame and its terminal action belong in here. On phones
           `.editor-preview-col` is sticky, so whatever sits in it is pinned
           to the top for the whole session and subtracted from the room the
@@ -212,6 +236,7 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
                     onCropChange={(crop) => dispatch({ type: 'SET_SLOT_CROP', index, crop })}
                     adjustments={slot.adjustments}
                     filter={slot.filter}
+                    onDoubleTap={() => requestReplace(index)}
                   />
                   {/* On the selected slot only. Showing it on all of them
                       would put up to three chips over the live preview of
@@ -220,11 +245,11 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
                       selects it (`openSlotPhoto` dispatches
                       SET_ACTIVE_SLOT) -- so the chip appears on each photo
                       right as it is added, and tapping a photo to change
-                      it is the same tap that selects it. */}
+                      it is the same tap that selects it. A double-tap
+                      works on any filled slot regardless, chip or no
+                      chip. */}
                   {index === state.activeSlotIndex && (
-                    <ReplaceSlotPhoto
-                      onPick={(file) => replaceSlotPhoto(index, file, slot.photo.url)}
-                    />
+                    <ReplacePhotoButton onRequest={() => requestReplace(index)} />
                   )}
                 </>
               ) : (
@@ -395,40 +420,10 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
 }
 
 /**
- * The "use a different photo here" chip that sits over a filled slot.
- *
- * A `<label>` rather than a button for the same reason `EmptySlot` is
- * one: the file input is the control, and a label lets the whole chip be
- * its hit area. `stopPropagation` on pointerdown keeps the tap from
- * reaching `CollagePhotoSlot`'s pan handler underneath, which would
- * otherwise start a drag on the photo the moment you reach for the chip.
+ * The empty slot's own picker -- still a `<label>` wrapping its input,
+ * because here the whole slot is the target and there is no photo
+ * underneath to protect from the tap.
  */
-function ReplaceSlotPhoto({ onPick }) {
-  const { t } = useI18n();
-  const onChange = (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (file) onPick(file);
-  };
-  return (
-    <label
-      className="collage-replace"
-      title={t('collage.replacePhoto')}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <SwapIcon />
-      <span className="visually-hidden">{t('collage.replacePhoto')}</span>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={onChange}
-        className="visually-hidden"
-        aria-label={t('collage.replacePhoto')}
-      />
-    </label>
-  );
-}
-
 function EmptySlot({ onPick }) {
   const { t } = useI18n();
   const onChange = (e) => {
