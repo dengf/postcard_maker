@@ -106,6 +106,38 @@ crate here unless the draft shape grows real structure (e.g. a
 multi-draft gallery with queries) — for a single opaque blob it would be
 pure overhead on the wasm bundle.
 
+**One record holds either kind of card.** Collages went unsaved at first
+(listed as a scope cut under "Known v1 limitations"), which is exactly
+the kind of assumption a user finds: a collage is *more* work to rebuild
+than a single photo, not less. The record is told apart by `kind`: a
+collage writes `'collage'` and keeps its photos in `slots`, while the
+single-photo flow keeps writing the shape it always did, with one
+`photoBlob` and no `kind` at all — so records written before any of this
+read back as single-photo drafts with no migration. That's why the
+discriminator is `isCollageDraft`, asking "is it a collage", not "is it a
+postcard". Things worth not re-deriving:
+
+- **The collage autosave is guarded on at least one slot being filled.**
+  There is one record, so saving an empty collage is a *destructive*
+  act — without the guard, merely tapping "Make a collage" would wipe an
+  unfinished single-photo draft before anyone had added anything.
+- **`CollageEditor` restores itself, App just hands it the record.**
+  Turning a stored blob back into a slot needs the layout's own geometry
+  and a wasm call, neither of which App has. `SET_LAYOUT` runs first (it
+  decides how many slots there are), then the hydration effect decodes
+  each blob and dispatches `RESTORE_DRAFT`.
+- **Base crops are recomputed on restore, never stored.** They're derived
+  from a slot's share of the card, which the layout already knows; a
+  stored copy is what goes stale when a layout's proportions change. The
+  saved `crop`/`zoom` are restored on top, same as the single-photo flow.
+- **A slot whose blob no longer decodes is left empty**, not fatal —
+  three photos back beats a toast and an empty card.
+- **Collage "Start over" now confirms and clears the draft.** With the
+  draft in place, leaving it behind would put a card the user explicitly
+  threw away back in the resume banner on the next visit. An empty
+  collage skips the question, which is why `onExit` takes whether any
+  slot is filled.
+
 ## "Suggest a look" -- the one on-device ML feature, and why it's shaped this way
 
 `postcard-wasm-vibe` classifies a photo against **MobileNetV3-Small,
@@ -367,10 +399,8 @@ future attempt has to weigh, not a prompt-tuning problem.
   (same caveat `mortgage_calculator`'s CLAUDE.md carries for its
   regulatory copy) — wants a native-speaker pass before this ships
   broadly.
-- **Collage drafts aren't autosaved.** Only the single-photo flow persists
-  to `draftStore.js`; starting a collage and reloading loses it. Same
-  category of scope cut as the single-draft-only limitation above, just
-  narrower.
+  (Collage drafts *were* listed here as not autosaved, a scope cut that
+  turned out to be one someone hits — see the persistence section above.)
 
 **The collage editor had never actually worked in a shipped build** — see
 the `template_geometry` arity entry under verification traps. It threw on

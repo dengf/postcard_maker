@@ -52,6 +52,43 @@ export function collageReducer(state, action) {
     case 'SET_LAYOUT':
       return { ...initialCollageState(action.layoutId, action.slotCount) };
 
+    /**
+     * A collage coming back from `draftStore`. `SET_LAYOUT` has already
+     * run by this point (the layout decides how many slots there are),
+     * so this fills in what was saved and leaves anything the draft
+     * doesn't carry at the fresh default -- an older record, or a field
+     * added after it was written, restores as a new collage would rather
+     * than as `undefined`.
+     *
+     * `slots` arrives already hydrated: the caller has the wasm module
+     * and the layout geometry needed to turn a stored blob back into a
+     * photo with a base crop, and this reducer has neither.
+     */
+    case 'RESTORE_DRAFT': {
+      const fresh = initialCollageState(state.layoutId, state.slots.length);
+      const { draft } = action;
+      return {
+        ...fresh,
+        slots: action.slots,
+        message: draft.message ?? fresh.message,
+        fontChoice: draft.fontChoice ?? fresh.fontChoice,
+        fontScale: draft.fontScale ?? fresh.fontScale,
+        textColor: draft.textColor ?? fresh.textColor,
+        textAlign: draft.textAlign ?? fresh.textAlign,
+        messagePosition: draft.messagePosition ?? fresh.messagePosition,
+        stickers: draft.stickers ?? fresh.stickers,
+        strokes: draft.strokes ?? fresh.strokes,
+        strokeColor: draft.strokeColor ?? fresh.strokeColor,
+        strokeWidth: draft.strokeWidth ?? fresh.strokeWidth,
+        // Spread over the default rather than taking it whole, for the
+        // same reason `postcardReducer`'s OPEN_PHOTO does: a record
+        // written before `address` existed would otherwise restore with
+        // the field missing and turn BackSidePanel's textarea into an
+        // uncontrolled input.
+        backSide: { ...fresh.backSide, ...draft.backSide },
+      };
+    }
+
     case 'SET_ACTIVE_SLOT':
       return { ...state, activeSlotIndex: action.index };
 

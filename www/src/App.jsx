@@ -20,7 +20,7 @@ import { ASPECTS, aspectRatio } from './aspect';
 import { zoomedCrop } from './cropGesture';
 import { effectiveFont } from './fonts';
 import { unreadablePhotoError } from './photoFormat';
-import { saveDraft, loadDraft, clearDraft } from './draftStore';
+import { saveDraft, loadDraft, clearDraft, draftThumbBlob, isCollageDraft } from './draftStore';
 import { detectLocation } from './location';
 import { renderPostcard } from './export';
 import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, nextStickerKey } from './postcardReducer';
@@ -43,6 +43,9 @@ function AppShell({ wasmModule }) {
   const { t, locale } = useI18n();
   const [confirm, confirmDialog] = useConfirm();
   const [collageActive, setCollageActive] = useState(false);
+  // The collage draft being resumed, handed to `CollageEditor` once. Null
+  // whenever a collage is started fresh from the intro.
+  const [collageDraft, setCollageDraft] = useState(null);
 
   const [state, dispatch] = useReducer(postcardReducer, DEFAULT_ASPECT, initialState);
   const [error, setError] = useState(null);
@@ -58,11 +61,10 @@ function AppShell({ wasmModule }) {
   const { message, fontChoice, fontScale, textColor, textAlign, messagePosition, stickers, strokes, drawMode } = state;
   const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } = state;
 
-  // A previously unfinished postcard, offered once at startup rather than
-  // silently resumed -- someone landing fresh (a shared link, a second
-  // visit that isn't a continuation) shouldn't have yesterday's photo
-  // reappear without asking. Collage drafts aren't persisted in v1 -- a
-  // scope cut, not an oversight, see CLAUDE.md.
+  // A previously unfinished card, of either kind, offered once at startup
+  // rather than silently resumed -- someone landing fresh (a shared link,
+  // a second visit that isn't a continuation) shouldn't have yesterday's
+  // photo reappear without asking.
   //
   // The photo comes back as an object URL for the banner's thumbnail: the
   // blob is already read here to decide whether to offer resuming at all,
@@ -75,9 +77,11 @@ function AppShell({ wasmModule }) {
     loadDraft()
       .then((draft) => {
         if (cancelled || !draft) return;
-        const url = URL.createObjectURL(draft.photoBlob);
+        const blob = draftThumbBlob(draft);
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
         draftPreviewUrlRef.current = url;
-        setDraftPreview({ url, updatedAt: draft.updatedAt ?? null });
+        setDraftPreview({ url, updatedAt: draft.updatedAt ?? null, collage: isCollageDraft(draft) });
       })
       .catch(() => {});
     return () => {
@@ -183,6 +187,14 @@ function AppShell({ wasmModule }) {
     releaseDraftPreview();
     const draft = await loadDraft();
     if (!draft) return;
+    // A collage rebuilds itself from the record -- it owns the layout and
+    // slot geometry needed to turn stored blobs back into photos, which
+    // this component knows nothing about.
+    if (isCollageDraft(draft)) {
+      setCollageDraft(draft);
+      setCollageActive(true);
+      return;
+    }
     await openPhoto(new File([draft.photoBlob], 'postcard.jpg', { type: draft.photoBlob.type }), draft);
   }, [openPhoto, releaseDraftPreview]);
 
@@ -332,6 +344,29 @@ function AppShell({ wasmModule }) {
     forgetDraft();
   }, [confirm, t, forgetDraft]);
 
+  /**
+   * Leaving the collage editor by its own Start over. It asks first and
+   * then forgets the saved collage: the point of "Start over" is that
+   * there's nothing left to come back to, and a draft that outlived it
+   * would reappear in the banner on the next visit as a card the user
+   * had already thrown away.
+   *
+   * An empty collage skips the question -- there is nothing to lose, and
+   * `CollageEditor` is the one that knows.
+   */
+  const exitCollage = useCallback(
+    async (hasPhotos) => {
+      if (hasPhotos) {
+        const ok = await confirm(t('confirm.startOverCollageBody'), t('confirm.confirm'));
+        if (!ok) return;
+        forgetDraft();
+      }
+      setCollageDraft(null);
+      setCollageActive(false);
+    },
+    [confirm, t, forgetDraft],
+  );
+
   // A one-tap jump to the Share/Save panel -- it's the last thing in a
   // long single-column control stack on phones, and desktop has no
   // sticky bottom bar shortcut to it the way mobile does (see
@@ -414,9 +449,15 @@ function AppShell({ wasmModule }) {
       <main className="app-main">
         {draftPreview && (
           <div className="panel draft-banner">
-            <img className="draft-thumb" src={draftPreview.url} alt={t('draft.previewAlt')} />
+            <img
+              className="draft-thumb"
+              src={draftPreview.url}
+              alt={t(draftPreview.collage ? 'draft.previewAltCollage' : 'draft.previewAlt')}
+            />
             <div className="draft-banner-body">
-              <p className="draft-banner-prompt">{t('draft.restoredPrompt')}</p>
+              <p className="draft-banner-prompt">
+                {t(draftPreview.collage ? 'draft.restoredCollagePrompt' : 'draft.restoredPrompt')}
+              </p>
               {draftPreview.updatedAt && (
                 <p className="draft-banner-meta">
                   {t('draft.lastEdited', {
@@ -440,11 +481,26 @@ function AppShell({ wasmModule }) {
         )}
 
         {!photo && !collageActive && (
-          <Intro onPhotoFile={openPhoto} onStartCollage={() => setCollageActive(true)} />
+          <Intro
+            onPhotoFile={openPhoto}
+            onStartCollage={() => {
+              // Same reasoning as `openPhoto`'s own call: the banner is
+              // offering a card this collage's first photo is about to
+              // overwrite, so it stops being something to advertise.
+              releaseDraftPreview();
+              setCollageDraft(null);
+              setCollageActive(true);
+            }}
+          />
         )}
 
         {collageActive && (
-          <CollageEditor wasmModule={wasmModule} onError={setError} onExit={() => setCollageActive(false)} />
+          <CollageEditor
+            wasmModule={wasmModule}
+            onError={setError}
+            onExit={exitCollage}
+            draft={collageDraft}
+          />
         )}
 
         {photo && crop && (
