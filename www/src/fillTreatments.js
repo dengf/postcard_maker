@@ -56,6 +56,30 @@ export const FILL_COLORS = [
   '#2c3e50', // navy
 ];
 
+/** The i18n key suffix naming each swatch, so its button reads out as
+ * "Cream" rather than "#f4ede0" -- a hex code is not a name, and it is
+ * the only thing a screen reader or a voice-control user has to go on
+ * for a control whose whole content is a background color. Keyed by the
+ * hex itself rather than run in parallel with `FILL_COLORS`, so the two
+ * lists can't drift out of step; `layout.fill.color.<name>` carries the
+ * words, same shape as `text.color.<key>` already uses. */
+export const FILL_COLOR_NAMES = {
+  '#f4ede0': 'cream',
+  '#ffffff': 'white',
+  '#241a1e': 'charcoal',
+  '#B01243': 'maroon',
+  '#d9b46a': 'gold',
+  '#8a9a7b': 'sage',
+  '#6f8ea8': 'dustyBlue',
+  '#e3b5b0': 'blush',
+  '#c1673b': 'terracotta',
+  '#2f6f6a': 'teal',
+  '#c99a2e': 'mustard',
+  '#a08cae': 'lavender',
+  '#a9814f': 'kraft',
+  '#2c3e50': 'navy',
+};
+
 const GRADIENT_ANGLE_DEG = { diagonal: 135, vertical: 180, horizontal: 90 };
 const STRIPE_ANGLE_DEG = { diagonal: 45, horizontal: 0, vertical: 90 };
 const RADIAL_POSITION = { center: '50% 50%', topLeft: '25% 25%', bottomRight: '75% 75%' };
@@ -107,6 +131,51 @@ export function rgbCss([r, g, b], alpha = 1) {
 
 function lightDark(baseRgb) {
   return [rgbCss(shadeRgb(baseRgb, 0.35)), rgbCss(shadeRgb(baseRgb, -0.25))];
+}
+
+function midRgb(a, b) {
+  return [0, 1, 2].map((i) => Math.round((a[i] + b[i]) / 2));
+}
+
+/**
+ * The color text actually lands on when this shape is painted with
+ * `baseRgb` -- the *surface*, not the base the surface was derived from.
+ * Every shape here paints a shade of its base rather than the base
+ * itself (airmail's interior is 80% of the way to white, writing lines
+ * 90%, dots 85%, a gradient runs light-to-dark around it), so "contrast
+ * against the base" is only right for `solid`. It was what the live
+ * preview did, and the gap is not cosmetic: an airmail card colored from
+ * a dark photo has a near-white interior, so the preview picked white
+ * ink for it while the export -- which samples the real painted pixels
+ * -- correctly picked dark. The editor was unreadable for a card that
+ * saved fine.
+ *
+ * Patterned shapes are averaged down to one color, which is what makes
+ * this an approximation rather than a second implementation of
+ * `drawFill`: `export.js` still samples the composited canvas, and that
+ * stays authoritative. `variant` is deliberately not a parameter --
+ * variants change spacing and angle, never the shades.
+ */
+export function fillSurfaceColor(shape, baseRgb) {
+  switch (shape) {
+    case 'gradient':
+    case 'radial':
+      return midRgb(shadeRgb(baseRgb, 0.35), shadeRgb(baseRgb, -0.25));
+    case 'dots':
+      return shadeRgb(baseRgb, 0.85);
+    case 'stripes':
+      return midRgb(shadeRgb(baseRgb, 0.55), shadeRgb(baseRgb, -0.05));
+    case 'lines':
+      return shadeRgb(baseRgb, 0.9);
+    case 'airmail':
+      // The interior, not the diagonal trim -- the trim is a border the
+      // message box never sits on, and `classic`'s is a fixed
+      // red/white/blue that has nothing to do with the picked color.
+      return shadeRgb(baseRgb, 0.8);
+    case 'solid':
+    default:
+      return baseRgb;
+  }
 }
 
 function airmailColors(variant, baseRgb) {

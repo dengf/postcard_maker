@@ -1,8 +1,22 @@
 import React from 'react';
 import { useI18n } from '../i18n';
 
-const COLORS = ['#e0355b', '#241a1e', '#ffffff', '#3a8bc4', '#f2b705'];
-const WIDTHS = [2, 4, 8];
+// Named, not bare values: a swatch button's only content is its own
+// background color and a brush button's is a bare number, so `2` and
+// `#3a8bc4` were all a screen reader or a voice-control user had to go
+// on. Same shape `TextPanel`'s own color row already uses.
+const COLORS = [
+  { value: '#e0355b', key: 'rose' },
+  { value: '#241a1e', key: 'ink' },
+  { value: '#ffffff', key: 'white' },
+  { value: '#3a8bc4', key: 'blue' },
+  { value: '#f2b705', key: 'amber' },
+];
+const WIDTHS = [
+  { value: 2, key: 'thin' },
+  { value: 4, key: 'medium' },
+  { value: 8, key: 'thick' },
+];
 
 export default function DoodleToolbar({
   drawMode,
@@ -31,12 +45,13 @@ export default function DoodleToolbar({
               <div className="text-option-buttons">
                 {COLORS.map((c) => (
                   <button
-                    key={c}
+                    key={c.value}
                     type="button"
-                    className={c === strokeColor ? 'text-color-swatch active' : 'text-color-swatch'}
-                    style={{ background: c }}
-                    aria-label={c}
-                    onClick={() => onStrokeColorChange(c)}
+                    className={c.value === strokeColor ? 'text-color-swatch active' : 'text-color-swatch'}
+                    style={{ background: c.value }}
+                    aria-label={t(`doodle.color.${c.key}`)}
+                    aria-pressed={c.value === strokeColor}
+                    onClick={() => onStrokeColorChange(c.value)}
                   />
                 ))}
               </div>
@@ -46,12 +61,19 @@ export default function DoodleToolbar({
               <div className="text-option-buttons">
                 {WIDTHS.map((w) => (
                   <button
-                    key={w}
+                    key={w.value}
                     type="button"
-                    className={w === strokeWidth ? 'active' : ''}
-                    onClick={() => onStrokeWidthChange(w)}
+                    className={w.value === strokeWidth ? 'active' : ''}
+                    // The number stays in the name as well as on screen:
+                    // an accessible name that drops the visible label is
+                    // what makes "click 4" fail for a voice-control user
+                    // (WCAG 2.5.3), and the word is the half that
+                    // actually means something.
+                    aria-label={`${t(`doodle.brushSize.${w.key}`)} (${w.value})`}
+                    aria-pressed={w.value === strokeWidth}
+                    onClick={() => onStrokeWidthChange(w.value)}
                   >
-                    {w}
+                    {w.value}
                   </button>
                 ))}
               </div>

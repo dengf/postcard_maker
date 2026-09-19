@@ -70,11 +70,31 @@ implementation would be a real bug.
   the *real* composited canvas (exact, since the true pixels are already
   there); `PostcardOverlay.jsx`'s live preview can only approximate,
   same "preview approximates, export is authoritative" split as the CSS
-  filter. `CollageEditor.jsx` shares that same overlay with no single
-  photo to sample while editing, so its live preview falls back to a
-  fixed color — `export.js`'s `renderCollage` still resolves 'auto'
-  exactly at export regardless, since it samples the real canvas the
-  same way `renderPostcard` does.
+  filter. Two things make that approximation track the export instead of
+  drifting from it, both found by measuring a saved card against the one
+  on screen rather than by reading the code:
+  - **What the ink contrasts against on a split card is the fill's
+    painted *surface*, not the color the fill was built from** — every
+    shape in `fillTreatments.js` paints a *shade* of its base (airmail's
+    interior is 80% of the way to white, writing lines 90%, dots 85%), so
+    contrasting against the base is right only for `solid`.
+    `fillSurfaceColor` is that one-color approximation of each shape, and
+    it is what the preview goes through. Before it, an airmail card
+    colored from a dark photo previewed white ink on a near-white
+    interior while the export — sampling the real pixels — correctly
+    picked dark: an editor you could not read for a file that was fine.
+  - **`CollageEditor.jsx` shares that same overlay across a card with no
+    single photo, so it hands over the slot the message box sits on**
+    (`messageSlotSample`) plus the box's position *within that slot*,
+    since `geometry.messageArea` is a fraction of the card and would be
+    the wrong rectangle of that slot's photo. It used to pass nothing and
+    fall back to a fixed dark ink, which had the same shape of bug: dark
+    preview ink over a dark photo, white and correct in the saved file.
+    The fallback is still there for a box over an empty slot.
+
+  `export.js`'s `renderCollage`/`renderPostcard` resolve 'auto' against
+  the real composited canvas regardless — that stays authoritative, and
+  none of the above is a second implementation of it.
 - **'auto' is the *default*, in both reducers — don't set a literal
   back.** It shipped as a literal `#ffffff` at first, which meant the
   contrast math above only ran for people who went looking for it. A
@@ -355,12 +375,22 @@ in the dark, and a photo of nothing recognisable at all.
   against real camera files during the build, not just the hand-spliced
   fixtures: real iPhone JPEGs parse, and one with tropical GPS really did
   come back with no season.
-- **Today it is only the last rung of `VibePanel`'s caption chain** (vibe
-  caption -> group caption -> moment caption), which means that in practice
-  it is still reached *after* the ~13MB download, since tapping "Suggest a
-  look" is the only way into that panel. That undercuts the placement
-  argument above and is the obvious next step: a message suggestion
-  reachable without downloading anything.
+- **It is the last rung of `VibePanel`'s caption chain** (vibe caption ->
+  group caption -> moment caption) — but it is now *read before anything
+  is awaited*, so it is available on every way out of `runSuggest`,
+  including the two that used to end with nothing at all: no candidate
+  matched (the `empty` phase shows it, rather than only "No suggestion
+  for this photo"), and the ~13MB download never arriving (the toast is
+  now the translated `errors.vibeModelLoadFailed`, carried across the
+  worker boundary as a `code` since an `Error`'s own properties don't
+  survive structured clone). Those were precisely the cases this signal
+  was built for, and it was unreachable in both.
+- **What's still true: tapping "Suggest a look" is the only way into the
+  panel**, so on the happy path the greeting still appears after the
+  download rather than instead of it. A message suggestion reachable
+  without opening that panel at all remains the obvious next step; what
+  changed is that a failed or fruitless download no longer takes the
+  greeting down with it.
 
 ## "Write a caption" was tried and removed -- real findings, for whoever proposes it again
 

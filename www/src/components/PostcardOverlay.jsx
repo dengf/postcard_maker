@@ -3,6 +3,7 @@ import { useI18n } from '../i18n';
 import { FONT_STACKS } from '../fonts';
 import { fitFontSize, getMeasureContext } from '../fitText';
 import { bestContrastColor, sampleFrameColor, hexToRgb } from '../autoTextColor';
+import { fillSurfaceColor } from '../fillTreatments';
 import StickerIcon from './StickerIcon';
 import { stickerById } from '../stickers';
 import { splitBoundary, toAddressArea } from '../photoLayout';
@@ -42,10 +43,11 @@ export default function PostcardOverlay({
   cssFilter,
   fillStyle,
   fillColor,
+  autoColorSampleArea,
 }) {
   const { t } = useI18n();
   const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
-  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition);
+  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition, autoColorSampleArea);
   // Split-layout-only elements the user asked to carry over from the
   // back side's own classic-postcard redesign: a real divider at the
   // photo/blank boundary, a labeled stamp placeholder, and a "To" +
@@ -221,13 +223,15 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * an *approximation* of what export will pick (see `autoTextColor.js`'s
  * own doc comment for why) -- close enough to preview, not authoritative.
  *
- * `photoUrl`/`crop`/`cssFilter` are optional: `CollageEditor.jsx` shares
- * this same overlay across an entire collage with no single photo to
- * sample, so when they're missing (or nothing's loaded yet) this just
- * falls back to a fixed dark-ink color rather than sampling nothing --
- * `export.js`'s `renderCollage` still resolves 'auto' correctly against
- * the real composited pixels regardless, since it samples the canvas
- * directly rather than going through this hook.
+ * `photoUrl`/`crop`/`cssFilter` are optional, and so is
+ * `sampleAreaOverride`: `CollageEditor.jsx` shares this same overlay
+ * across an entire collage, which has no single photo, so it hands over
+ * the one slot the message box sits on plus the box's position *within
+ * that slot* (see its `messageSlotSample`). With nothing to sample at
+ * all -- no photo loaded, or the box over an empty slot -- this falls
+ * back to a fixed dark ink. `export.js` resolves 'auto' against the real
+ * composited pixels either way, since it samples the canvas directly
+ * rather than going through this hook.
  *
  * Samples wherever the message box actually is (`messagePosition`, once
  * dragged, overrides `messageArea`'s default spot) -- not the original
@@ -239,21 +243,26 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * behind the blank area, not the photo -- sampling `messageArea` out of
  * the cropped photo the way the full-bleed case does would sample the
  * wrong pixels entirely. `fillStyle`/`fillColor` resolve that case
- * instead: any shape paired with a concrete swatch (not the `'auto'`
- * color sentinel) has one fixed, known base color -- every shape in
- * `fillTreatments.js` shades symmetrically lighter/darker around that
- * base, so contrasting against the base itself is a good approximation
- * even for a gradient or a dotted pattern, not just a flat `solid` fill.
- * `blur`, and any shape whose color is `'auto'`, instead approximate to
- * roughly the photo's own overall tone (a blur barely changes an average
- * color, and `'auto'` *is* that average), so sampling the *whole* cropped
- * photo rather than just the sliver behind `messageArea` is the closer
- * approximation there. Either way this stays a preview approximation --
- * `export.js`'s own `renderPostcard` computes the real fill color from
- * the actual composited pixels, same "preview approximates, export is
+ * instead. What the ink has to contrast against there is the fill's
+ * painted *surface*, which is a shade of the picked color and not the
+ * color itself -- `fillTreatments.js`'s `fillSurfaceColor` answers that,
+ * and going through it is what stops airmail (interior 80% of the way to
+ * white) and writing lines (90%) from previewing one ink and exporting
+ * the opposite. The base it shades is the swatch when one is picked, or,
+ * for the `'auto'` color sentinel, the photo's own average -- which is
+ * exactly what `export.js` derives that base from too, so the two agree
+ * by construction rather than by coincidence. `blur` is the one shape
+ * with no shade at all: its surface *is* the photo, so it contrasts
+ * against the average directly. Sampling the *whole* cropped photo
+ * rather than just the sliver behind `messageArea` is what makes that
+ * average the right one in both cases.
+ *
+ * Either way this stays a preview approximation -- `export.js`'s own
+ * `renderPostcard` computes the real fill color from the actual
+ * composited pixels, same "preview approximates, export is
  * authoritative" split as everywhere else in this file.
  */
-function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition) {
+function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition, sampleAreaOverride) {
   const [resolved, setResolved] = useState(textColor);
   const imgRef = useRef(null);
   const isFullCoverage = !geometry || (geometry.photoArea.w >= 1 && geometry.photoArea.h >= 1);
@@ -265,7 +274,7 @@ function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geome
       return undefined;
     }
     if (!isFullCoverage && fillShape !== 'blur' && fillColor && fillColor !== 'auto') {
-      setResolved(bestContrastColor(hexToRgb(fillColor)));
+      setResolved(bestContrastColor(fillSurfaceColor(fillShape, hexToRgb(fillColor))));
       return undefined;
     }
     if (!photoUrl || !crop || !geometry) {
@@ -282,16 +291,27 @@ function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geome
       const img = imgRef.current;
       if (!img || !img.complete || img.naturalWidth === 0) return;
       try {
-        const sampleArea = isFullCoverage
-          ? {
-              x: messagePosition?.x ?? geometry.messageArea.x,
-              y: messagePosition?.y ?? geometry.messageArea.y,
-              w: geometry.messageArea.w,
-              h: geometry.messageArea.h,
-            }
-          : { x: 0, y: 0, w: 1, h: 1 };
+        const sampleArea =
+          // A collage's slots each hold their own photo, so the caller
+          // says where the message box falls within the one it's over --
+          // `geometry.messageArea` is a fraction of the *card*, which
+          // would be the wrong rectangle of that slot's photo.
+          sampleAreaOverride ??
+          (isFullCoverage
+            ? {
+                x: messagePosition?.x ?? geometry.messageArea.x,
+                y: messagePosition?.y ?? geometry.messageArea.y,
+                w: geometry.messageArea.w,
+                h: geometry.messageArea.h,
+              }
+            : { x: 0, y: 0, w: 1, h: 1 });
         const avg = sampleFrameColor(img, crop, cssFilter, sampleArea, photoView);
-        setResolved(bestContrastColor(avg));
+        // On a split card the message sits on the fill, and the fill's
+        // own base is this same average when its color is 'auto' -- so
+        // the ink has to contrast against the shade that base gets
+        // painted as, not against the photo the shade came from.
+        const surface = isFullCoverage || fillShape === 'blur' ? avg : fillSurfaceColor(fillShape, avg.map(Math.round));
+        setResolved(bestContrastColor(surface));
       } catch {
         setResolved(AUTO_COLOR_FALLBACK);
       }
@@ -316,7 +336,7 @@ function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geome
     // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
     // fields are the real dependency, not its object identity, which
     // changes on every pan/zoom dispatch.
-  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, photoView?.rotation, cssFilter, geometry, isFullCoverage, fillStyle, fillColor, messagePosition?.x, messagePosition?.y]);
+  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, photoView?.rotation, cssFilter, geometry, isFullCoverage, fillStyle, fillColor, messagePosition?.x, messagePosition?.y, sampleAreaOverride?.x, sampleAreaOverride?.y, sampleAreaOverride?.w, sampleAreaOverride?.h]);
 
   return resolved;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useI18n } from '../i18n';
 import CollapsiblePanel from './CollapsiblePanel';
-import { FILL_COLORS, FILL_SHAPES, FILL_VARIANTS, buildFillStyle, parseFillStyle } from '../fillTreatments';
+import { FILL_COLORS, FILL_COLOR_NAMES, FILL_SHAPES, FILL_VARIANTS, buildFillStyle, parseFillStyle } from '../fillTreatments';
 
 const COVERAGES = ['full', 'half', 'bigSmall'];
 
@@ -52,6 +52,7 @@ export default function LayoutPanel({
             key={c}
             type="button"
             className={c === coverage ? 'active' : ''}
+            aria-pressed={c === coverage}
             onClick={() => onChangeLayout(c, side)}
           >
             {t(`layout.coverage.${c}`)}
@@ -67,6 +68,7 @@ export default function LayoutPanel({
                 key={s}
                 type="button"
                 className={s === side ? 'active' : ''}
+                aria-pressed={s === side}
                 onClick={() => onChangeLayout(coverage, s)}
               >
                 {t(sideLabelKey(aspectId, s))}
@@ -81,6 +83,7 @@ export default function LayoutPanel({
                 key={s}
                 type="button"
                 className={s === shape ? 'active' : ''}
+                aria-pressed={s === shape}
                 onClick={() => onFillStyleChange(buildFillStyle(s, FILL_VARIANTS[s]?.[0]))}
               >
                 {t(`layout.fill.shape.${s}`)}
@@ -95,6 +98,7 @@ export default function LayoutPanel({
                   key={v}
                   type="button"
                   className={v === variant ? 'active' : ''}
+                  aria-pressed={v === variant}
                   onClick={() => onFillStyleChange(buildFillStyle(shape, v))}
                 >
                   {t(`layout.fill.variant.${v}`)}
@@ -110,6 +114,7 @@ export default function LayoutPanel({
                 <button
                   type="button"
                   className={fillColor === 'auto' ? 'active' : ''}
+                  aria-pressed={fillColor === 'auto'}
                   onClick={() => onFillColorChange('auto')}
                 >
                   {t('layout.fill.auto')}
@@ -120,7 +125,8 @@ export default function LayoutPanel({
                     type="button"
                     className={c === fillColor ? 'text-color-swatch active' : 'text-color-swatch'}
                     style={{ background: c }}
-                    aria-label={c}
+                    aria-label={t(`layout.fill.color.${FILL_COLOR_NAMES[c]}`)}
+                    aria-pressed={c === fillColor}
                     onClick={() => onFillColorChange(c)}
                   />
                 ))}

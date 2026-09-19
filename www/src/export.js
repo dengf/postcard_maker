@@ -182,7 +182,15 @@ function roundedRectPath(ctx, x, y, w, h, r) {
  * `PostcardOverlay.jsx`) into the export -- a plain dashed square, no
  * label -- but only for a split layout: a full-bleed card's guide stays
  * exactly what it's always been, a hint for where to drag an actual
- * stamp sticker, not something that appears in the exported image. */
+ * stamp sticker, not something that appears in the exported image.
+ *
+ * The dashes resolve against the pixels already under the box rather
+ * than taking the message's own `textColor`, and unconditionally, not
+ * only when that color is 'auto'. They were a fixed 85% white, which is
+ * fine on the dark fills but measured 1.28:1 on airmail's pale paper --
+ * a guide nobody can see is the one case this element has to avoid.
+ * Contrast is not a preference the text picker should be able to
+ * override, which is why 'auto' isn't consulted here. */
 function drawStampPlaceholder(ctx, canvas, geometry) {
   const box = geometry.stampBox;
   const x = box.x * canvas.width;
@@ -190,9 +198,10 @@ function drawStampPlaceholder(ctx, canvas, geometry) {
   const w = box.w * canvas.width;
   const h = box.h * canvas.height;
   const radius = Math.min(w, h) * 0.08;
+  const ink = resolveInkColor(ctx, 'auto', { x, y, w, h });
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.strokeStyle = hexToRgba(ink, 0.85);
   ctx.lineWidth = Math.max(1.5, Math.min(w, h) * 0.02);
   ctx.setLineDash([ctx.lineWidth * 2, ctx.lineWidth * 1.5]);
   roundedRectPath(ctx, x, y, w, h, radius);
