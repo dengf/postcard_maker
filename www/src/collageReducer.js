@@ -25,7 +25,13 @@ export function initialCollageState(layoutId, slotCount) {
     message: '',
     fontChoice: 'system',
     fontScale: 1,
-    textColor: '#ffffff',
+    // Matches the single-photo default -- see postcardReducer.js. The
+    // collage live preview can't sample a single photo to resolve 'auto'
+    // (PostcardOverlay falls back to a fixed color there), but
+    // `export.js`'s `renderCollage` resolves it exactly at export the
+    // same way `renderPostcard` does, so the saved card still gets the
+    // contrast-checked color.
+    textColor: 'auto',
     textAlign: 'center',
     messagePosition: null,
     stickers: [],

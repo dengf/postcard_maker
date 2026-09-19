@@ -397,22 +397,101 @@ label.btn { cursor: pointer; }
 .postcard-sticker svg { display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)); }
 .postcard-sticker-remove {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 20px;
-  height: 20px;
+  top: -10px;
+  right: -10px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: none;
   background: var(--negative);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   line-height: 1;
   cursor: pointer;
+}
+/* The visible dot stays small so it doesn't swamp a 48px sticker, but the
+   *tappable* box is the 44px CLAUDE.md asks for -- the visible box was
+   20px, and missing it on a touch screen doesn't no-op, it grabs the
+   sticker's own drag surface and moves what you meant to delete.
+   Centring the hit area on a button that already sits outside the
+   sticker's corner keeps all but ~6% of it off the drag surface. */
+.postcard-sticker-remove::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .slider-field { display: flex; flex-direction: column; gap: 4px; }
 .slider-field-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); }
-.slider-field input[type='range'] { width: 100%; accent-color: var(--accent); }
+
+/* Zoom/brightness/contrast/saturation. A native range is 16px tall, which
+   is a hard thing to catch with a fingertip on the one control in this app
+   that wants precision. `appearance: none` is what makes the element box
+   sizeable at all -- it also means the track and thumb have to be drawn
+   here, and that `accent-color` no longer applies. The 44px is the
+   tappable box; the track stays visually thin. */
+.slider-field input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.slider-field input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--input-border);
+}
+.slider-field input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  /* Centres a 26px thumb on a 6px track: -(26 - 6) / 2. */
+  margin-top: -10px;
+}
+.slider-field input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--input-border);
+}
+.slider-field input[type='range']::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+}
+.slider-field input[type='range']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The resume banner leads with the draft's own photo -- see App.jsx.
+   `flex-direction` is set explicitly because `.panel` (the class this
+   shares) already declares `column`, and inheriting that stacks the
+   thumbnail above the text instead of beside it. */
+.draft-banner { display: flex; flex-direction: row; align-items: flex-start; gap: 14px; }
+.draft-thumb {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-alt);
+}
+.draft-banner-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.draft-banner-prompt { margin: 0; }
+.draft-banner-meta { margin: 0; font-size: 0.82rem; color: var(--muted); }
 
 .filter-options { display: flex; gap: 8px; flex-wrap: wrap; }
 .filter-option {
@@ -554,6 +633,22 @@ label.btn { cursor: pointer; }
      resume/discard banner (App.jsx) and the doodle undo/clear row
      (DoodleToolbar.jsx), which broke when this rule hid it by mistake. */
   .share-panel-actions { display: none; }
+  /* With the buttons gone to the fixed bar, what's left of #finish-panel
+     in the flow is its heading and nothing else -- a 58px card containing
+     one word, which is exactly where the "Finish" shortcut used to land
+     you. Collapse the chrome rather than `display: none` on the panel:
+     ShareBar's CelebrationBurst is a child of it and is `position: fixed`,
+     so hiding the parent outright would suppress the burst too. The
+     shortcut itself is hidden alongside (.finish-jump), since the fixed
+     bar already keeps Share/Save one tap away at any scroll position. */
+  .finish-jump { display: none; }
+  #finish-panel > .panel {
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+  }
+  #finish-panel > .panel > h2 { display: none; }
   .share-sticky-bar {
     display: flex;
     flex-direction: column;
@@ -681,8 +776,18 @@ label.btn { cursor: pointer; }
   touch-action: none;
 }
 .doodle-layer canvas { display: block; width: 100%; height: 100%; }
-.field-check-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
-.field-check-row input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+/* The label is the tappable area here, not the box -- clicking anywhere on
+   it toggles -- so it's the label that has to clear 44px. It measured 34
+   even wrapped over two lines. */
+.field-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.field-check-row input { accent-color: var(--accent); width: 20px; height: 20px; margin: 0; flex: none; }
 .back-side-location {
   width: 100%;
   background: var(--surface);

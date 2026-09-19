@@ -6,6 +6,38 @@ const base = { x: 0, y: 0, w: 100, h: 50 };
 const geo = { safeMargin: 0.04, stampBox: {}, messageArea: {} };
 
 describe('postcardReducer', () => {
+  // The default is load-bearing, not cosmetic: a literal white greeting
+  // measured 1.56:1 over a pale photo, under WCAG's 3:1 large-text floor,
+  // while 'auto' hands the choice to autoTextColor.js's contrast math.
+  // Nothing else in the suite pins this down, so a regression to a literal
+  // would otherwise ship silently.
+  it('defaults the greeting colour to auto, not a literal', () => {
+    expect(initialState('landscape').textColor).toBe('auto');
+  });
+
+  it('OPEN_PHOTO leaves a fresh postcard on the auto colour', () => {
+    const state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+    });
+    expect(state.textColor).toBe('auto');
+  });
+
+  it('OPEN_PHOTO keeps a literal colour a draft already chose', () => {
+    const state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+      restored: { textColor: '#d9b46a' },
+    });
+    expect(state.textColor).toBe('#d9b46a');
+  });
+
   it('OPEN_PHOTO resets to a fresh state carrying the new photo', () => {
     const state = postcardReducer(initialState('landscape'), {
       type: 'OPEN_PHOTO',
