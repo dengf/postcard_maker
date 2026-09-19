@@ -314,7 +314,15 @@ future attempt has to weigh, not a prompt-tuning problem.
   library conflicts with the Rust-first preference for what is a rare
   path. Not a dead end: the in-page live camera (`CameraCapture.jsx`)
   always yields JPEG via `canvas.toBlob` regardless of source format, and
-  Safari decodes HEIC natively. `Intro.jsx` says so (`intro.heicHint`).
+  Safari decodes HEIC natively. **The app says so at the point of failure,
+  not before it**: `photoFormat.js` sniffs the picked file when the
+  browser's decoder rejects it and picks `err.heicUnsupported` over the
+  generic `err.unreadableImage`. It used to be a standing caveat on the
+  intro screen (`intro.heicHint`, now removed) — three lines of grey text
+  warning everyone about a failure most never hit, and misleading for its
+  own audience, since iOS decodes HEIC natively and its picker usually
+  hands over JPEG anyway. If another format ever needs the same treatment,
+  extend `photoFormat.js`; don't put it back on the first screen.
 - **No sticker rotation, only move + the palette's default scale.**
   Move-only covers "decorate the postcard" well; rotation is a real chunk
   of drag-math UI for comparatively little payoff. Revisit if asked for.
@@ -407,6 +415,14 @@ future attempt has to weigh, not a prompt-tuning problem.
   script — React doesn't mount until after an async wasm load, so
   anything waiting on `theme.js` would flash the wrong theme for the
   length of that load.
+- **`ErrorToast` only renders what it's given, so `setError(new Error(…))`
+  used to produce a toast with a dismiss button and no words in it.** Its
+  chain is now `error.code` (translated) → `error.text` (the wasm
+  boundary's English fallback) → `error.message` (a plain JS `Error`) →
+  `errors.unknown`. The missing `.message` rung was a live bug: an
+  undecodable photo showed a blank toast and left the user on the intro
+  with nothing to act on. Prefer giving a new failure a **code** so it
+  translates; the raw-message rung is a safety net, not a destination.
 - **`prettier --check` does not pass on this repo and is not a CI gate**
   — `.github/workflows/ci.yml`'s `www-test` job runs `npm test` only.
   ~75 files under `www/src` are already non-conformant on `main`. Match

@@ -21,12 +21,22 @@ export default function ErrorToast({ error }) {
 
   if (!error || dismissed) return null;
 
-  const message = error.code ? t(`errors.${suffixOf(error.code)}`, error.params) : error.text;
+  // `error.text` is the wasm boundary's English fallback; `error.message`
+  // is what a plain JS `Error` carries, and it was missing from this chain
+  // -- so any `setError(new Error(...))` rendered a toast with a dismiss
+  // button and no words in it at all. An unreadable photo was the live
+  // case: the toast appeared, said nothing, and left the user on the intro
+  // with no idea what had happened. A coded error is still preferred over
+  // any of these; the raw message is the last resort before the generic
+  // line, since it's the only rung of this ladder that isn't translated.
+  const message = error.code
+    ? t(`errors.${suffixOf(error.code)}`, error.params)
+    : error.text || error.message;
 
   return (
     <div className="toast-region" aria-live="assertive">
       <div className="toast" role="alert">
-        <span className="toast-message">{message || error.text}</span>
+        <span className="toast-message">{message || t('errors.unknown')}</span>
         <button
           className="toast-dismiss"
           onClick={() => setDismissed(true)}

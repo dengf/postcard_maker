@@ -21,9 +21,7 @@ export default {
   "photo.cameraStarting": "Starting camera…",
   "intro.choosePhoto": "Choose a photo",
   "intro.startOver": "Start over",
-  "intro.heicHint":
-    'If a photo you took on an iPhone won\'t load, it may be saved as HEIC — try "Take a photo" instead, or choose one already saved as JPEG or PNG.',
-  "intro.makeCollage": "Or make a collage from 2-3 photos",
+  "intro.makeCollage": "Make a collage",
 
   "template.heading": "Shape",
   "template.landscape": "Landscape",
@@ -411,6 +409,9 @@ export default {
   "errors.badRequest": "Some values are missing or aren’t valid. Try again.",
   "errors.emptyImage": "That photo has no data to read.",
   "errors.unreadableImage": "That photo couldn’t be read. Try a different one.",
+  "errors.heicUnsupported":
+    "This browser can’t open HEIC photos, which is what iPhones save by default. Take a photo here instead, or choose one saved as JPEG or PNG.",
+  "errors.unknown": "Something went wrong. Try again.",
   "errors.cropOutOfBounds":
     "The crop no longer matches this photo. Try repositioning it again.",
   "errors.encodeFailed": "Couldn’t finish the postcard image. Try again.",

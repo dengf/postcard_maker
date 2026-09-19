@@ -20,9 +20,7 @@ export default {
   "photo.cameraStarting": "正在啟動相機…",
   "intro.choosePhoto": "選擇照片",
   "intro.startOver": "重新開始",
-  "intro.heicHint":
-    "如果 iPhone 拍攝的照片無法載入，可能是 HEIC 格式——請改用「拍照」，或選擇已儲存為 JPEG、PNG 格式的照片。",
-  "intro.makeCollage": "或用 2-3 張照片製作拼貼明信片",
+  "intro.makeCollage": "製作拼貼明信片",
 
   "template.heading": "形狀",
   "template.landscape": "橫式",
@@ -337,6 +335,9 @@ export default {
   "errors.badRequest": "部分內容缺失或無效，請再試一次。",
   "errors.emptyImage": "這張照片沒有可讀取的資料。",
   "errors.unreadableImage": "無法讀取這張照片，請換一張試試。",
+  "errors.heicUnsupported":
+    "此瀏覽器無法開啟 HEIC 照片，而這正是 iPhone 預設儲存的格式。請在這裡直接拍照，或選擇 JPEG、PNG 格式的照片。",
+  "errors.unknown": "出了點問題，請重試。",
   "errors.cropOutOfBounds": "裁剪範圍與照片不再相符，請重新調整位置。",
   "errors.encodeFailed": "無法產生明信片圖片，請再試一次。",
   "errors.engineUnavailable": "影像處理引擎載入失敗。",
