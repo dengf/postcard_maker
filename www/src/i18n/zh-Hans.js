@@ -61,7 +61,8 @@ export default {
   "layout.fill.variant.tonal": "同色调",
   "layout.fill.variant.mono": "双色",
 
-  "editor.cropHint": "拖动以调整位置，双指或滑块可缩放。",
+  "editor.cropHint": "拖动以调整位置，双指或滑块可缩放。双击照片可更换。",
+  "editor.replacePhoto": "换一张照片",
   "editor.zoom": "缩放",
   "editor.filter": "滤镜",
   "editor.filter.none": "原图",
@@ -264,7 +265,6 @@ export default {
 
   "collage.layout": "版式",
   "collage.addPhoto": "添加照片",
-  "collage.replacePhoto": "换一张照片",
   "collage.fillAllSlots": "为每个位置添加照片即可完成。",
 
   "text.heading": "祝福语",

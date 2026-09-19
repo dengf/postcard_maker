@@ -115,6 +115,30 @@ export function postcardReducer(state, action) {
       };
     }
 
+    /**
+     * A different photo on the card someone is already making -- not a
+     * new card. `OPEN_PHOTO` above resets to `initialState`, which is
+     * right when a photo arrives from the intro screen and wrong here:
+     * swapping the photo would silently throw away the message, the
+     * stickers, the doodle, the back side and the chosen template.
+     *
+     * What does reset is exactly what belonged to the old photo -- crop,
+     * zoom, filter, adjustments -- because a crop is in the old photo's
+     * pixel coordinates and a filter was picked to suit it. That's the
+     * same line `collageReducer`'s `OPEN_SLOT_PHOTO` draws: per-photo
+     * look starts fresh, everything shared by the card stays.
+     */
+    case 'REPLACE_PHOTO':
+      return {
+        ...state,
+        photo: action.photo,
+        baseCrop: action.base,
+        crop: action.base,
+        zoom: 1,
+        adjustments: DEFAULT_ADJUSTMENTS,
+        filter: 'none',
+      };
+
     case 'CHANGE_ASPECT':
       return {
         ...state,

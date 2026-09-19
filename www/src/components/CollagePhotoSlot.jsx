@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { panCrop } from '../cropGesture';
+import { createTapLog, distance, recordTap } from '../doubleTap';
 import { previewFilterCss } from '../previewFilter';
 
 /**
@@ -15,14 +16,24 @@ import { previewFilterCss } from '../previewFilter';
  * slot), and threading that distinction through the already-shipped
  * single-photo component was the riskier option, not the simpler one.
  */
-export default function CollagePhotoSlot({ photoUrl, naturalW, naturalH, crop, onCropChange, adjustments, filter }) {
+export default function CollagePhotoSlot({
+  photoUrl,
+  naturalW,
+  naturalH,
+  crop,
+  onCropChange,
+  adjustments,
+  filter,
+  onDoubleTap,
+}) {
   const frameRef = useRef(null);
   const drag = useRef(null);
+  const taps = useRef(createTapLog());
 
   const onPointerDown = useCallback(
     (e) => {
       e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { x: e.clientX, y: e.clientY, crop };
+      drag.current = { x: e.clientX, y: e.clientY, crop, time: e.timeStamp, travel: 0 };
     },
     [crop],
   );
@@ -30,6 +41,10 @@ export default function CollagePhotoSlot({ photoUrl, naturalW, naturalH, crop, o
   const onPointerMove = useCallback(
     (e) => {
       if (!drag.current || !frameRef.current) return;
+      drag.current.travel = Math.max(
+        drag.current.travel,
+        distance(drag.current, { x: e.clientX, y: e.clientY }),
+      );
       const rect = frameRef.current.getBoundingClientRect();
       const scale = drag.current.crop.w / rect.width;
       const next = panCrop(
@@ -44,7 +59,20 @@ export default function CollagePhotoSlot({ photoUrl, naturalW, naturalH, crop, o
     [naturalW, naturalH, onCropChange],
   );
 
-  const onPointerUp = useCallback(() => {
+  const onPointerUp = useCallback(
+    (e) => {
+      const gesture = drag.current;
+      drag.current = null;
+      if (!gesture || !onDoubleTap) return;
+      const done = { x: e.clientX, y: e.clientY, time: e.timeStamp, travel: gesture.travel };
+      if (recordTap(taps.current, done)) onDoubleTap();
+    },
+    [onDoubleTap],
+  );
+
+  // A cancelled pointer (the browser took the gesture over) ended in no
+  // tap at all, so it must not be logged as one.
+  const onPointerCancel = useCallback(() => {
     drag.current = null;
   }, []);
 
@@ -66,7 +94,7 @@ export default function CollagePhotoSlot({ photoUrl, naturalW, naturalH, crop, o
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
     >
       {filter === 'vintage' && <div className="postcard-vignette" />}
     </div>

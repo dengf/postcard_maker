@@ -14,6 +14,7 @@ import VibePanel from './components/VibePanel';
 import DoodleToolbar from './components/DoodleToolbar';
 import BackSidePanel from './components/BackSidePanel';
 import CollageEditor from './components/CollageEditor';
+import { PhotoPickerInput } from './components/ReplacePhotoButton';
 import { useConfirm } from './components/ConfirmDialog';
 import { ASPECTS, aspectRatio } from './aspect';
 import { zoomedCrop } from './cropGesture';
@@ -52,6 +53,7 @@ function AppShell({ wasmModule }) {
 
   const objectUrlRef = useRef(null);
   const draftPreviewUrlRef = useRef(null);
+  const pickerRef = useRef(null);
   const { photo, aspectId, baseCrop, crop, zoom, geometry, adjustments, filter } = state;
   const { message, fontChoice, fontScale, textColor, textAlign, messagePosition, stickers, strokes, drawMode } = state;
   const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } = state;
@@ -133,6 +135,48 @@ function AppShell({ wasmModule }) {
       }
     },
     [wasmModule, releaseDraftPreview],
+  );
+
+  /**
+   * A different photo on the card in progress, from the chip on the
+   * preview or a double-tap on it. Deliberately not `openPhoto`: that
+   * one starts a new card (see `REPLACE_PHOTO` in `postcardReducer`),
+   * and the only way to change your mind about a photo used to be Start
+   * over, which asks to throw the whole card away.
+   *
+   * The old object URL is revoked only once the new photo is actually
+   * in, so a file the browser can't decode leaves the card showing the
+   * photo it had rather than a broken image. (`openPhoto` revokes up
+   * front, which is fine there -- nothing is on screen yet to break.)
+   */
+  const replacePhoto = useCallback(
+    async (file) => {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const url = URL.createObjectURL(file);
+      try {
+        const { w, h } = await loadImageDimensions(url);
+        const base = suggestCropForLayout(
+          wasmModule,
+          w,
+          h,
+          state.aspectId,
+          state.photoCoverage,
+          state.geometry.photoArea,
+          aspectRatio(state.aspectId),
+        );
+        dispatch({
+          type: 'REPLACE_PHOTO',
+          photo: { bytes, url, naturalW: w, naturalH: h, mimeType: file.type || 'image/jpeg' },
+          base,
+        });
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = url;
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        setError(err?.code ? err : unreadablePhotoError(file));
+      }
+    },
+    [wasmModule, state.aspectId, state.photoCoverage, state.geometry],
   );
 
   const resumeDraft = useCallback(async () => {
@@ -434,7 +478,9 @@ function AppShell({ wasmModule }) {
                 strokeColor={strokeColor}
                 strokeWidth={strokeWidth}
                 onAddStroke={(stroke) => dispatch({ type: 'ADD_STROKE', stroke })}
+                onReplacePhoto={() => pickerRef.current?.click()}
               />
+              <PhotoPickerInput inputRef={pickerRef} onPick={replacePhoto} />
               <div className="editor-preview-actions">
                 <button type="button" className="btn ghost" onClick={startOver}>
                   {t('intro.startOver')}

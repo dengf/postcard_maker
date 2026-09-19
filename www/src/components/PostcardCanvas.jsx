@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { panCrop } from '../cropGesture';
+import { createTapLog, distance, recordTap } from '../doubleTap';
 import { previewFilterCss } from '../previewFilter';
 import { hexToRgb, sampleFrameColor } from '../autoTextColor';
 import { fillCss, parseFillStyle } from '../fillTreatments';
 import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
+import ReplacePhotoButton from './ReplacePhotoButton';
 
 const FULL_AREA = { x: 0, y: 0, w: 1, h: 1 };
 
@@ -117,15 +119,17 @@ export default function PostcardCanvas({
   strokeColor,
   strokeWidth,
   onAddStroke,
+  onReplacePhoto,
 }) {
   const frameRef = useRef(null);
   const photoBoxRef = useRef(null);
   const drag = useRef(null);
+  const taps = useRef(createTapLog());
 
   const onPointerDown = useCallback(
     (e) => {
       e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { x: e.clientX, y: e.clientY, crop };
+      drag.current = { x: e.clientX, y: e.clientY, crop, time: e.timeStamp, travel: 0 };
     },
     [crop],
   );
@@ -133,6 +137,10 @@ export default function PostcardCanvas({
   const onPointerMove = useCallback(
     (e) => {
       if (!drag.current || !photoBoxRef.current) return;
+      drag.current.travel = Math.max(
+        drag.current.travel,
+        distance(drag.current, { x: e.clientX, y: e.clientY }),
+      );
       const rect = photoBoxRef.current.getBoundingClientRect();
       // The photo box's on-screen width represents `crop.w` source
       // pixels, so that ratio converts a screen-space drag into source
@@ -153,7 +161,23 @@ export default function PostcardCanvas({
     [naturalW, naturalH, onCropChange],
   );
 
-  const onPointerUp = useCallback(() => {
+  // Double-tapping the photo opens the picker again, the same thing the
+  // chip does -- the gesture people already try on a photo they want to
+  // change, and the only one available while the chip is under a finger.
+  const onPointerUp = useCallback(
+    (e) => {
+      const gesture = drag.current;
+      drag.current = null;
+      if (!gesture || !onReplacePhoto) return;
+      const done = { x: e.clientX, y: e.clientY, time: e.timeStamp, travel: gesture.travel };
+      if (recordTap(taps.current, done)) onReplacePhoto();
+    },
+    [onReplacePhoto],
+  );
+
+  // A cancelled pointer (the browser took the gesture over) ended in no
+  // tap at all, so it must not be logged as one.
+  const onPointerCancel = useCallback(() => {
     drag.current = null;
   }, []);
 
@@ -204,9 +228,10 @@ export default function PostcardCanvas({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerCancel={onPointerCancel}
       >
         {filter === 'vintage' && <div className="postcard-vignette" />}
+        {onReplacePhoto && <ReplacePhotoButton onRequest={onReplacePhoto} />}
       </div>
 
       <PostcardOverlay

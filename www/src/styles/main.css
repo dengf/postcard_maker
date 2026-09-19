@@ -953,18 +953,26 @@ label.btn { cursor: pointer; }
   cursor: grab;
 }
 .collage-photo-slot:active { cursor: grabbing; }
-/* The replace-photo chip over a filled slot. Solid ink fill rather than a
+/* The replace-photo chip -- over a filled collage slot and over the
+   single-photo card, same chip in both. Solid ink fill rather than a
    translucent scrim, because it sits on whatever photo someone picked and
    has to stay legible over a white sky as readily as a dark doorway. 28px
    visible with a 44x44 `::before` hit area -- the same "small glyph, real
    tap target" split `.postcard-sticker-remove` uses, and the reason the
    visible size isn't simply grown to 44px is that the narrowest slot in
-   the three-up layout is only ~103px wide at phone width. */
-.collage-replace {
+   the three-up layout is only ~103px wide at phone width.
+
+   Top *left*, not top right: `geometry.stampBox` puts the dashed stamp
+   guide in the card's top right corner, where a chip would sit on top of
+   it -- on the single-photo card always, and on a collage whenever the
+   rightmost slot is the selected one. */
+.replace-photo {
   position: absolute;
   top: 6px;
-  right: 6px;
+  left: 6px;
   z-index: 3;
+  padding: 0;
+  border: none;
   width: 28px;
   height: 28px;
   display: flex;
@@ -977,7 +985,7 @@ label.btn { cursor: pointer; }
   cursor: pointer;
   touch-action: manipulation;
 }
-.collage-replace::before {
+.replace-photo::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -986,8 +994,8 @@ label.btn { cursor: pointer; }
   height: 44px;
   transform: translate(-50%, -50%);
 }
-.collage-replace .field-icon { width: 16px; height: 16px; }
-.collage-replace:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replace-photo .field-icon { width: 16px; height: 16px; }
+.replace-photo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .collage-empty-slot {
   width: 100%;

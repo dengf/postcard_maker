@@ -299,17 +299,42 @@ future attempt has to weigh, not a prompt-tuning problem.
   `postcard_calc::crop::suggest_for_ratio`/`suggest_crop_ratio` exist
   alongside the named-aspect versions rather than replacing them.
   Message/stickers/doodle are shared across the whole collage, never
-  per-slot. **A filled slot is refillable**, and it wasn't at first: the
-  only file input lived in `EmptySlot`, which unmounts the moment
-  `slot.photo` is set, so picking the wrong photo for a slot left "Start
-  over" — which discards the entire collage — as the only way back. The
-  replace chip renders on the *active* slot only (three chips over the
-  live card is a worse preview, and filling a slot already selects it, so
-  it still appears on each photo as it's added), and
-  `replaceSlotPhoto` revokes the previous object URL **only after the new
-  one decodes** — revoke first and an undecodable pick blanks a slot that
-  still had a good photo in it. `collage-slot-refill.test.js` guards the
-  control's existence, since nothing renders components in this suite.
+  per-slot.
+- **Changing the photo is one feature across both editors, and it did not
+  exist at first.** A photo was a one-way door: the collage's only file
+  input lived in `EmptySlot`, which unmounts the moment `slot.photo` is
+  set, and the single-photo card had no replace control at all — so the
+  only way back was "Start over", which throws away the whole card rather
+  than the one photo. Both now get the same `ReplacePhotoButton` chip
+  plus a **double-tap on the photo itself**, and the pieces that make
+  that work are worth not re-deriving:
+  - **Each editor owns one hidden `PhotoPickerInput`** and both paths
+    click it. The alternative — a file input inside each chip — breaks
+    down the moment a second way in exists, because the collage's chip
+    renders on the *active* slot only while a double-tap works on any
+    filled slot.
+  - **Double-tap is detected from the pointer stream (`doubleTap.js`),
+    not `dblclick`.** These surfaces set `touch-action: none` and capture
+    the pointer, and a *drag* that ends near where it started must not
+    read as a tap — `travel` is the furthest the pointer ever got from
+    the down point, not the down-to-up distance, or a pan out and back
+    would swap the photo. A firing tap clears the log so an impatient
+    triple tap opens the picker once.
+  - **The old object URL is revoked only after the new photo decodes**,
+    in both flows. Revoke first and an undecodable pick blanks a card
+    that still had a good photo on it. (`openPhoto` revokes up front,
+    which is fine *there* — nothing is on screen yet to break.)
+  - **`REPLACE_PHOTO` is a separate action from `OPEN_PHOTO`**, because
+    `OPEN_PHOTO` resets to `initialState`: reusing it would silently
+    throw away the message, stickers, doodle, back side and template
+    along with the photo. What does reset is what belonged to the old
+    photo — crop, zoom, filter, adjustments — the same line
+    `collageReducer`'s `OPEN_SLOT_PHOTO` already drew for a slot.
+  - **The chip sits top *left*.** `geometry.stampBox` puts the dashed
+    stamp guide in the card's top right, where a chip lands on top of it.
+  - `collage-slot-refill.test.js` guards both controls' existence and
+    `doubleTap.test.js` the gesture arithmetic; nothing in this suite
+    renders components, so the first is a source-text guard.
 - **Back side** (`renderBackSide` in `export.js`) is pure host-layer
   canvas drawing — no photo, so no Rust involved at all. Optional and off
   by default; when on, `share.js`'s `shareFiles`/`saveFiles` carry two
