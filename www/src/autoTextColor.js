@@ -16,10 +16,21 @@
  * - `sampleFrameColor` is the *live-preview* approximation: there's no
  *   real canvas to sample while editing (the preview is CSS, not a
  *   canvas redraw -- see CLAUDE.md), so it draws the panned/cropped
- *   photo into a small offscreen canvas with the same CSS filter string
- *   the preview itself uses, close enough to decide light-vs-dark
- *   without needing to be pixel-accurate.
+ *   photo into a small offscreen canvas and puts the average through the
+ *   same CSS filter string the preview itself uses, close enough to
+ *   decide light-vs-dark without needing to be pixel-accurate.
+ *
+ * That filter used to be applied by setting `ctx.filter` before the
+ * `drawImage`, which **WebKit accepts and silently ignores** -- so in
+ * Safari the ink was picked against the unfiltered photo, and a
+ * grayscale card could preview ink chosen for the colour version. Same
+ * dead property that left the export's blurred bed sharp (`blurBed.js`).
+ * `previewFilter.js`'s `applyFilterToColor` does it as arithmetic
+ * instead, which is exact here because these filters are affine and an
+ * affine map commutes with the average. Don't put `ctx.filter` back.
  */
+
+import { applyFilterToColor } from './previewFilter';
 
 export const AUTO_COLOR_CANDIDATES = ['#ffffff', '#241a1e', '#B01243', '#d9b46a'];
 
@@ -85,8 +96,7 @@ export function sampleFrameColor(img, crop, cssFilter, areaRect, view) {
   const canvas = document.createElement('canvas');
   canvas.width = SIZE;
   canvas.height = SIZE;
-  const ctx = canvas.getContext('2d');
-  ctx.filter = cssFilter || 'none';
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
   // `crop` is expressed in the *rotated* photo's coordinates (see
   // `rotateGeometry.js`), so the sample has to be taken from a photo
@@ -108,5 +118,5 @@ export function sampleFrameColor(img, crop, cssFilter, areaRect, view) {
   const y = Math.min(SIZE - 1, Math.round(areaRect.y * SIZE));
   const w = Math.max(1, Math.round(areaRect.w * SIZE));
   const h = Math.max(1, Math.round(areaRect.h * SIZE));
-  return averageColor(ctx.getImageData(x, y, w, h));
+  return applyFilterToColor(averageColor(ctx.getImageData(x, y, w, h)), cssFilter);
 }

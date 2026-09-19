@@ -7,6 +7,7 @@ import { wrapText } from './wordwrap';
 import { averageColor, bestContrastColor, hexToRgb } from './autoTextColor';
 import { drawFill, parseFillStyle } from './fillTreatments';
 import { BLUR_BED_RADIUS, BLUR_BED_SCALE, FULL_FIT, isLetterboxed } from './letterbox';
+import { blurredBitmap } from './blurBed';
 
 /**
  * The one-time "flatten to final image" step -- see CLAUDE.md for why
@@ -109,15 +110,15 @@ export async function renderPostcard({
       // first -- the sharp photo drawn on top only touches its own area,
       // so the blur shows through everywhere else without a second,
       // separate "fill the blank rect" step. The only shape that ignores
-      // `fillColor` entirely -- its "color" is the photo itself.
-      const blurPx = Math.max(8, Math.round(Math.min(canvas.width, canvas.height) * 0.04));
-      ctx.filter = `blur(${blurPx}px)`;
-      ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
-      ctx.filter = 'none';
+      // `fillColor` entirely -- its "color" is the photo itself. Its own
+      // radius, kept at the 0.04 it has always looked like rather than
+      // folded into the bed's; see `blurBed.js` for why neither is
+      // `ctx.filter` any more.
+      ctx.drawImage(blurredBitmap(baseImg, 0.04), 0, 0, canvas.width, canvas.height);
     }
 
     if (isLetterboxed(photoFit)) {
-      drawBlurBed(ctx, baseImg, photoRect);
+      drawBlurBed(ctx, blurredBitmap(baseImg, BLUR_BED_RADIUS), photoRect);
     }
 
     ctx.drawImage(baseImg, fitRect.x, fitRect.y, fitRect.w, fitRect.h);
@@ -172,28 +173,26 @@ export async function renderPostcard({
 }
 
 /**
- * Fills `box` with a blurred copy of `img` behind a photo that no longer
- * covers it -- the export half of `letterbox.js`, and the same treatment
- * the `blur` split shape above gives a card's blank side.
+ * Fills `box` with `blurred` -- `blurBed.js`'s already-blurred miniature
+ * of the photo -- behind a photo that no longer covers it. The export
+ * half of `letterbox.js`, and the same treatment the `blur` split shape
+ * above gives a card's blank side.
  *
  * Scaled to *cover* rather than stretched, so the bed keeps the photo's
  * proportions (`coverCrop` is the preview's way of saying the same
  * thing), over-scanned by the shared `BLUR_BED_SCALE` so both sides frame
- * it alike, and clipped to the box so neither the overscan nor the blur's
- * own spread reaches a split card's blank side.
+ * it alike, and clipped to the box so the overscan doesn't reach a split
+ * card's blank side.
  */
-function drawBlurBed(ctx, img, box) {
-  const scale =
-    Math.max(box.w / img.naturalWidth, box.h / img.naturalHeight) * BLUR_BED_SCALE;
-  const w = img.naturalWidth * scale;
-  const h = img.naturalHeight * scale;
-  const blurPx = Math.max(8, Math.round(Math.min(box.w, box.h) * BLUR_BED_RADIUS));
+function drawBlurBed(ctx, blurred, box) {
+  const scale = Math.max(box.w / blurred.width, box.h / blurred.height) * BLUR_BED_SCALE;
+  const w = blurred.width * scale;
+  const h = blurred.height * scale;
   ctx.save();
   ctx.beginPath();
   ctx.rect(box.x, box.y, box.w, box.h);
   ctx.clip();
-  ctx.filter = `blur(${blurPx}px)`;
-  ctx.drawImage(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
+  ctx.drawImage(blurred, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
   ctx.restore();
 }
 
@@ -392,7 +391,7 @@ export async function renderCollage({
       // every photo to a different shape. `FULL_FIT` is the whole slot.
       const fit = s.photoFit ?? FULL_FIT;
       const box = { x: slotX, y: slotY, w: slotW, h: slotH };
-      if (isLetterboxed(fit)) drawBlurBed(ctx, img, box);
+      if (isLetterboxed(fit)) drawBlurBed(ctx, blurredBitmap(img, BLUR_BED_RADIUS), box);
       ctx.drawImage(img, box.x + fit.x * box.w, box.y + fit.y * box.h, fit.w * box.w, fit.h * box.h);
     } finally {
       URL.revokeObjectURL(url);
