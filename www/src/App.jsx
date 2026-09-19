@@ -18,7 +18,8 @@ import { PhotoPickerInput } from './components/ReplacePhotoButton';
 import { BackIcon } from './components/icons';
 import { useConfirm } from './components/ConfirmDialog';
 import { ASPECTS, aspectRatio } from './aspect';
-import { rebaseCrop, zoomedCrop } from './cropGesture';
+import { clampZoom, rebaseCrop, zoomedCrop } from './cropGesture';
+import { fitZoom, photoFit } from './letterbox';
 import { cropMathFor, rotatedBounds } from './rotateGeometry';
 import { effectiveFont } from './fonts';
 import { unreadablePhotoError } from './photoFormat';
@@ -332,13 +333,20 @@ function AppShell({ wasmModule }) {
     return cropMathFor(wasmModule, photo.naturalW, photo.naturalH, ratio);
   }, [wasmModule, photo, geometry, photoCoverage, aspectId]);
 
+  /* How far out this photo is worth zooming: 1x for one already shaped
+   * like the card, lower for one the card's shape cuts into. Both the
+   * slider's own bottom end and the clamp below read it, so the control
+   * and the value can't disagree. */
+  const minZoom = useMemo(() => fitZoom(baseCrop, bounds), [baseCrop, bounds]);
+
   const changeZoom = useCallback(
     (nextZoom) => {
       if (!photo || !baseCrop || !bounds || !cropMath) return;
-      const next = zoomedCrop(crop, baseCrop, bounds.w, bounds.h, nextZoom);
-      dispatch({ type: 'CHANGE_ZOOM', crop: cropMath.fit(next, rotation), zoom: nextZoom });
+      const wanted = clampZoom(nextZoom, minZoom);
+      const next = zoomedCrop(crop, baseCrop, bounds.w, bounds.h, wanted);
+      dispatch({ type: 'CHANGE_ZOOM', crop: cropMath.fit(next, rotation), zoom: wanted });
     },
-    [photo, baseCrop, crop, bounds, cropMath, rotation],
+    [photo, baseCrop, crop, bounds, cropMath, rotation, minZoom],
   );
 
   // A pinch has already worked out where the crop lands (it zooms around
@@ -364,13 +372,17 @@ function AppShell({ wasmModule }) {
       const carried = rebaseCrop(crop, bounds, nextBounds);
       // The zoom is a ratio against the zoom-1 crop, and that crop just
       // changed size -- holding the ratio is what keeps a turn from
-      // reading as a zoom.
-      const sized = zoomedCrop(carried, nextBase, nextBounds.w, nextBounds.h, zoom);
+      // reading as a zoom. How far *out* the ratio may go moved too, so
+      // a photo left zoomed out comes back up to the new angle's floor
+      // rather than sitting under the slider's own minimum.
+      const nextZoom = clampZoom(zoom, fitZoom(nextBase, nextBounds));
+      const sized = zoomedCrop(carried, nextBase, nextBounds.w, nextBounds.h, nextZoom);
       dispatch({
         type: 'SET_ROTATION',
         rotation: nextRotation,
         base: nextBase,
         crop: cropMath.fit(sized, nextRotation),
+        zoom: nextZoom,
       });
     },
     [photo, crop, zoom, bounds, cropMath],
@@ -707,6 +719,7 @@ function AppShell({ wasmModule }) {
               />
               <FilterPanel
                 zoom={zoom}
+                minZoom={minZoom}
                 onZoomChange={changeZoom}
                 rotation={rotation}
                 onRotationChange={rotateTo}
@@ -763,6 +776,10 @@ function AppShell({ wasmModule }) {
                       photoBytes: photo.bytes,
                       crop,
                       rotation,
+                      // Where the crop sits on the card once zooming out
+                      // has left it smaller than the card -- the export
+                      // half of what the preview is showing.
+                      photoFit: photoFit(crop, baseCrop, zoom),
                       adjustments,
                       filter,
                       message,

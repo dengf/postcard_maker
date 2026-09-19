@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { ASPECTS, aspectRatio } from '../aspect';
-import { rebaseCrop, zoomedCrop } from '../cropGesture';
+import { clampZoom, rebaseCrop, zoomedCrop } from '../cropGesture';
+import { fitZoom, photoFit } from '../letterbox';
 import { cropMathFor, rotatedBounds, suggestRotatedCrop } from '../rotateGeometry';
 import { effectiveFont } from '../fonts';
 import { detectLocation } from '../location';
@@ -411,16 +412,26 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
       slotPixelRatio(layout.slots[index].area, aspectRatio(aspectId)),
     );
 
+  /* How far out the active slot's photo is worth zooming -- per slot,
+   * since each one cuts its photo to a different shape. See
+   * `letterbox.js`. */
+  const activeMinZoom = () => {
+    if (!activeSlot?.photo) return undefined;
+    const math = slotCropMath(state.activeSlotIndex, activeSlot);
+    return fitZoom(activeSlot.baseCrop, math.bounds(activeSlot.rotation));
+  };
+
   const changeActiveZoom = (nextZoom) => {
     if (!activeSlot?.photo) return;
     const math = slotCropMath(state.activeSlotIndex, activeSlot);
     const bounds = math.bounds(activeSlot.rotation);
-    const crop = zoomedCrop(activeSlot.crop, activeSlot.baseCrop, bounds.w, bounds.h, nextZoom);
+    const wanted = clampZoom(nextZoom, fitZoom(activeSlot.baseCrop, bounds));
+    const crop = zoomedCrop(activeSlot.crop, activeSlot.baseCrop, bounds.w, bounds.h, wanted);
     dispatch({
       type: 'SET_SLOT_ZOOM',
       index: state.activeSlotIndex,
       crop: math.fit(crop, activeSlot.rotation),
-      zoom: nextZoom,
+      zoom: wanted,
     });
   };
 
@@ -436,12 +447,16 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     const to = math.bounds(nextRotation);
     const base = math.base(nextRotation);
     const carried = rebaseCrop(activeSlot.crop, from, to);
+    // The zoom-out floor moved with the angle too -- same reasoning as
+    // `App.jsx`'s `rotateTo`.
+    const zoom = clampZoom(activeSlot.zoom, fitZoom(base, to));
     dispatch({
       type: 'SET_SLOT_ROTATION',
       index,
       rotation: nextRotation,
       base,
-      crop: math.fit(zoomedCrop(carried, base, to.w, to.h, activeSlot.zoom), nextRotation),
+      crop: math.fit(zoomedCrop(carried, base, to.w, to.h, zoom), nextRotation),
+      zoom,
     });
   };
 
@@ -681,6 +696,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
         {activeSlot?.photo && (
           <FilterPanel
             zoom={activeSlot.zoom}
+            minZoom={activeMinZoom()}
             rotation={activeSlot.rotation}
             onRotationChange={rotateActiveSlot}
             onZoomChange={changeActiveZoom}
@@ -742,6 +758,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                     photoBytes: s.photo.bytes,
                     crop: s.crop,
                     rotation: s.rotation,
+                    photoFit: photoFit(s.crop, s.baseCrop, s.zoom),
                     adjustments: s.adjustments,
                     filter: s.filter,
                     area: layout.slots[i].area,

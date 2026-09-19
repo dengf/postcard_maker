@@ -393,6 +393,38 @@ label.btn { cursor: pointer; }
   -webkit-user-drag: none;
 }
 .postcard-photo-box:active { cursor: grabbing; }
+
+/* Zoomed out past 1x, the photo no longer covers its frame: `.photo-fit`
+   is the part of the frame it does cover (inline percentages from
+   `letterbox.js`'s `photoFit`), and `.photo-blur-bed` is the blurred copy
+   of the same photo filling everything behind it. Both default to the
+   whole frame, so at 1x and above the fit box is exactly the frame it
+   replaced and nothing about an ordinary card's layout changes. Sized
+   with left/top/width/height rather than `inset` precisely so the inline
+   override is a plain swap of the same four properties. */
+.photo-fit,
+.photo-blur-bed {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+/* The blur is `cqmin`, a percentage of the frame's own shorter side, not
+   a pixel count -- the preview frame is a few hundred pixels across and
+   the exported card a couple of thousand, so a fixed radius that reads
+   as a soft wash on screen comes out a legible photo in the saved file.
+   The number is `letterbox.js`'s `BLUR_BED_RADIUS`, which `drawBlurBed`
+   multiplies out for the canvas; keep the two the same. */
+.photo-blur-bed {
+  filter: blur(6cqmin);
+  pointer-events: none;
+}
+.postcard-photo-box,
+.collage-photo-slot {
+  container-type: size;
+}
 .postcard-vignette {
   position: absolute;
   inset: 0;

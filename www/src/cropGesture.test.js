@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FILL_ZOOM,
   MAX_ZOOM,
-  MIN_ZOOM,
   SNAP_WINDOW,
   normalizeRotation,
   panCrop,
@@ -71,6 +71,20 @@ describe('zoomedCropAt', () => {
     expect(zoomed.x + zoomed.w).toBeLessThanOrEqual(1000);
     expect(zoomed.y + zoomed.h).toBeLessThanOrEqual(1000);
   });
+
+  // Below 1x the rectangle asked for is bigger than the photo. What
+  // comes back is still a rectangle of real pixels -- the letterbox is
+  // measured from the shortfall, never taken out of bounds.
+  it('stops growing at the photo’s edge when zoomed out past 1x', () => {
+    // A 3:2 zoom-1 crop on a 1000x1000 photo: at 0.8x the crop wants to
+    // be 1125 wide, which the photo cannot supply, and 750 tall, which
+    // it can.
+    const wide = { x: 50, y: 200, w: 900, h: 600 };
+    const zoomed = zoomedCrop({ x: 350, y: 400, w: 300, h: 200 }, wide, 1000, 1000, 0.8);
+    expect(zoomed).toEqual({ x: 0, y: 125, w: 1000, h: 750 });
+    expect(zoomed.x + zoomed.w).toBeLessThanOrEqual(1000);
+    expect(zoomed.y + zoomed.h).toBeLessThanOrEqual(1000);
+  });
 });
 
 describe('pinchZoom', () => {
@@ -81,7 +95,15 @@ describe('pinchZoom', () => {
 
   it('holds to the zoom slider range at both ends', () => {
     expect(pinchZoom(2, 100, 1000)).toBe(MAX_ZOOM);
-    expect(pinchZoom(2, 100, 1)).toBe(MIN_ZOOM);
+    expect(pinchZoom(2, 100, 1)).toBe(FILL_ZOOM);
+  });
+
+  // The bottom end belongs to the photo, not to this module -- a photo
+  // the card's shape cuts into can be pinched below 1x, down to the
+  // point where the whole of it is on the card.
+  it('pinches down to the photo’s own floor when one is given', () => {
+    expect(pinchZoom(1, 100, 10, 0.8)).toBe(0.8);
+    expect(pinchZoom(1, 100, 90, 0.8)).toBeCloseTo(0.9);
   });
 
   it('returns to the starting zoom when the fingers do', () => {

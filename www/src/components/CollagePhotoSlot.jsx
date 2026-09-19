@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import usePhotoGestures from '../usePhotoGestures';
 import { previewFilterCss } from '../previewFilter';
+import { BLUR_BED_SCALE, coverCrop, isLetterboxed, photoFit } from '../letterbox';
 import { photoLayerStyle } from '../rotateGeometry';
 
 /**
@@ -45,6 +46,13 @@ export default function CollagePhotoSlot({
     onDoubleTap,
   });
 
+  // Zoomed out past 1x the photo covers only part of the slot, and the
+  // rest gets a blurred copy of it -- the same `letterbox.js` treatment
+  // the single-photo card uses, per slot here because a collage crops
+  // every slot to its own shape and so cuts every photo differently.
+  const fit = photoFit(crop, baseCrop, zoom);
+  const letterboxed = isLetterboxed(fit);
+
   return (
     <div
       ref={frameRef}
@@ -52,14 +60,34 @@ export default function CollagePhotoSlot({
       style={{ filter: previewFilterCss(adjustments, filter) }}
       {...gestures}
     >
-      <img
-        className="photo-layer"
-        src={photoUrl}
-        alt=""
-        draggable="false"
-        style={photoLayerStyle(crop, bounds, naturalW, naturalH, rotation)}
-      />
-      {filter === 'vintage' && <div className="postcard-vignette" />}
+      {letterboxed && (
+        <div className="photo-blur-bed" style={{ transform: `scale(${BLUR_BED_SCALE})` }} aria-hidden="true">
+          <img
+            className="photo-layer"
+            src={photoUrl}
+            alt=""
+            draggable="false"
+            style={photoLayerStyle(coverCrop(crop, baseCrop), bounds, naturalW, naturalH, rotation)}
+          />
+        </div>
+      )}
+      <div
+        className="photo-fit"
+        style={
+          letterboxed
+            ? { left: `${fit.x * 100}%`, top: `${fit.y * 100}%`, width: `${fit.w * 100}%`, height: `${fit.h * 100}%` }
+            : undefined
+        }
+      >
+        <img
+          className="photo-layer"
+          src={photoUrl}
+          alt=""
+          draggable="false"
+          style={photoLayerStyle(crop, bounds, naturalW, naturalH, rotation)}
+        />
+        {filter === 'vintage' && <div className="postcard-vignette" />}
+      </div>
     </div>
   );
 }
