@@ -32,6 +32,7 @@ export async function renderPostcard({
   fillStyle = 'auto',
   fillColor,
   address,
+  rotation = 0,
   toLabel = 'To',
   messagePosition,
   maxDimension = 2000,
@@ -41,6 +42,9 @@ export async function renderPostcard({
     cropY: crop.y,
     cropW: crop.w,
     cropH: crop.h,
+    // The crop is read in the rotated photo's own coordinates, so these
+    // two always travel together -- see `postcard_calc::rotate`.
+    rotation,
     brightness: adjustments.brightness,
     contrast: adjustments.contrast,
     saturation: adjustments.saturation,
@@ -306,6 +310,7 @@ export async function renderCollage({
       cropY: s.crop.y,
       cropW: s.crop.w,
       cropH: s.crop.h,
+      rotation: s.rotation ?? 0,
       brightness: s.adjustments.brightness,
       contrast: s.adjustments.contrast,
       saturation: s.adjustments.saturation,

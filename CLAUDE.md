@@ -30,9 +30,15 @@ photo — exactly where wasm speed matters and where a second, drifting
 implementation would be a real bug.
 
 **JS/DOM owns, deliberately:**
-- **The live editor preview is CSS, not a canvas redraw.** Pan/zoom is
-  `background-position`/`background-size` math on the frame div
-  (`cropGesture.js`, `PostcardCanvas.jsx`); the filter/adjustment preview
+- **The live editor preview is CSS, not a canvas redraw.** Pan/zoom/turn
+  is an absolutely-positioned `<img className="photo-layer">` inside an
+  `overflow: hidden` frame, sized and offset in percentages and turned
+  with `transform: translate(-50%, -50%) rotate()` (`cropGesture.js`,
+  `rotateGeometry.js`'s `photoLayerStyle`, `PostcardCanvas.jsx`). It was
+  `background-position`/`background-size` on the frame div until rotation
+  arrived; a CSS *background* cannot be rotated, which is the whole
+  reason for the `<img>` layer — see the rotation section below before
+  moving it back. The filter/adjustment preview
   is a CSS `filter:` string (`previewFilter.js`) that *approximates*
   the Rust math, not a second implementation of it — it exists purely so
   a slider drag doesn't round-trip through wasm every frame. The real
@@ -461,6 +467,68 @@ future attempt has to weigh, not a prompt-tuning problem.
   files, relying on `navigator.share`'s native multi-file support rather
   than anything new.
 
+## Rotating the photo
+
+A photo can be turned to any angle — a two-finger twist on the photo
+itself (combined with the pinch, one gesture), a -180..180 slider plus
+two quarter-turn buttons in the filter panel on desktop. Both editors
+have it; a collage turns per slot. `postcard_calc::rotate` owns the
+geometry, `rotateGeometry.js` is its only caller in the host layer.
+
+- **The crop rectangle lives in *rotated* space.** It indexes the
+  axis-aligned bounding box of the *turned* photo (`rotate::bounds`), not
+  the upright one. That is the single decision everything else follows
+  from: `pipeline::process_photo` turns the photo and then crops it, so
+  the editor's arithmetic and the export's agree by construction rather
+  than by two implementations happening to match. A crop that meant
+  "these pixels of the upright photo" would need a different clamp on
+  each side of the wasm boundary, and the visible symptom of getting it
+  wrong is an exported card framed a few pixels off the one on screen.
+- **`deg == 0` reduces exactly to the shipped unrotated code**, not
+  approximately — same `crop::suggest_for_ratio` result, same clamp,
+  `render` short-circuits to a plain `crop_imm`. Tests pin all three.
+  That equality is what protects every postcard already saved in
+  someone's IndexedDB, so keep it if `rotate.rs` changes.
+- **The valid-position rectangle is derived, not searched.** For a crop
+  of a fixed size, each corner's offset from the crop's centre,
+  `R(-θ)·(±cw/2, ±ch/2)`, does not depend on where the crop sits — so
+  "all four corners land on the photo" is four independent inequalities
+  on the centre, i.e. an axis-aligned rectangle in source space
+  (`center_limits`). Clamping is then arithmetic. The obvious
+  alternative, eroding by the rotated bounding box, would shrink a
+  square crop by √2 at 45° and read on screen as the app zooming in for
+  no reason.
+- **A 1px inset applies at non-quarter-turn angles only.** A rotated
+  rectangle's corner moves up to ~0.71px when its position is rounded to
+  whole pixels, which is enough to expose a hairline of transparent
+  background along one edge. Quarter turns are exact and take no inset,
+  which is also what keeps the `deg == 0` equality above bit-identical.
+- **`render` has three paths on purpose**: plain crop at 0°, `image`'s
+  exact `rotate90/180/270` then crop at quarter turns, and a fused
+  one-pass bilinear resample everywhere else. The resample walks the
+  *output* rectangle and reads back through `to_source`, so it never
+  materializes a full rotated canvas — on a 12MP phone photo at 45° that
+  intermediate would be the largest allocation in the app.
+- **`sin_cos` is clockwise-positive**, matching CSS `rotate()`, so the
+  slider's number, the preview's transform and the baked pixels all mean
+  the same thing. Rust tests track actual corners through both
+  `to_source` and the quarter-turn paths rather than asserting a sign
+  convention in prose.
+- **The gesture hook never sees wasm.** `usePhotoGestures` takes a
+  `cropMath` object (`{ bounds, base, fit }`) built by `cropMathFor`, so
+  it stays testable with a plain object and the twist can re-fit on every
+  frame. A twist snaps within 5° of 0/90/180/270 (`snapRotation`), and
+  the crop carries across an angle change by holding its *fractional
+  centre* (`rebaseCrop`) — continuous, no jump for someone who had panned
+  into a corner, and no extra round-trip through wasm mid-gesture.
+- **Rotation is stored, base crops are not** — same rule the collage
+  already follows. `OPEN_PHOTO` restores the angle and the zoom-1 base
+  crop is recomputed *for that angle*, or a turned photo reopens framed
+  differently than it was left.
+- **`autoTextColor`'s sampler turns the photo too.** It draws through
+  the same centre-rotate-draw transform as the preview; without it the
+  contrast read would be sampling pixels that aren't behind the text.
+
 ## Known v1 limitations (parked, not bugs)
 
 - **HEIC photos (iPhone's default format) uploaded via file picker won't
@@ -478,7 +546,8 @@ future attempt has to weigh, not a prompt-tuning problem.
   own audience, since iOS decodes HEIC natively and its picker usually
   hands over JPEG anyway. If another format ever needs the same treatment,
   extend `photoFormat.js`; don't put it back on the first screen.
-- **No sticker rotation, only move + the palette's default scale.**
+- **No *sticker* rotation, only move + the palette's default scale.**
+  (The photo itself does turn — see the rotation section above.)
   Move-only covers "decorate the postcard" well; rotation is a real chunk
   of drag-math UI for comparatively little payoff. Revisit if asked for.
 - **One in-progress draft, no multi-draft gallery.** `draftStore.js`'s
@@ -522,13 +591,15 @@ shapes; keep it that way rather than trusting that it still works.
   real platform-specific code paths; always also run `cargo build -p
   postcard-wasm --target wasm32-unknown-unknown --release` before
   trusting a change that touches `postcard-calc` or `postcard-wasm`.
-  Measured via wasm-pack: **530KB raw / ~192KB gzipped** (was 514KB /
-  187KB before `collage_gen`, and the ~492KB this file used to record had
-  gone stale long before that — re-measure rather than trusting the
-  number here). If a change balloons that, look for a new dependency
-  pulling in something heavy before assuming it's fine: `collage_gen`'s
-  own +15KB raw / +5KB gzipped is `String`/`format!` and the split search,
-  no new crate.
+  Measured via wasm-pack: **541KB raw / ~200KB gzipped** (was 530KB /
+  192KB before `rotate`, 514KB / 187KB before `collage_gen`, and the
+  ~492KB this file used to record had gone stale long before that —
+  re-measure rather than trusting the number here). If a change balloons
+  that, look for a new dependency pulling in something heavy before
+  assuming it's fine: `collage_gen`'s own +15KB raw / +5KB gzipped is
+  `String`/`format!` and the split search, and `rotate`'s +11KB raw /
+  +8KB gzipped is trigonometry and a bilinear sampler — neither adds a
+  crate.
 - **`wasm-pack` wants a `LICENSE` file at the workspace root** to stop
   warning on every build (it doesn't fail without one, just nags) — kept
   in sync with `Cargo.toml`'s `license = "MIT"`.
@@ -610,7 +681,10 @@ shapes; keep it that way rather than trusting that it still works.
   `photoLayout.js`'s `templateGeometry` wrapper, which is what
   `wasm-call-sites.test.js` now enforces. If another binding grows an
   argument, give it a wrapper and add it to that guard — the JS side gets
-  no arity checking of its own.
+  no arity checking of its own. The rotation bindings are in that guard
+  for the same reason, `fit_rotated_crop` most of all: seven arguments,
+  and what it answers for is whether a turned photo exports with
+  transparent corners.
 - **`ErrorToast` only renders what it's given, so `setError(new Error(…))`
   used to produce a toast with a dismiss button and no words in it.** Its
   chain is now `error.code` (translated) → `error.text` (the wasm

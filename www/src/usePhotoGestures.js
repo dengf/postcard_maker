@@ -1,31 +1,47 @@
 import { useCallback, useRef } from 'react';
-import { panCrop, pinchAnchor, pinchZoom, zoomedCropAt } from './cropGesture';
+import {
+  panCrop,
+  pinchAnchor,
+  pinchRotation,
+  pinchZoom,
+  rebaseCrop,
+  twistAngle,
+  zoomedCropAt,
+} from './cropGesture';
 import { createTapLog, distance, recordTap } from './doubleTap';
 
 /**
  * Every gesture one photo surface understands: one finger pans, two
- * fingers pinch to zoom, two taps swap the photo. Shared by
- * `PostcardCanvas` and `CollagePhotoSlot`, which had grown two copies of
- * the same pointer bookkeeping -- CLAUDE.md's note about keeping those
- * two components apart is about the overlay's coordinate space and their
- * separate reducers, not about the pointer stream, which is identical.
+ * fingers pinch to zoom *and* twist to rotate, two taps swap the photo.
+ * Shared by `PostcardCanvas` and `CollagePhotoSlot`, which had grown two
+ * copies of the same pointer bookkeeping -- CLAUDE.md's note about
+ * keeping those two components apart is about the overlay's coordinate
+ * space and their separate reducers, not about the pointer stream, which
+ * is identical.
  *
  * The surface must set `touch-action: none` (both do) or the browser
  * takes the second finger for its own page zoom and the app never sees
  * it. The page itself still can't zoom while pinching here, which is the
  * point: someone pinching a photo means the photo, not the page.
  *
- * `onPinchZoom(crop, zoom)` gets both values in one call because both
- * editors dispatch them as one action -- a crop and a zoom that
- * disagreed for even one render would show as a jump.
+ * `onPinchZoom(crop, zoom, rotation)` gets all three in one call because
+ * both editors dispatch them as one action -- values that disagreed for
+ * even one render would show as a jump. Zoom and rotation come off the
+ * *same* two fingers on purpose: separating them would mean a mode, and
+ * a photo people want turned is usually one they also want to reframe.
+ *
+ * `cropMath` is `rotateGeometry.js`'s bundle of wasm-backed geometry
+ * (`bounds`/`base`/`fit`). This hook deliberately has no wasm of its own:
+ * a turn changes both the box the crop lives in and the crop that fits
+ * inside it, and both answers belong to Rust.
  */
 export default function usePhotoGestures({
   boxRef,
   crop,
   baseCrop,
   zoom,
-  naturalW,
-  naturalH,
+  rotation = 0,
+  cropMath,
   onCropChange,
   onPinchZoom,
   onDoubleTap,
@@ -39,7 +55,7 @@ export default function usePhotoGestures({
   // crop the pinch just produced -- so they read the live values here
   // rather than closing over a render's copy.
   const live = useRef(null);
-  live.current = { crop, baseCrop, zoom };
+  live.current = { crop, baseCrop, zoom, rotation, cropMath };
 
   const startDrag = useCallback((point, startCrop, time, tappable) => {
     drag.current = { x: point.x, y: point.y, crop: startCrop, time, travel: 0, tappable };
@@ -55,8 +71,11 @@ export default function usePhotoGestures({
         const rect = boxRef.current.getBoundingClientRect();
         pinch.current = {
           startDist: distance(points[0], points[1]),
+          startAngle: twistAngle(points[0], points[1]),
           startZoom: live.current.zoom,
+          startRotation: live.current.rotation,
           crop: live.current.crop,
+          bounds: live.current.cropMath.bounds(live.current.rotation),
           anchor: pinchAnchor(rect, points[0], points[1]),
         };
         // The first finger's pan stops here: continuing it would fight
@@ -83,25 +102,30 @@ export default function usePhotoGestures({
       if (pinch.current) {
         const points = [...pointers.current.values()];
         if (points.length < 2) return;
-        const nextZoom = pinchZoom(
-          pinch.current.startZoom,
-          pinch.current.startDist,
-          distance(points[0], points[1]),
+        const start = pinch.current;
+        const math = live.current.cropMath;
+        const nextZoom = pinchZoom(start.startZoom, start.startDist, distance(points[0], points[1]));
+        const nextRotation = pinchRotation(
+          start.startRotation,
+          start.startAngle,
+          twistAngle(points[0], points[1]),
         );
+
+        // Turning moves the goalposts: the photo's bounding box is a
+        // different size at the new angle, and so is the zoom-1 crop that
+        // fits inside it. Both are re-asked for rather than scaled, and
+        // the crop the gesture started on is carried across by its
+        // relative position so the framing follows the turn instead of
+        // snapping back to centre.
+        const bounds = math.bounds(nextRotation);
+        const base = math.base(nextRotation);
+        const from = rebaseCrop(start.crop, start.bounds, bounds);
+
         // Always from the crop the pinch started on, so the gesture is
         // reversible; the anchor keeps the bit of photo between the two
         // fingers where it is instead of sliding out from under them.
-        onPinchZoom(
-          zoomedCropAt(
-            pinch.current.crop,
-            live.current.baseCrop,
-            naturalW,
-            naturalH,
-            nextZoom,
-            pinch.current.anchor,
-          ),
-          nextZoom,
-        );
+        const next = zoomedCropAt(from, base, bounds.w, bounds.h, nextZoom, start.anchor);
+        onPinchZoom(math.fit(next, nextRotation), nextZoom, nextRotation);
         return;
       }
 
@@ -115,17 +139,18 @@ export default function usePhotoGestures({
       // pixels, so that ratio converts a screen-space drag into source
       // pixels.
       const scale = drag.current.crop.w / rect.width;
-      onCropChange(
-        panCrop(
-          drag.current.crop,
-          (e.clientX - drag.current.x) * scale,
-          (e.clientY - drag.current.y) * scale,
-          naturalW,
-          naturalH,
-        ),
+      const math = live.current.cropMath;
+      const bounds = math.bounds(live.current.rotation);
+      const panned = panCrop(
+        drag.current.crop,
+        (e.clientX - drag.current.x) * scale,
+        (e.clientY - drag.current.y) * scale,
+        bounds.w,
+        bounds.h,
       );
+      onCropChange(math.fit(panned, live.current.rotation));
     },
-    [boxRef, naturalW, naturalH, onCropChange, onPinchZoom],
+    [boxRef, onCropChange, onPinchZoom],
   );
 
   // Double-tapping the photo opens the picker again, the same thing the

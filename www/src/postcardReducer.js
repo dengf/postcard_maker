@@ -23,6 +23,9 @@ export function initialState(defaultAspect) {
     baseCrop: null,
     crop: null,
     zoom: 1,
+    // Degrees clockwise. The crop above is read in the *rotated* photo's
+    // coordinates once this is non-zero -- see `rotateGeometry.js`.
+    rotation: 0,
     geometry: null,
     adjustments: DEFAULT_ADJUSTMENTS,
     filter: 'none',
@@ -92,6 +95,7 @@ export function postcardReducer(state, action) {
         baseCrop: action.base,
         crop: action.restored?.crop ?? action.base,
         zoom: action.restored?.zoom ?? 1,
+        rotation: action.restored?.rotation ?? 0,
         geometry: action.geometry,
         adjustments: action.restored?.adjustments ?? DEFAULT_ADJUSTMENTS,
         filter: action.restored?.filter ?? 'none',
@@ -123,8 +127,8 @@ export function postcardReducer(state, action) {
      * stickers, the doodle, the back side and the chosen template.
      *
      * What does reset is exactly what belonged to the old photo -- crop,
-     * zoom, filter, adjustments -- because a crop is in the old photo's
-     * pixel coordinates and a filter was picked to suit it. That's the
+     * zoom, rotation, filter, adjustments -- because a crop is in the old
+     * photo's pixel coordinates and a filter was picked to suit it. That's the
      * same line `collageReducer`'s `OPEN_SLOT_PHOTO` draws: per-photo
      * look starts fresh, everything shared by the card stays.
      */
@@ -135,6 +139,7 @@ export function postcardReducer(state, action) {
         baseCrop: action.base,
         crop: action.base,
         zoom: 1,
+        rotation: 0,
         adjustments: DEFAULT_ADJUSTMENTS,
         filter: 'none',
       };
@@ -179,8 +184,33 @@ export function postcardReducer(state, action) {
     case 'SET_FILL_COLOR':
       return { ...state, fillColor: action.fillColor };
 
+    // One action for the whole two-finger gesture: pinching zooms and
+    // twisting rotates on the same two fingers, and a crop, zoom and
+    // rotation that disagreed for even one render would show as a jump.
+    // `rotation` is optional so the zoom slider, which cannot rotate, can
+    // keep dispatching this untouched.
     case 'CHANGE_ZOOM':
-      return { ...state, crop: action.crop, zoom: action.zoom };
+      return {
+        ...state,
+        crop: action.crop,
+        zoom: action.zoom,
+        rotation: action.rotation ?? state.rotation,
+      };
+
+    /* Turning the photo moves the goalposts for the crop: the photo fills
+     * a differently-shaped box at the new angle, and the zoom-1 crop that
+     * fits inside it is a different rectangle. The caller works all three
+     * out together (it has the wasm module; see `App.jsx`'s `rotateTo`)
+     * rather than this reducer recomputing part of it and leaving the
+     * rest stale. */
+    case 'SET_ROTATION':
+      return {
+        ...state,
+        rotation: action.rotation,
+        baseCrop: action.base,
+        crop: action.crop,
+        zoom: action.zoom ?? state.zoom,
+      };
 
     case 'SET_CROP':
       return { ...state, crop: action.crop };

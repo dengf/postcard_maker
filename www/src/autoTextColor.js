@@ -80,14 +80,29 @@ export function bestContrastColor(bgRgb, candidates = AUTO_COLOR_CANDIDATES) {
  * dark" and cheap enough to re-run on every crop/filter/adjustment
  * change.
  */
-export function sampleFrameColor(img, crop, cssFilter, areaRect) {
+export function sampleFrameColor(img, crop, cssFilter, areaRect, view) {
   const SIZE = 64;
   const canvas = document.createElement('canvas');
   canvas.width = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext('2d');
   ctx.filter = cssFilter || 'none';
-  ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, 0, 0, SIZE, SIZE);
+
+  // `crop` is expressed in the *rotated* photo's coordinates (see
+  // `rotateGeometry.js`), so the sample has to be taken from a photo
+  // turned the same way -- otherwise a rotated card would pick its text
+  // colour from a rectangle of the upright photo that is nowhere near
+  // what is on screen. The transform maps rotated-space units onto the
+  // sample canvas, and the photo is then drawn into that space centred on
+  // its bounding box. With no rotation this reduces to the plain
+  // source-rect `drawImage` it replaced.
+  const rotation = view?.rotation ?? 0;
+  const bounds = view?.bounds ?? { w: img.naturalWidth, h: img.naturalHeight };
+  ctx.setTransform(SIZE / crop.w, 0, 0, SIZE / crop.h, (-crop.x * SIZE) / crop.w, (-crop.y * SIZE) / crop.h);
+  ctx.translate(bounds.w / 2, bounds.h / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2, img.naturalWidth, img.naturalHeight);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   const x = Math.min(SIZE - 1, Math.round(areaRect.x * SIZE));
   const y = Math.min(SIZE - 1, Math.round(areaRect.y * SIZE));

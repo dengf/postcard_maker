@@ -9,6 +9,12 @@ pub struct ProcessPhotoParams {
     pub crop_y: u32,
     pub crop_w: u32,
     pub crop_h: u32,
+    /// Degrees clockwise, with the crop above read in the *rotated*
+    /// photo's coordinates. Defaults to zero so a draft saved before
+    /// rotation existed -- and every caller that never turns a photo --
+    /// keeps working untouched.
+    #[serde(default)]
+    pub rotation: f32,
     #[serde(default)]
     pub brightness: f32,
     #[serde(default = "one")]
@@ -49,6 +55,14 @@ impl From<postcard_core::Rect> for RectDto {
             h: r.h,
         }
     }
+}
+
+/// The bounding box a photo occupies once it is turned -- the coordinate
+/// space every rotated crop is expressed in.
+#[derive(Debug, Serialize)]
+pub struct SizeDto {
+    pub w: u32,
+    pub h: u32,
 }
 
 #[derive(Debug, Serialize)]

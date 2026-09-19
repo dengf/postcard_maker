@@ -83,6 +83,18 @@ export function DiceIcon() {
 /** Back out of an editor. A plain chevron, not an arrow doubling back --
  * that shape is `SwapIcon`'s, and these two sit near each other on the
  * card. */
+// A quarter-circle arrow: the photo turns, the arrowhead says which way.
+// Mirrored for the other direction rather than drawn twice, so the two
+// buttons can never end up subtly different weights.
+export function RotateIcon({ clockwise = true }) {
+  return (
+    <svg {...ICON_PROPS} style={clockwise ? undefined : { transform: 'scaleX(-1)' }}>
+      <path d="M12 6.5a7 7 0 1 1-6.6 4.7" />
+      <path d="M12 3.2 L12 9.8 L15.4 6.5 Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function BackIcon() {
   return (
     <svg {...ICON_PROPS}>

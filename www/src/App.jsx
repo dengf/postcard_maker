@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { I18nProvider, useI18n, detectLocale } from './i18n';
 import Header from './components/Header';
 import UpdateBanner from './components/UpdateBanner';
@@ -18,14 +18,15 @@ import { PhotoPickerInput } from './components/ReplacePhotoButton';
 import { BackIcon } from './components/icons';
 import { useConfirm } from './components/ConfirmDialog';
 import { ASPECTS, aspectRatio } from './aspect';
-import { zoomedCrop } from './cropGesture';
+import { rebaseCrop, zoomedCrop } from './cropGesture';
+import { cropMathFor, rotatedBounds } from './rotateGeometry';
 import { effectiveFont } from './fonts';
 import { unreadablePhotoError } from './photoFormat';
 import { saveDraft, loadDraft, clearDraft, draftThumbBlob, isCollageDraft } from './draftStore';
 import { detectLocation } from './location';
 import { renderPostcard } from './export';
 import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, nextStickerKey } from './postcardReducer';
-import { templateGeometry, suggestCropForLayout } from './photoLayout';
+import { templateGeometry, suggestCropForLayout, photoAreaRatio } from './photoLayout';
 import LayoutPanel from './components/LayoutPanel';
 
 const DEFAULT_ASPECT = ASPECTS[0].id;
@@ -46,6 +47,7 @@ function postcardDraft(state) {
     aspectId: state.aspectId,
     crop: state.crop,
     zoom: state.zoom,
+    rotation: state.rotation,
     adjustments: state.adjustments,
     filter: state.filter,
     message: state.message,
@@ -93,7 +95,7 @@ function AppShell({ wasmModule }) {
   const objectUrlRef = useRef(null);
   const draftPreviewUrlRef = useRef(null);
   const pickerRef = useRef(null);
-  const { photo, aspectId, baseCrop, crop, zoom, geometry, adjustments, filter } = state;
+  const { photo, aspectId, baseCrop, crop, zoom, rotation, geometry, adjustments, filter } = state;
   const { message, fontChoice, fontScale, textColor, textAlign, messagePosition, stickers, strokes, drawMode } = state;
   const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } = state;
 
@@ -155,7 +157,12 @@ function AppShell({ wasmModule }) {
         const coverage = restored?.photoCoverage ?? 'full';
         const side = restored?.photoSide ?? 'first';
         const geo = templateGeometry(wasmModule, aspect, coverage, side);
-        const base = suggestCropForLayout(wasmModule, w, h, aspect, coverage, geo.photoArea, aspectRatio(aspect));
+        // A restored draft brings its own rotation, and the zoom-1 crop
+        // it was made against is the one for *that* angle -- computing
+        // the upright one here would reopen the card zoomed differently
+        // from how it was saved.
+        const turn = restored?.rotation ?? 0;
+        const base = suggestCropForLayout(wasmModule, w, h, aspect, coverage, geo.photoArea, aspectRatio(aspect), turn);
 
         dispatch({
           type: 'OPEN_PHOTO',
@@ -265,10 +272,14 @@ function AppShell({ wasmModule }) {
         photoCoverage,
         geo.photoArea,
         aspectRatio(nextAspect),
+        // Rotation belongs to the photo, not the card's shape, so it
+        // survives a template change -- but the crop that fits at that
+        // angle depends on the new shape, so it is re-asked for here.
+        rotation,
       );
       dispatch({ type: 'CHANGE_ASPECT', aspect: nextAspect, base, geometry: geo });
     },
-    [photo, wasmModule, photoCoverage, photoSide],
+    [photo, wasmModule, photoCoverage, photoSide, rotation],
   );
 
   // Changing how much of the card the photo covers (and which side) needs
@@ -287,26 +298,76 @@ function AppShell({ wasmModule }) {
         coverage,
         geo.photoArea,
         aspectRatio(aspectId),
+        rotation,
       );
       dispatch({ type: 'SET_LAYOUT', coverage, side, base, geometry: geo });
     },
-    [photo, wasmModule, aspectId],
+    [photo, wasmModule, aspectId, rotation],
   );
+
+  /* The box the photo fills at its current angle -- the coordinate space
+   * `crop` lives in, and what the preview positions against. Its own size
+   * for an upright photo, so nothing about the unrotated card changes. */
+  const bounds = useMemo(
+    () => (photo ? rotatedBounds(wasmModule, photo.naturalW, photo.naturalH, rotation) : null),
+    [wasmModule, photo, rotation],
+  );
+
+  /* The rotated-crop geometry the pointer hook needs, bound to this photo
+   * and the shape it has to fill. `usePhotoGestures` has no wasm of its
+   * own on purpose -- see `rotateGeometry.js`'s `cropMathFor`. */
+  const cropMath = useMemo(() => {
+    if (!photo || !geometry) return null;
+    const ratio =
+      photoCoverage === 'full'
+        ? aspectRatio(aspectId)
+        : photoAreaRatio(geometry.photoArea, aspectRatio(aspectId));
+    return cropMathFor(wasmModule, photo.naturalW, photo.naturalH, ratio);
+  }, [wasmModule, photo, geometry, photoCoverage, aspectId]);
 
   const changeZoom = useCallback(
     (nextZoom) => {
-      if (!photo || !baseCrop) return;
-      dispatch({ type: 'CHANGE_ZOOM', crop: zoomedCrop(crop, baseCrop, photo.naturalW, photo.naturalH, nextZoom), zoom: nextZoom });
+      if (!photo || !baseCrop || !bounds || !cropMath) return;
+      const next = zoomedCrop(crop, baseCrop, bounds.w, bounds.h, nextZoom);
+      dispatch({ type: 'CHANGE_ZOOM', crop: cropMath.fit(next, rotation), zoom: nextZoom });
     },
-    [photo, baseCrop, crop],
+    [photo, baseCrop, crop, bounds, cropMath, rotation],
   );
 
   // A pinch has already worked out where the crop lands (it zooms around
-  // the point between the fingers, not the frame's centre), so unlike the
-  // slider it hands both values over rather than deriving one.
-  const pinchZoomPhoto = useCallback((nextCrop, nextZoom) => {
-    dispatch({ type: 'CHANGE_ZOOM', crop: nextCrop, zoom: nextZoom });
+  // the point between the fingers, not the frame's centre) and a twist on
+  // the same two fingers where the photo now faces, so unlike the slider
+  // it hands all three values over rather than deriving them.
+  const pinchZoomPhoto = useCallback((nextCrop, nextZoom, nextRotation) => {
+    dispatch({ type: 'CHANGE_ZOOM', crop: nextCrop, zoom: nextZoom, rotation: nextRotation });
   }, []);
+
+  /* Turning the photo from the panel's slider or quarter-turn buttons.
+   * The angle alone is not enough to store: the photo fills a
+   * differently-shaped box at the new angle, so the zoom-1 crop is a
+   * different rectangle and the current one has to be carried into the
+   * new space and pulled back onto the photo. All of that is asked of
+   * Rust here, in one place, rather than left for the reducer to do
+   * half of. */
+  const rotateTo = useCallback(
+    (nextRotation) => {
+      if (!photo || !crop || !bounds || !cropMath) return;
+      const nextBounds = cropMath.bounds(nextRotation);
+      const nextBase = cropMath.base(nextRotation);
+      const carried = rebaseCrop(crop, bounds, nextBounds);
+      // The zoom is a ratio against the zoom-1 crop, and that crop just
+      // changed size -- holding the ratio is what keeps a turn from
+      // reading as a zoom.
+      const sized = zoomedCrop(carried, nextBase, nextBounds.w, nextBounds.h, zoom);
+      dispatch({
+        type: 'SET_ROTATION',
+        rotation: nextRotation,
+        base: nextBase,
+        crop: cropMath.fit(sized, nextRotation),
+      });
+    },
+    [photo, crop, zoom, bounds, cropMath],
+  );
 
   const addSticker = useCallback(
     (id) => {
@@ -343,6 +404,7 @@ function AppShell({ wasmModule }) {
             candidate.photoCoverage,
             geo.photoArea,
             aspectRatio(aspectId),
+            rotation,
           );
           layout = { coverage: candidate.photoCoverage, side, base, geometry: geo };
         }
@@ -569,6 +631,9 @@ function AppShell({ wasmModule }) {
                 crop={crop}
                 baseCrop={baseCrop}
                 zoom={zoom}
+                rotation={rotation}
+                bounds={bounds}
+                cropMath={cropMath}
                 onCropChange={(next) => dispatch({ type: 'SET_CROP', crop: next })}
                 onPinchZoom={pinchZoomPhoto}
                 aspectRatio={aspectRatio(aspectId)}
@@ -635,6 +700,8 @@ function AppShell({ wasmModule }) {
               <FilterPanel
                 zoom={zoom}
                 onZoomChange={changeZoom}
+                rotation={rotation}
+                onRotationChange={rotateTo}
                 filter={filter}
                 onFilterChange={(f) => dispatch({ type: 'SET_FILTER', filter: f })}
                 adjustments={adjustments}
@@ -686,6 +753,7 @@ function AppShell({ wasmModule }) {
                       wasmModule,
                       photoBytes: photo.bytes,
                       crop,
+                      rotation,
                       adjustments,
                       filter,
                       message,

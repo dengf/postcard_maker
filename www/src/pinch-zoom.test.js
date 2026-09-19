@@ -30,18 +30,32 @@ describe('both photo surfaces share one gesture implementation', () => {
   });
 });
 
-describe('a pinch reaches each editor as one crop-and-zoom action', () => {
+describe('a pinch reaches each editor as one crop-zoom-and-rotation action', () => {
   // Two dispatches would show the intermediate frame where the crop had
-  // moved and the zoom number had not.
+  // moved and the zoom number had not. The rotation joined them when the
+  // twist did: it comes off the same two fingers as the pinch, so a
+  // separate dispatch would put the same seam back in a different place.
   it('on the single-photo card', () => {
     expect(app).toMatch(/onPinchZoom=\{pinchZoomPhoto\}/);
-    const fn = app.slice(app.indexOf('const pinchZoomPhoto'), app.indexOf('const addSticker'));
-    expect(fn).toMatch(/type: 'CHANGE_ZOOM', crop: nextCrop, zoom: nextZoom/);
+    const fn = app.slice(app.indexOf('const pinchZoomPhoto'), app.indexOf('const rotateTo'));
+    expect(fn).toMatch(/type: 'CHANGE_ZOOM', crop: nextCrop, zoom: nextZoom, rotation: nextRotation/);
   });
 
   it('and in a collage slot', () => {
-    expect(collage).toMatch(/onPinchZoom=\{\(crop, zoom\) =>\s*dispatch\(\{ type: 'SET_SLOT_ZOOM', index, crop, zoom \}\)\}/);
+    expect(collage).toMatch(
+      /onPinchZoom=\{\(crop, zoom, rotation\) =>\s*dispatch\(\{ type: 'SET_SLOT_ZOOM', index, crop, zoom, rotation \}\)\s*\}/,
+    );
   });
+});
+
+// The twist rides the pinch's own two pointers, so the hook has to be
+// reading an angle between them, not just a distance. A surface that went
+// back to distance alone would still pass every pinch test above while
+// silently dropping rotation on a phone.
+it('the shared hook reads a twist off the same two pointers', () => {
+  const hook = read('usePhotoGestures.js');
+  expect(hook).toMatch(/twistAngle\(points\[0\], points\[1\]\)/);
+  expect(hook).toMatch(/pinchRotation\(/);
 });
 
 // The pinch and the slider drive the same stored number, so a pinch that

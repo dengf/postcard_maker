@@ -13,7 +13,10 @@ mod template;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 pub use collage::{collage_layout, collage_shuffle};
-pub use photo::{process_photo, suggest_crop, suggest_crop_ratio};
+pub use photo::{
+    fit_rotated_crop, process_photo, rotated_bounds, suggest_crop, suggest_crop_ratio,
+    suggest_crop_rotated,
+};
 pub use template::template_geometry;
 
 #[wasm_bindgen(start)]

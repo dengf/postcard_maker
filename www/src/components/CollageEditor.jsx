@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { ASPECTS, aspectRatio } from '../aspect';
-import { zoomedCrop } from '../cropGesture';
+import { rebaseCrop, zoomedCrop } from '../cropGesture';
+import { cropMathFor, rotatedBounds, suggestRotatedCrop } from '../rotateGeometry';
 import { effectiveFont } from '../fonts';
 import { detectLocation } from '../location';
 import { renderCollage } from '../export';
@@ -54,6 +55,7 @@ function collageDraft(state, aspectId) {
             photoBlob: new Blob([slot.photo.bytes], { type: slot.photo.mimeType }),
             crop: slot.crop,
             zoom: slot.zoom,
+            rotation: slot.rotation,
             adjustments: slot.adjustments,
             filter: slot.filter,
           }
@@ -288,7 +290,12 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
             const bytes = new Uint8Array(await stored.photoBlob.arrayBuffer());
             const { w, h } = await loadImageDimensions(url);
             const ratio = slotPixelRatio(layout.slots[index].area, aspectRatio(saved.aspectId));
-            const base = wasmModule.suggest_crop_ratio(w, h, ratio);
+            // Base crops are recomputed on restore, never stored -- and
+            // once a slot can be turned, the one to recompute is the one
+            // for *its* angle, or the photo reopens framed differently
+            // from how it was saved.
+            const turn = stored.rotation ?? 0;
+            const base = suggestRotatedCrop(wasmModule, w, h, turn, ratio);
             return {
               photo: {
                 bytes,
@@ -300,6 +307,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
               baseCrop: base,
               crop: stored.crop ?? base,
               zoom: stored.zoom ?? 1,
+              rotation: turn,
               adjustments: stored.adjustments ?? DEFAULT_ADJUSTMENTS,
               filter: stored.filter ?? 'none',
             };
@@ -353,10 +361,51 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     onBack();
   }, [anySlotFilled, state, aspectId, onBack]);
 
+  /* The rotated-crop geometry for one slot's photo, against that slot's
+   * own on-card proportions. Rebuilt per render rather than memoised:
+   * `usePhotoGestures` reads it through a ref, so a fresh object costs
+   * nothing, and a stale one bound to the previous layout would frame
+   * every gesture against the wrong shape. */
+  const slotCropMath = (index, slot) =>
+    cropMathFor(
+      wasmModule,
+      slot.photo.naturalW,
+      slot.photo.naturalH,
+      slotPixelRatio(layout.slots[index].area, aspectRatio(aspectId)),
+    );
+
   const changeActiveZoom = (nextZoom) => {
     if (!activeSlot?.photo) return;
-    const crop = zoomedCrop(activeSlot.crop, activeSlot.baseCrop, activeSlot.photo.naturalW, activeSlot.photo.naturalH, nextZoom);
-    dispatch({ type: 'SET_SLOT_ZOOM', index: state.activeSlotIndex, crop, zoom: nextZoom });
+    const math = slotCropMath(state.activeSlotIndex, activeSlot);
+    const bounds = math.bounds(activeSlot.rotation);
+    const crop = zoomedCrop(activeSlot.crop, activeSlot.baseCrop, bounds.w, bounds.h, nextZoom);
+    dispatch({
+      type: 'SET_SLOT_ZOOM',
+      index: state.activeSlotIndex,
+      crop: math.fit(crop, activeSlot.rotation),
+      zoom: nextZoom,
+    });
+  };
+
+  /* Turning the active slot's photo from the panel. Same three-part move
+   * as `App.jsx`'s `rotateTo` -- the angle, the zoom-1 crop that fits at
+   * it, and the current crop carried into the new box -- worked out here
+   * where the wasm module is, not in the reducer. */
+  const rotateActiveSlot = (nextRotation) => {
+    if (!activeSlot?.photo) return;
+    const index = state.activeSlotIndex;
+    const math = slotCropMath(index, activeSlot);
+    const from = math.bounds(activeSlot.rotation);
+    const to = math.bounds(nextRotation);
+    const base = math.base(nextRotation);
+    const carried = rebaseCrop(activeSlot.crop, from, to);
+    dispatch({
+      type: 'SET_SLOT_ROTATION',
+      index,
+      rotation: nextRotation,
+      base,
+      crop: math.fit(zoomedCrop(carried, base, to.w, to.h, activeSlot.zoom), nextRotation),
+    });
   };
 
   const addSticker = (id) => {
@@ -433,8 +482,18 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                     crop={slot.crop}
                     baseCrop={slot.baseCrop}
                     zoom={slot.zoom}
+                    rotation={slot.rotation}
+                    bounds={rotatedBounds(
+                      wasmModule,
+                      slot.photo.naturalW,
+                      slot.photo.naturalH,
+                      slot.rotation,
+                    )}
+                    cropMath={slotCropMath(index, slot)}
                     onCropChange={(crop) => dispatch({ type: 'SET_SLOT_CROP', index, crop })}
-                    onPinchZoom={(crop, zoom) => dispatch({ type: 'SET_SLOT_ZOOM', index, crop, zoom })}
+                    onPinchZoom={(crop, zoom, rotation) =>
+                      dispatch({ type: 'SET_SLOT_ZOOM', index, crop, zoom, rotation })
+                    }
                     adjustments={slot.adjustments}
                     filter={slot.filter}
                     onDoubleTap={() => requestReplace(index)}
@@ -552,6 +611,8 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
         {activeSlot?.photo && (
           <FilterPanel
             zoom={activeSlot.zoom}
+            rotation={activeSlot.rotation}
+            onRotationChange={rotateActiveSlot}
             onZoomChange={changeActiveZoom}
             filter={activeSlot.filter}
             onFilterChange={(f) => dispatch({ type: 'SET_SLOT_FILTER', index: state.activeSlotIndex, filter: f })}
@@ -609,6 +670,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                   slots: state.slots.map((s, i) => ({
                     photoBytes: s.photo.bytes,
                     crop: s.crop,
+                    rotation: s.rotation,
                     adjustments: s.adjustments,
                     filter: s.filter,
                     area: layout.slots[i].area,

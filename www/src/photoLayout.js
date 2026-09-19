@@ -13,6 +13,8 @@
 // 'bigSmall' (JS/UI naming, matches `fontScale`-style camelCase already
 // used throughout the reducer) vs `"big_small"` (wasm's snake_case,
 // matching `postcard_core::PhotoCoverage`'s own serde rename).
+import { suggestRotatedCrop } from './rotateGeometry';
+
 const COVERAGE_TO_WASM = { full: 'full', half: 'half', bigSmall: 'big_small' };
 
 export function templateGeometry(wasmModule, aspectId, coverage, side) {
@@ -28,12 +30,22 @@ export function photoAreaRatio(photoArea, cardRatio) {
 /** Suggests a crop for the photo: the plain named-aspect suggestion when
  * it covers the whole card, or the photo box's own ratio otherwise --
  * `suggest_crop_ratio`, the same wasm call `CollageEditor.jsx` already
- * uses per-slot for exactly this reason. */
-export function suggestCropForLayout(wasmModule, naturalW, naturalH, aspectId, coverage, photoArea, cardRatio) {
+ * uses per-slot for exactly this reason.
+ *
+ * A turned photo goes to `suggestRotatedCrop` instead, which asks the
+ * same question of the photo's *rotated* bounding box. The upright
+ * calls are kept for the upright case rather than routed through the
+ * rotated one (which agrees with them exactly at zero degrees) so the
+ * path every already-saved postcard reopens through is untouched. */
+export function suggestCropForLayout(wasmModule, naturalW, naturalH, aspectId, coverage, photoArea, cardRatio, rotation = 0) {
+  const ratio = coverage === 'full' ? cardRatio : photoAreaRatio(photoArea, cardRatio);
+  if (rotation) {
+    return suggestRotatedCrop(wasmModule, naturalW, naturalH, rotation, ratio);
+  }
   if (coverage === 'full') {
     return wasmModule.suggest_crop(naturalW, naturalH, aspectId);
   }
-  return wasmModule.suggest_crop_ratio(naturalW, naturalH, photoAreaRatio(photoArea, cardRatio));
+  return wasmModule.suggest_crop_ratio(naturalW, naturalH, ratio);
 }
 
 /**
