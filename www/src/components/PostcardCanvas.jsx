@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { panCrop } from '../cropGesture';
-import { createTapLog, distance, recordTap } from '../doubleTap';
+import React, { useEffect, useRef, useState } from 'react';
+import usePhotoGestures from '../usePhotoGestures';
 import { previewFilterCss } from '../previewFilter';
 import { hexToRgb, sampleFrameColor } from '../autoTextColor';
 import { fillCss, parseFillStyle } from '../fillTreatments';
@@ -96,7 +95,10 @@ export default function PostcardCanvas({
   naturalW,
   naturalH,
   crop,
+  baseCrop,
+  zoom,
   onCropChange,
+  onPinchZoom,
   aspectRatio,
   adjustments,
   filter,
@@ -123,63 +125,19 @@ export default function PostcardCanvas({
 }) {
   const frameRef = useRef(null);
   const photoBoxRef = useRef(null);
-  const drag = useRef(null);
-  const taps = useRef(createTapLog());
-
-  const onPointerDown = useCallback(
-    (e) => {
-      e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { x: e.clientX, y: e.clientY, crop, time: e.timeStamp, travel: 0 };
-    },
-    [crop],
-  );
-
-  const onPointerMove = useCallback(
-    (e) => {
-      if (!drag.current || !photoBoxRef.current) return;
-      drag.current.travel = Math.max(
-        drag.current.travel,
-        distance(drag.current, { x: e.clientX, y: e.clientY }),
-      );
-      const rect = photoBoxRef.current.getBoundingClientRect();
-      // The photo box's on-screen width represents `crop.w` source
-      // pixels, so that ratio converts a screen-space drag into source
-      // pixels -- same idea as before this box existed, just scoped to
-      // the box's own (possibly less-than-full-frame) size now.
-      const scale = drag.current.crop.w / rect.width;
-      const dxScreen = e.clientX - drag.current.x;
-      const dyScreen = e.clientY - drag.current.y;
-      const next = panCrop(
-        drag.current.crop,
-        dxScreen * scale,
-        dyScreen * scale,
-        naturalW,
-        naturalH,
-      );
-      onCropChange(next);
-    },
-    [naturalW, naturalH, onCropChange],
-  );
-
-  // Double-tapping the photo opens the picker again, the same thing the
-  // chip does -- the gesture people already try on a photo they want to
-  // change, and the only one available while the chip is under a finger.
-  const onPointerUp = useCallback(
-    (e) => {
-      const gesture = drag.current;
-      drag.current = null;
-      if (!gesture || !onReplacePhoto) return;
-      const done = { x: e.clientX, y: e.clientY, time: e.timeStamp, travel: gesture.travel };
-      if (recordTap(taps.current, done)) onReplacePhoto();
-    },
-    [onReplacePhoto],
-  );
-
-  // A cancelled pointer (the browser took the gesture over) ended in no
-  // tap at all, so it must not be logged as one.
-  const onPointerCancel = useCallback(() => {
-    drag.current = null;
-  }, []);
+  // Pan/pinch/double-tap all measure against the photo box, not the
+  // frame: on a split template the photo covers only part of the card.
+  const gestures = usePhotoGestures({
+    boxRef: photoBoxRef,
+    crop,
+    baseCrop,
+    zoom,
+    naturalW,
+    naturalH,
+    onCropChange,
+    onPinchZoom,
+    onDoubleTap: onReplacePhoto,
+  });
 
   const bgSizeX = (naturalW / crop.w) * 100;
   const bgSizeY = (naturalH / crop.h) * 100;
@@ -225,10 +183,7 @@ export default function PostcardCanvas({
         ref={photoBoxRef}
         className="postcard-photo-box"
         style={photoBoxStyle}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
+        {...gestures}
       >
         {filter === 'vintage' && <div className="postcard-vignette" />}
         {onReplacePhoto && <ReplacePhotoButton onRequest={onReplacePhoto} />}

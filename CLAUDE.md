@@ -382,6 +382,32 @@ future attempt has to weigh, not a prompt-tuning problem.
   - `collage-slot-refill.test.js` guards both controls' existence and
     `doubleTap.test.js` the gesture arithmetic; nothing in this suite
     renders components, so the first is a source-text guard.
+- **Every gesture a photo surface understands lives in one hook**
+  (`usePhotoGestures.js`), used by both `PostcardCanvas` and
+  `CollagePhotoSlot`. The note above about keeping those two components
+  apart is about the overlay's coordinate space and their separate
+  reducers; their pointer streams were identical, and the second copy is
+  what let pinch-to-zoom stay unimplemented in both while
+  `editor.cropHint` told people to pinch. Worth not re-deriving:
+  - **A pinch zooms around the point between the fingers**, not the
+    frame's centre — `zoomedCropAt` takes an anchor in box fractions, and
+    `zoomedCrop` (what the slider uses, having no point on the photo to
+    zoom *at*) is now the `fx/fy = 0.5` case of it, not a second
+    implementation.
+  - **Every frame recomputes from the crop and zoom the pinch *started*
+    on**, against the fingers' starting distance — not from the previous
+    frame — so a pinch out and back lands exactly where it began instead
+    of accumulating rounding drift.
+  - **The pinch and the zoom slider share `MIN_ZOOM`/`MAX_ZOOM`.** They
+    write the same stored number; a pinch that could pass the slider's
+    own maximum would leave the two controls disagreeing on screen.
+  - **Lifting one of two fingers re-bases the pan on the crop the pinch
+    just produced**, or the photo jumps as the remaining finger moves
+    against a stale crop — and that continued pan is marked untappable,
+    since the other half of a pinch is not a tap.
+  - `pinch-zoom.test.js` is the source-text guard that both surfaces
+    still go through the hook; the arithmetic itself is covered by
+    `cropGesture.test.js`.
 - **Back side** (`renderBackSide` in `export.js`) is pure host-layer
   canvas drawing — no photo, so no Rust involved at all. Optional and off
   by default; when on, `share.js`'s `shareFiles`/`saveFiles` carry two
