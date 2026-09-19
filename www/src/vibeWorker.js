@@ -89,20 +89,42 @@ function loadFaceModel() {
   return faceModelBytesPromise;
 }
 
+/** Marks a failure that happened fetching the ~10MB model or its wasm,
+ * rather than while classifying, so the host layer can say so in the
+ * user's own language. `fetch` rejecting offline gives "Failed to
+ * fetch" -- browser wording, untranslated, and meaningless to the person
+ * who just tapped a button about postcards. `errors.vibeModelLoadFailed`
+ * already existed in all three catalogs for exactly this and had no
+ * caller; the raw message rides along as `ErrorToast`'s own fallback. */
+function loadFailure(error) {
+  return Object.assign(new Error(error?.message ?? String(error)), {
+    code: 'vibeModelLoadFailed',
+  });
+}
+
 self.onmessage = async (event) => {
   const { id, photoBytes } = event.data;
   try {
-    const wasm = await loadWasm();
     // The face model/count is a best-effort supplement (see
     // exposureSuggestion.js's sibling reasoning in VibePanel.jsx) --
     // failing to load or run it should never take down the vibe
     // classification it rides alongside, so its own promise is awaited
     // and caught independently rather than joined into the same
     // `Promise.all` as the required vibe model.
-    const [model, faceModel] = await Promise.all([
-      loadModel((fraction) => self.postMessage({ id, progress: fraction })),
-      loadFaceModel().catch(() => null),
-    ]);
+    let wasm;
+    let model;
+    let faceModel;
+    try {
+      [wasm, [model, faceModel]] = await Promise.all([
+        loadWasm(),
+        Promise.all([
+          loadModel((fraction) => self.postMessage({ id, progress: fraction })),
+          loadFaceModel().catch(() => null),
+        ]),
+      ]);
+    } catch (error) {
+      throw loadFailure(error);
+    }
 
     const result = wasm.suggest_vibe(model, photoBytes);
 
@@ -118,6 +140,6 @@ self.onmessage = async (event) => {
 
     self.postMessage({ id, ok: true, result: { ...result, faceCount } });
   } catch (error) {
-    self.postMessage({ id, ok: false, error: error?.message ?? String(error) });
+    self.postMessage({ id, ok: false, error: error?.message ?? String(error), code: error?.code });
   }
 };

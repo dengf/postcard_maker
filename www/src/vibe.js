@@ -11,7 +11,7 @@ function getWorker() {
   if (worker) return worker;
   worker = new Worker(new URL('./vibeWorker.js', import.meta.url));
   worker.onmessage = (event) => {
-    const { id, ok, result, error, progress } = event.data;
+    const { id, ok, result, error, code, progress } = event.data;
     const call = pending.get(id);
     if (!call) return;
     if (progress !== undefined) {
@@ -20,7 +20,11 @@ function getWorker() {
     }
     pending.delete(id);
     if (ok) call.resolve(result);
-    else call.reject(new Error(error));
+    // `code` carries across the worker boundary (an `Error`'s own
+    // properties don't survive structured clone) so the caller can show
+    // a translated line instead of the browser's raw "Failed to fetch"
+    // -- see `vibeWorker.js`'s `loadFailure`.
+    else call.reject(Object.assign(new Error(error), code ? { code } : null));
   };
   worker.onerror = (event) => {
     for (const call of pending.values()) call.reject(new Error(event.message));

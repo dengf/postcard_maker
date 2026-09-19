@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 
 /**
@@ -33,6 +33,23 @@ export function useConfirm() {
 
 function ConfirmDialogView({ message, confirmLabel, onAnswer }) {
   const { t } = useI18n();
+
+  // Escape answers "no", the same as the backdrop and Cancel already do.
+  // A modal that can only be dismissed by aiming at one of three targets
+  // is the kind of dead end that makes people reach for the browser's
+  // Back button -- and every question this dialog asks ("throw the card
+  // away?") has a destructive Yes sitting under `autoFocus`.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onAnswer(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [onAnswer]);
+
   return (
     <div className="confirm-backdrop" role="presentation" onClick={() => onAnswer(false)}>
       <div

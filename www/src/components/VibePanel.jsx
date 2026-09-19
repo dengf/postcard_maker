@@ -91,11 +91,23 @@ export default function VibePanel({
   const runSuggest = async () => {
     setPhase("loading");
     setProgress(null);
+    // Read up front, before anything is awaited, because it is the one
+    // signal here that needs no model and no network -- just the photo's
+    // own EXIF date, through the *main* wasm bundle (see
+    // `photoMoment.js`). Computing it here makes it available on every
+    // way out of this function, including the two that used to end with
+    // nothing at all: no candidate matched, and the ~13MB download never
+    // arrived. Those are precisely the cases it was built for, and it
+    // was unreachable in both.
+    const momentCaption = momentCaptionFor(
+      readPhotoMoment(wasmModule, photoBytes),
+    );
     try {
       const result = await suggestVibe(photoBytes, setProgress);
       if (result?.error) {
         onError(result.error_message ?? { text: result.error });
-        setPhase("idle");
+        setCaption(momentCaption);
+        setPhase(momentCaption ? "empty" : "idle");
         return;
       }
       const matches = result?.matches ?? [];
@@ -121,6 +133,9 @@ export default function VibePanel({
         Boolean,
       );
       if (allCandidates.length === 0) {
+        // Not "nothing to offer": no *look* matched, but the date
+        // greeting is still there, and this is the case it exists for.
+        setCaption(momentCaption);
         setPhase("empty");
         return;
       }
@@ -131,19 +146,25 @@ export default function VibePanel({
       // change the displayed line for reasons that have nothing to do
       // with the caption itself.
       const topVibe = matches[0]?.vibe ?? null;
-      // Last rung, and the only one that needs no model at all: the
-      // photo's own EXIF date, read through the *main* wasm bundle, so
-      // it answers for a photo none of the rungs above it can reach --
-      // no matched vibe, no face found. See `photoMoment.js`.
+      // Last rung: the date greeting answers for a photo neither of the
+      // rungs above it can reach -- no matched vibe, no face found.
       setCaption(
         (topVibe ? captionFor(topVibe) : null) ??
           groupCaptionFor(result?.faceCount ?? 0) ??
-          momentCaptionFor(readPhotoMoment(wasmModule, photoBytes)),
+          momentCaption,
       );
       setPhase("result");
     } catch (err) {
-      onError({ text: err?.message ?? String(err) });
-      setPhase("idle");
+      // `code` is set when the models couldn't be fetched, which is what
+      // turns the browser's untranslated "Failed to fetch" into a line
+      // in the user's own language -- see `vibeWorker.js`.
+      onError({ code: err?.code, text: err?.message ?? String(err) });
+      // The looks needed the download; the date greeting never did. A
+      // failed fetch is exactly when having something to offer without
+      // one matters most, so show it rather than leaving the panel
+      // empty behind a toast.
+      setCaption(momentCaption);
+      setPhase(momentCaption ? "empty" : "idle");
     }
   };
 
@@ -169,6 +190,19 @@ export default function VibePanel({
   const useCaption = () => {
     if (caption) onSetMessage(t(caption));
   };
+
+  // Shown on both the "here are some looks" and the "no look for this
+  // one" paths. It used to live only inside the first, which made the
+  // date greeting -- the one suggestion that needs no model at all --
+  // reachable only when a model had already produced something.
+  const captionBlock = caption && (
+    <div className="vibe-caption">
+      <p className="text-option-note">{t(caption)}</p>
+      <button type="button" className="btn ghost" onClick={useCaption}>
+        {t("vibe.useCaption")}
+      </button>
+    </div>
+  );
 
   return (
     <div className="panel vibe-panel">
@@ -251,19 +285,17 @@ export default function VibePanel({
             </div>
           )}
 
-          {caption && (
-            <div className="vibe-caption">
-              <p className="text-option-note">{t(caption)}</p>
-              <button type="button" className="btn ghost" onClick={useCaption}>
-                {t("vibe.useCaption")}
-              </button>
-            </div>
-          )}
+          {captionBlock}
         </div>
       )}
 
       {phase === "empty" && (
-        <p className="text-option-note">{t("vibe.noSuggestion")}</p>
+        <div className="vibe-empty">
+          <p className="text-option-note">
+            {t(caption ? "vibe.noLookSuggestion" : "vibe.noSuggestion")}
+          </p>
+          {captionBlock}
+        </div>
       )}
     </div>
   );

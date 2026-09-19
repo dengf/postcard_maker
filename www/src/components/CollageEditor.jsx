@@ -7,6 +7,7 @@ import { effectiveFont } from '../fonts';
 import { detectLocation } from '../location';
 import { renderCollage } from '../export';
 import { templateGeometry } from '../photoLayout';
+import { previewFilterCss } from '../previewFilter';
 import { unreadablePhotoError } from '../photoFormat';
 import { COLLAGE_KIND, saveDraft } from '../draftStore';
 import { collageReducer, emptySlot, initialCollageState } from '../collageReducer';
@@ -35,6 +36,41 @@ function loadImageDimensions(url) {
     img.onerror = () => reject(new Error(`could not read dimensions for ${url}`));
     img.src = url;
   });
+}
+
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+/**
+ * The slot the greeting sits on, and where the message box lands inside
+ * that slot's own photo -- in the 0..1 space `PostcardOverlay`'s 'auto'
+ * ink sampler wants, i.e. a fraction of the slot, not of the card.
+ *
+ * A collage has no single photo, which is why the shared overlay fell
+ * back to a fixed dark ink here. But the message box does sit over one
+ * particular slot, and that slot has a real photo to read -- and
+ * `export.js`'s `renderCollage` samples the composited canvas under the
+ * box, so it has always answered for whichever photo is there. The
+ * editor showed dark ink on a dark photo while the saved file came out
+ * white and correct. Picking the slot by the box's own centre is what
+ * makes the two track each other, including after the box is dragged
+ * onto a different photo.
+ *
+ * A box centred on an empty slot, or a card with nothing in it yet, has
+ * nothing to sample and still falls back.
+ */
+function messageSlotSample(slots, layout, box) {
+  if (!layout || !box) return null;
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const index = layout.slots.findIndex(
+    ({ area: a }) => cx >= a.x && cx < a.x + a.w && cy >= a.y && cy < a.y + a.h,
+  );
+  const slot = index >= 0 ? slots[index] : null;
+  if (!slot?.photo) return null;
+  const a = layout.slots[index].area;
+  const x = clamp01((box.x - a.x) / a.w);
+  const y = clamp01((box.y - a.y) / a.h);
+  return { slot, area: { x, y, w: Math.min(box.w / a.w, 1 - x), h: Math.min(box.h / a.h, 1 - y) } };
 }
 
 /**
@@ -430,6 +466,17 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     [state.backSide.location],
   );
 
+  // Where the greeting actually sits, and therefore which slot's photo
+  // the shared overlay's 'auto' ink should read -- see
+  // `messageSlotSample` above.
+  const messageBox = geometry && {
+    x: state.messagePosition?.x ?? geometry.messageArea.x,
+    y: state.messagePosition?.y ?? geometry.messageArea.y,
+    w: geometry.messageArea.w,
+    h: geometry.messageArea.h,
+  };
+  const inkSample = messageSlotSample(state.slots, layout, messageBox);
+
   const allSlotsFilled = state.slots.length > 0 && state.slots.every((s) => s.photo);
   const effFont = effectiveFont(state.fontChoice, state.message);
   const postmarkDate = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -531,6 +578,21 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
             stickers={state.stickers}
             onStickerMove={(index, x, y) => dispatch({ type: 'MOVE_STICKER', index, x, y })}
             onStickerRemove={(index) => dispatch({ type: 'REMOVE_STICKER', index })}
+            photoUrl={inkSample?.slot.photo.url}
+            crop={inkSample?.slot.crop}
+            photoView={
+              inkSample && {
+                bounds: rotatedBounds(
+                  wasmModule,
+                  inkSample.slot.photo.naturalW,
+                  inkSample.slot.photo.naturalH,
+                  inkSample.slot.rotation,
+                ),
+                rotation: inkSample.slot.rotation,
+              }
+            }
+            cssFilter={inkSample && previewFilterCss(inkSample.slot.adjustments, inkSample.slot.filter)}
+            autoColorSampleArea={inkSample?.area}
           />
           <DoodleLayer
             strokes={state.strokes}

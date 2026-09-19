@@ -17,7 +17,16 @@ export function fitFontSize(ctx, text, boxWidth, boxHeight, { min = 10, max = 16
   const fits = (size) => {
     ctx.font = `${size}px ${fontFamily}`;
     const lines = wrapText(ctx, text, boxWidth);
-    return lines.length * size * lineHeightRatio <= boxHeight;
+    if (lines.length * size * lineHeightRatio > boxHeight) return false;
+    // Width has to be asked separately, because `wrapText` deliberately
+    // never breaks a word: a single word wider than the box comes back
+    // as one over-wide line, and a height-only search then grew it until
+    // the *height* ran out. The preview clipped the result
+    // (`overflow: hidden`), while the export drew it straight off the
+    // card -- "Congratulations" on a split layout saved as
+    // "Congratulatior". Shrinking until the longest line fits is what
+    // makes the two agree and keeps the whole word on the postcard.
+    return lines.every((line) => ctx.measureText(line).width <= boxWidth);
   };
 
   let lo = min;

@@ -39,6 +39,16 @@ describe('fitFontSize', () => {
     expect(lines.length * size * 1.3).toBeLessThanOrEqual(100);
   });
 
+  it('shrinks a single unbreakable word until it fits the box width', () => {
+    const ctx = fakeCtx();
+    // A tall box, so height alone would never stop the search -- and one
+    // word, which wrapText will not break. 15 chars at 0.6em each fit 200px
+    // only up to 200 / (15 * 0.6) = 22px.
+    const size = fitFontSize(ctx, 'Congratulations', 200, 600, { fontFamily: 'sans-serif' });
+    ctx.font = `${size}px sans-serif`;
+    expect(ctx.measureText('Congratulations').width).toBeLessThanOrEqual(200);
+  });
+
   it('falls back to the minimum for empty or blank text', () => {
     const ctx = fakeCtx();
     expect(fitFontSize(ctx, '', 300, 150, { min: 12, fontFamily: 'sans-serif' })).toBe(12);
