@@ -1,5 +1,6 @@
 import React from 'react';
 import { useI18n } from '../i18n';
+import { MAX_ZOOM, MIN_ZOOM } from '../cropGesture';
 import CollapsiblePanel from './CollapsiblePanel';
 
 const FILTERS = ['none', 'grayscale', 'sepia', 'vintage'];
@@ -14,7 +15,10 @@ export default function FilterPanel({ zoom, onZoomChange, filter, onFilterChange
     <CollapsiblePanel title={t('editor.filter')}>
       <p className="text-option-note">{t('editor.cropHint')}</p>
 
-      <SliderField label={t('editor.zoom')} value={zoom} min={1} max={3} step={0.01} onChange={(e) => onZoomChange(Number(e.target.value))} display={`${zoom.toFixed(1)}x`} />
+      {/* Bounds come from `cropGesture` so the slider and a pinch can't
+          drift apart -- a pinch past the slider's end would leave the
+          two controls disagreeing about the same number. */}
+      <SliderField label={t('editor.zoom')} value={zoom} min={MIN_ZOOM} max={MAX_ZOOM} step={0.01} onChange={(e) => onZoomChange(Number(e.target.value))} display={`${zoom.toFixed(1)}x`} />
 
       <div className="filter-options">
         {FILTERS.map((f) => (

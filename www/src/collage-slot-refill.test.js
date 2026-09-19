@@ -29,7 +29,7 @@ describe('a filled collage slot can still be refilled', () => {
 
   it('and a double-tap on any filled slot opens the same picker', () => {
     expect(collage).toMatch(/onDoubleTap=\{\(\) => requestReplace\(index\)\}/);
-    expect(slot).toMatch(/recordTap\(/);
+    expect(slot).toMatch(/usePhotoGestures\(/);
   });
 
   it('with one hidden input behind both paths', () => {
@@ -52,7 +52,7 @@ describe('the single-photo card can take a different photo too', () => {
   });
 
   it('and double-tapping it asks to replace', () => {
-    expect(canvas).toMatch(/recordTap\(taps\.current, done\)\) onReplacePhoto\(\)/);
+    expect(canvas).toMatch(/onDoubleTap: onReplacePhoto/);
   });
 
   // Not `openPhoto`: that one dispatches OPEN_PHOTO, which resets to

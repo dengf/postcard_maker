@@ -1,6 +1,5 @@
-import React, { useCallback, useRef } from 'react';
-import { panCrop } from '../cropGesture';
-import { createTapLog, distance, recordTap } from '../doubleTap';
+import React, { useRef } from 'react';
+import usePhotoGestures from '../usePhotoGestures';
 import { previewFilterCss } from '../previewFilter';
 
 /**
@@ -21,60 +20,26 @@ export default function CollagePhotoSlot({
   naturalW,
   naturalH,
   crop,
+  baseCrop,
+  zoom,
   onCropChange,
+  onPinchZoom,
   adjustments,
   filter,
   onDoubleTap,
 }) {
   const frameRef = useRef(null);
-  const drag = useRef(null);
-  const taps = useRef(createTapLog());
-
-  const onPointerDown = useCallback(
-    (e) => {
-      e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { x: e.clientX, y: e.clientY, crop, time: e.timeStamp, travel: 0 };
-    },
-    [crop],
-  );
-
-  const onPointerMove = useCallback(
-    (e) => {
-      if (!drag.current || !frameRef.current) return;
-      drag.current.travel = Math.max(
-        drag.current.travel,
-        distance(drag.current, { x: e.clientX, y: e.clientY }),
-      );
-      const rect = frameRef.current.getBoundingClientRect();
-      const scale = drag.current.crop.w / rect.width;
-      const next = panCrop(
-        drag.current.crop,
-        (e.clientX - drag.current.x) * scale,
-        (e.clientY - drag.current.y) * scale,
-        naturalW,
-        naturalH,
-      );
-      onCropChange(next);
-    },
-    [naturalW, naturalH, onCropChange],
-  );
-
-  const onPointerUp = useCallback(
-    (e) => {
-      const gesture = drag.current;
-      drag.current = null;
-      if (!gesture || !onDoubleTap) return;
-      const done = { x: e.clientX, y: e.clientY, time: e.timeStamp, travel: gesture.travel };
-      if (recordTap(taps.current, done)) onDoubleTap();
-    },
-    [onDoubleTap],
-  );
-
-  // A cancelled pointer (the browser took the gesture over) ended in no
-  // tap at all, so it must not be logged as one.
-  const onPointerCancel = useCallback(() => {
-    drag.current = null;
-  }, []);
+  const gestures = usePhotoGestures({
+    boxRef: frameRef,
+    crop,
+    baseCrop,
+    zoom,
+    naturalW,
+    naturalH,
+    onCropChange,
+    onPinchZoom,
+    onDoubleTap,
+  });
 
   const bgSizeX = (naturalW / crop.w) * 100;
   const bgSizeY = (naturalH / crop.h) * 100;
@@ -91,10 +56,7 @@ export default function CollagePhotoSlot({
         backgroundPosition: `${bgPosX}% ${bgPosY}%`,
         filter: previewFilterCss(adjustments, filter),
       }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
+      {...gestures}
     >
       {filter === 'vintage' && <div className="postcard-vignette" />}
     </div>

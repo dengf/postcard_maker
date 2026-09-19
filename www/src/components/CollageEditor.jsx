@@ -377,7 +377,10 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                     naturalW={slot.photo.naturalW}
                     naturalH={slot.photo.naturalH}
                     crop={slot.crop}
+                    baseCrop={slot.baseCrop}
+                    zoom={slot.zoom}
                     onCropChange={(crop) => dispatch({ type: 'SET_SLOT_CROP', index, crop })}
+                    onPinchZoom={(crop, zoom) => dispatch({ type: 'SET_SLOT_ZOOM', index, crop, zoom })}
                     adjustments={slot.adjustments}
                     filter={slot.filter}
                     onDoubleTap={() => requestReplace(index)}

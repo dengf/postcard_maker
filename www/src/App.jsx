@@ -301,6 +301,13 @@ function AppShell({ wasmModule }) {
     [photo, baseCrop, crop],
   );
 
+  // A pinch has already worked out where the crop lands (it zooms around
+  // the point between the fingers, not the frame's centre), so unlike the
+  // slider it hands both values over rather than deriving one.
+  const pinchZoomPhoto = useCallback((nextCrop, nextZoom) => {
+    dispatch({ type: 'CHANGE_ZOOM', crop: nextCrop, zoom: nextZoom });
+  }, []);
+
   const addSticker = useCallback(
     (id) => {
       const n = state.stickers.length;
@@ -560,7 +567,10 @@ function AppShell({ wasmModule }) {
                 naturalW={photo.naturalW}
                 naturalH={photo.naturalH}
                 crop={crop}
+                baseCrop={baseCrop}
+                zoom={zoom}
                 onCropChange={(next) => dispatch({ type: 'SET_CROP', crop: next })}
+                onPinchZoom={pinchZoomPhoto}
                 aspectRatio={aspectRatio(aspectId)}
                 adjustments={adjustments}
                 filter={filter}
