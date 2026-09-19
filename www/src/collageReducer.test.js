@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collageReducer, initialCollageState } from './collageReducer';
+import { collageReducer, emptySlot, initialCollageState } from './collageReducer';
 
 const photoA = { bytes: new Uint8Array([1]), url: 'blob:a', naturalW: 100, naturalH: 100, mimeType: 'image/jpeg' };
 const photoB = { bytes: new Uint8Array([2]), url: 'blob:b', naturalW: 200, naturalH: 100, mimeType: 'image/jpeg' };
@@ -13,11 +13,69 @@ describe('collageReducer', () => {
     expect(initialCollageState('x', 2).textColor).toBe('auto');
   });
 
-  it('SET_LAYOUT starts with the right number of empty slots', () => {
-    const state = collageReducer(initialCollageState('x', 2), { type: 'SET_LAYOUT', layoutId: 'landscape-thirds', slotCount: 3 });
-    expect(state.layoutId).toBe('landscape-thirds');
+  it('SET_LAYOUT takes the layout and the slots built for it', () => {
+    const state = collageReducer(initialCollageState('x', 2), {
+      type: 'SET_LAYOUT',
+      layoutId: 'g4812-3',
+      slots: [emptySlot(), emptySlot(), emptySlot()],
+    });
+    expect(state.layoutId).toBe('g4812-3');
     expect(state.slots).toHaveLength(3);
     expect(state.slots.every((s) => s.photo === null)).toBe(true);
+  });
+
+  describe('SET_LAYOUT keeps the collage', () => {
+    // It used to return a fresh `initialCollageState`, so changing layout
+    // emptied the card. Harmless while the layout was a one-time pick
+    // among three; with a Shuffle button inviting repeated taps, it would
+    // mean every swatch is a "throw this away" button.
+    const decorated = () => {
+      let state = initialCollageState('g1-2', 2);
+      state = collageReducer(state, { type: 'OPEN_SLOT_PHOTO', index: 0, photo: photoA, base });
+      state = collageReducer(state, { type: 'OPEN_SLOT_PHOTO', index: 1, photo: photoB, base });
+      state = collageReducer(state, { type: 'SET_MESSAGE', message: 'Wish you were here' });
+      state = collageReducer(state, { type: 'ADD_STICKER', id: 'heart', key: 'k1', x: 0.5, y: 0.5 });
+      state = collageReducer(state, { type: 'ADD_STROKE', stroke: { points: [] } });
+      state = collageReducer(state, { type: 'SET_BACK_SIDE_LOCATION', location: 'Lisbon' });
+      return state;
+    };
+
+    it('keeps the message, stickers, strokes and back side', () => {
+      const before = decorated();
+      const after = collageReducer(before, {
+        type: 'SET_LAYOUT',
+        layoutId: 'g99-3',
+        slots: [before.slots[0], before.slots[1], emptySlot()],
+      });
+      expect(after.message).toBe('Wish you were here');
+      expect(after.stickers).toHaveLength(1);
+      expect(after.strokes).toHaveLength(1);
+      expect(after.backSide.location).toBe('Lisbon');
+    });
+
+    it('keeps the photos it is handed', () => {
+      const before = decorated();
+      const after = collageReducer(before, {
+        type: 'SET_LAYOUT',
+        layoutId: 'g99-3',
+        slots: [before.slots[0], before.slots[1], emptySlot()],
+      });
+      expect(after.slots.map((s) => s.photo)).toEqual([photoA, photoB, null]);
+    });
+
+    it('pulls the selection back in range when the new layout has fewer slots', () => {
+      // Every per-slot control reads `slots[activeSlotIndex]`; left at 2,
+      // a 2-slot layout would give them all `undefined`.
+      let before = decorated();
+      before = collageReducer(before, { type: 'SET_ACTIVE_SLOT', index: 1 });
+      const after = collageReducer(before, {
+        type: 'SET_LAYOUT',
+        layoutId: 'g7-2',
+        slots: [before.slots[0]],
+      });
+      expect(after.activeSlotIndex).toBe(0);
+      expect(after.slots[after.activeSlotIndex]).toBeDefined();
+    });
   });
 
   it('OPEN_SLOT_PHOTO only changes the targeted slot', () => {
@@ -55,7 +113,7 @@ describe('collageReducer', () => {
       const empty = collageReducer(initialCollageState('x', 1), {
         type: 'SET_LAYOUT',
         layoutId: 'landscape-side-by-side',
-        slotCount: 2,
+        slots: [emptySlot(), emptySlot()],
       });
       return collageReducer(empty, { type: 'RESTORE_DRAFT', draft, slots });
     };

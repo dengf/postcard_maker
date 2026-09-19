@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use postcard_core::{Aspect, CollageLayout, CollageSlot, NormRect, PhotoCoverage, PhotoSide};
 
 /// The facts about "what a postcard layout is" -- proportions of the
@@ -143,77 +145,107 @@ const TWO_THIRDS: f32 = 2.0 / 3.0;
 // postcard is deliberately NOT modeled as "a collage of one": see
 // CLAUDE.md for why that unification was rejected as a regression risk
 // on the already-shipped single-photo flow.
-const LANDSCAPE_SIDE_BY_SIDE: CollageLayout = CollageLayout {
-    id: "landscape-side-by-side",
-    aspect: Aspect::Landscape,
-    slots: &[slot(0.0, 0.0, 0.5, 1.0), slot(0.5, 0.0, 0.5, 1.0)],
-};
-const LANDSCAPE_BIG_SMALL: CollageLayout = CollageLayout {
-    id: "landscape-big-small",
-    aspect: Aspect::Landscape,
-    slots: &[slot(0.0, 0.0, 0.7, 1.0), slot(0.7, 0.0, 0.3, 1.0)],
-};
-const LANDSCAPE_THIRDS: CollageLayout = CollageLayout {
-    id: "landscape-thirds",
-    aspect: Aspect::Landscape,
-    slots: &[
+//
+// These nine were the *whole* offering before `collage_gen` existed, and
+// they are no longer what the layout picker shows -- it shows generated
+// ones now. They stay because a draft saved before that change carries
+// one of these ids, and `collage_gen::layout_for_id` has to be able to
+// give that collage its slots back. Treat them as the compatibility
+// table they now are: adding a tenth would put a layout in the store that
+// nothing can ever offer again.
+const fn borrowed(
+    id: &'static str,
+    aspect: Aspect,
+    slots: &'static [CollageSlot],
+) -> CollageLayout {
+    CollageLayout {
+        id: Cow::Borrowed(id),
+        aspect,
+        slots: Cow::Borrowed(slots),
+    }
+}
+
+const LANDSCAPE_SIDE_BY_SIDE: CollageLayout = borrowed(
+    "landscape-side-by-side",
+    Aspect::Landscape,
+    &[slot(0.0, 0.0, 0.5, 1.0), slot(0.5, 0.0, 0.5, 1.0)],
+);
+const LANDSCAPE_BIG_SMALL: CollageLayout = borrowed(
+    "landscape-big-small",
+    Aspect::Landscape,
+    &[slot(0.0, 0.0, 0.7, 1.0), slot(0.7, 0.0, 0.3, 1.0)],
+);
+const LANDSCAPE_THIRDS: CollageLayout = borrowed(
+    "landscape-thirds",
+    Aspect::Landscape,
+    &[
         slot(0.0, 0.0, THIRD, 1.0),
         slot(THIRD, 0.0, THIRD, 1.0),
         slot(TWO_THIRDS, 0.0, THIRD, 1.0),
     ],
-};
+);
 
-const SQUARE_STACKED: CollageLayout = CollageLayout {
-    id: "square-stacked",
-    aspect: Aspect::Square,
-    slots: &[slot(0.0, 0.0, 1.0, 0.5), slot(0.0, 0.5, 1.0, 0.5)],
-};
-const SQUARE_BIG_SMALL: CollageLayout = CollageLayout {
-    id: "square-big-small",
-    aspect: Aspect::Square,
-    slots: &[slot(0.0, 0.0, 1.0, 0.7), slot(0.0, 0.7, 1.0, 0.3)],
-};
-const SQUARE_THIRDS: CollageLayout = CollageLayout {
-    id: "square-thirds",
-    aspect: Aspect::Square,
-    slots: &[
+const SQUARE_STACKED: CollageLayout = borrowed(
+    "square-stacked",
+    Aspect::Square,
+    &[slot(0.0, 0.0, 1.0, 0.5), slot(0.0, 0.5, 1.0, 0.5)],
+);
+const SQUARE_BIG_SMALL: CollageLayout = borrowed(
+    "square-big-small",
+    Aspect::Square,
+    &[slot(0.0, 0.0, 1.0, 0.7), slot(0.0, 0.7, 1.0, 0.3)],
+);
+const SQUARE_THIRDS: CollageLayout = borrowed(
+    "square-thirds",
+    Aspect::Square,
+    &[
         slot(0.0, 0.0, 1.0, THIRD),
         slot(0.0, THIRD, 1.0, THIRD),
         slot(0.0, TWO_THIRDS, 1.0, THIRD),
     ],
-};
+);
 
-const PORTRAIT_STACKED: CollageLayout = CollageLayout {
-    id: "portrait-stacked",
-    aspect: Aspect::Portrait,
-    slots: &[slot(0.0, 0.0, 1.0, 0.5), slot(0.0, 0.5, 1.0, 0.5)],
-};
-const PORTRAIT_BIG_SMALL: CollageLayout = CollageLayout {
-    id: "portrait-big-small",
-    aspect: Aspect::Portrait,
-    slots: &[slot(0.0, 0.0, 1.0, 0.7), slot(0.0, 0.7, 1.0, 0.3)],
-};
-const PORTRAIT_THIRDS: CollageLayout = CollageLayout {
-    id: "portrait-thirds",
-    aspect: Aspect::Portrait,
-    slots: &[
+const PORTRAIT_STACKED: CollageLayout = borrowed(
+    "portrait-stacked",
+    Aspect::Portrait,
+    &[slot(0.0, 0.0, 1.0, 0.5), slot(0.0, 0.5, 1.0, 0.5)],
+);
+const PORTRAIT_BIG_SMALL: CollageLayout = borrowed(
+    "portrait-big-small",
+    Aspect::Portrait,
+    &[slot(0.0, 0.0, 1.0, 0.7), slot(0.0, 0.7, 1.0, 0.3)],
+);
+const PORTRAIT_THIRDS: CollageLayout = borrowed(
+    "portrait-thirds",
+    Aspect::Portrait,
+    &[
         slot(0.0, 0.0, 1.0, THIRD),
         slot(0.0, THIRD, 1.0, THIRD),
         slot(0.0, TWO_THIRDS, 1.0, THIRD),
     ],
-};
+);
 
 /// The curated collage layouts for one `Aspect` -- always 2 two-photo
-/// layouts followed by 1 three-photo layout.
+/// layouts followed by 1 three-photo layout. Kept for the ids already in
+/// people's saved drafts; the picker itself offers `collage_gen`'s
+/// generated layouts.
 pub fn collage_layouts(aspect: Aspect) -> &'static [CollageLayout] {
+    // `static`, not an inline `&[..]`: a `CollageLayout` holds `Cow`s now
+    // (so one type covers curated and generated alike), which makes it a
+    // non-`Copy` type the compiler will no longer promote a temporary
+    // array of to `'static` on its own.
+    static LANDSCAPE: [CollageLayout; 3] = [
+        LANDSCAPE_SIDE_BY_SIDE,
+        LANDSCAPE_BIG_SMALL,
+        LANDSCAPE_THIRDS,
+    ];
+    static SQUARE: [CollageLayout; 3] = [SQUARE_STACKED, SQUARE_BIG_SMALL, SQUARE_THIRDS];
+    static PORTRAIT: [CollageLayout; 3] = [PORTRAIT_STACKED, PORTRAIT_BIG_SMALL, PORTRAIT_THIRDS];
+
     match aspect {
-        Aspect::Landscape => &[
-            LANDSCAPE_SIDE_BY_SIDE,
-            LANDSCAPE_BIG_SMALL,
-            LANDSCAPE_THIRDS,
-        ],
-        Aspect::Square => &[SQUARE_STACKED, SQUARE_BIG_SMALL, SQUARE_THIRDS],
-        Aspect::Portrait => &[PORTRAIT_STACKED, PORTRAIT_BIG_SMALL, PORTRAIT_THIRDS],
+        Aspect::Landscape => &LANDSCAPE,
+        Aspect::Square => &SQUARE,
+        Aspect::Portrait => &PORTRAIT,
     }
 }
 
@@ -408,7 +440,11 @@ mod tests {
         let mut ids = std::collections::BTreeSet::new();
         for aspect in [Aspect::Landscape, Aspect::Square, Aspect::Portrait] {
             for layout in collage_layouts(aspect) {
-                assert!(ids.insert(layout.id), "duplicate layout id {}", layout.id);
+                assert!(
+                    ids.insert(layout.id.as_ref()),
+                    "duplicate layout id {}",
+                    layout.id
+                );
             }
         }
     }
@@ -417,7 +453,7 @@ mod tests {
     fn every_slot_stays_within_the_unit_square() {
         for aspect in [Aspect::Landscape, Aspect::Square, Aspect::Portrait] {
             for layout in collage_layouts(aspect) {
-                for s in layout.slots {
+                for s in layout.slots.iter() {
                     let a = s.area;
                     assert!(a.x >= 0.0 && a.y >= 0.0, "{}", layout.id);
                     assert!(a.x + a.w <= 1.0001 && a.y + a.h <= 1.0001, "{}", layout.id);

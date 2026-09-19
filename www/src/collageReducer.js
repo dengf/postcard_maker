@@ -13,7 +13,7 @@
 
 import { DEFAULT_ADJUSTMENTS, DEFAULT_STROKE_COLOR, DEFAULT_STROKE_WIDTH } from './postcardReducer';
 
-function emptySlot() {
+export function emptySlot() {
   return { photo: null, baseCrop: null, crop: null, zoom: 1, adjustments: DEFAULT_ADJUSTMENTS, filter: 'none' };
 }
 
@@ -49,8 +49,32 @@ function updateSlot(slots, index, patch) {
 
 export function collageReducer(state, action) {
   switch (action.type) {
+    /**
+     * Moves the collage onto a different layout, keeping it.
+     *
+     * This used to return a fresh `initialCollageState` -- picking a
+     * layout emptied every slot and threw away the message, stickers and
+     * doodle with them. That was survivable while the layout was a
+     * one-time choice among three, made before there was anything to
+     * lose. It stopped being survivable with a Shuffle button: a row of
+     * swatches you're invited to keep tapping cannot cost the card each
+     * time.
+     *
+     * `slots` arrives already built, for the same reason `RESTORE_DRAFT`
+     * does: fitting a photo to a slot of different proportions needs a
+     * wasm crop suggestion, and this reducer has no wasm module. See
+     * `collageLayouts.js`'s `carrySlots` for what carries and what
+     * resets.
+     */
     case 'SET_LAYOUT':
-      return { ...initialCollageState(action.layoutId, action.slotCount) };
+      return {
+        ...state,
+        layoutId: action.layoutId,
+        slots: action.slots,
+        // A layout with fewer slots can leave the selection past the end
+        // -- every per-slot control reads `slots[activeSlotIndex]`.
+        activeSlotIndex: Math.max(0, Math.min(state.activeSlotIndex, action.slots.length - 1)),
+      };
 
     /**
      * A collage coming back from `draftStore`. `SET_LAYOUT` has already

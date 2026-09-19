@@ -642,6 +642,7 @@ label.btn { cursor: pointer; }
 .chevron-icon.open { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) {
   .chevron-icon { transition: none; }
+  .collage-layout-options { animation: none; }
 }
 
 /* TextPanel's font/size/align/color groups -- a Word-toolbar-style
@@ -911,7 +912,37 @@ label.btn { cursor: pointer; }
    own content puts it back underneath them. */
 .intro-collage-link { margin-top: 16px; align-self: center; }
 
-.collage-layout-options { display: flex; gap: 10px; flex-wrap: wrap; }
+/* A heading with its own action beside it. `.panel` is `flex-direction:
+   column` (see CLAUDE.md -- the rule that bites is the one already
+   there), so the row has to be named explicitly. */
+.panel-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* A grid rather than wrapping flex: with six or seven swatches the fixed
+   64px-wide previews left a ragged right edge and, at 375px, three to a
+   row with most of a fourth's worth of space unused. Letting them share
+   the column fills it and makes every swatch a bigger tap target on the
+   narrow screens that need it most. */
+.collage-layout-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 10px;
+}
+/* Confirms a Shuffle landed. Six new arrangements can look much like six
+   others at swatch size, and without this the tap reads as having done
+   nothing at all -- so it's feedback, not decoration. Still off under
+   `prefers-reduced-motion` below, same as every other animation here. */
+@keyframes collage-layout-deal {
+  from { opacity: 0.35; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+.collage-layout-options { animation: collage-layout-deal 200ms ease-out; }
 .collage-layout-swatch {
   border: 2px solid var(--input-border);
   background: var(--panel-alt);
@@ -919,11 +950,12 @@ label.btn { cursor: pointer; }
   padding: 6px;
   cursor: pointer;
 }
+.collage-layout-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .collage-layout-swatch.active { border-color: var(--accent); }
 .collage-layout-preview {
   position: relative;
   display: block;
-  width: 64px;
+  width: 100%;
   background: var(--surface);
   border-radius: 4px;
   overflow: hidden;

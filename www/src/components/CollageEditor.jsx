@@ -8,7 +8,8 @@ import { renderCollage } from '../export';
 import { templateGeometry } from '../photoLayout';
 import { unreadablePhotoError } from '../photoFormat';
 import { COLLAGE_KIND, saveDraft } from '../draftStore';
-import { collageReducer, initialCollageState } from '../collageReducer';
+import { collageReducer, emptySlot, initialCollageState } from '../collageReducer';
+import { carrySlots, randomSeed, slotPixelRatio, withSelected } from '../collageLayouts';
 import { DEFAULT_ADJUSTMENTS, nextStickerKey } from '../postcardReducer';
 import TemplatePicker from './TemplatePicker';
 import FilterPanel from './FilterPanel';
@@ -21,7 +22,7 @@ import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
 import CollagePhotoSlot from './CollagePhotoSlot';
 import ReplacePhotoButton, { PhotoPickerInput } from './ReplacePhotoButton';
-import { BackIcon, ImageIcon } from './icons';
+import { BackIcon, DiceIcon, ImageIcon } from './icons';
 
 /** Matches the single-photo flow's own debounce -- see `App.jsx`. */
 const AUTOSAVE_DELAY_MS = 800;
@@ -72,14 +73,6 @@ function collageDraft(state, aspectId) {
   };
 }
 
-/** A slot's own on-card pixel aspect ratio: its fraction of the card,
- * scaled by the whole card's ratio -- see CLAUDE.md/`crop.rs`'s
- * `suggest_for_ratio` for why a collage slot needs this instead of one
- * of the three named templates. */
-function slotPixelRatio(area, cardRatio) {
-  return (area.w / area.h) * cardRatio;
-}
-
 /**
  * The multi-photo collage flow -- a parallel state machine to the
  * single-photo `App.jsx`, not a variant of it. See CLAUDE.md for why.
@@ -88,7 +81,15 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
   const { t, locale } = useI18n();
   const [aspectId, setAspectId] = useState(draft?.aspectId ?? ASPECTS[0].id);
   const [layouts, setLayouts] = useState([]);
+  // The layout in use, held here rather than looked up in `layouts` by
+  // `state.layoutId`: a shuffle replaces the offered row, and the card
+  // must keep the arrangement it is already drawn with even once that
+  // arrangement is no longer one of the six on offer.
+  const [layout, setLayout] = useState(null);
   const [geometry, setGeometry] = useState(null);
+  // Counts shuffles, purely so the swatch row can be remounted and
+  // replay its deal animation -- see `shuffleLayouts`.
+  const [deals, setDeals] = useState(0);
   const [state, dispatch] = useReducer(collageReducer, null, () => initialCollageState('', 0));
   const objectUrlsRef = useRef([]);
   const frameRef = useRef(null);
@@ -99,21 +100,59 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
   // double-invoke in dev -- and restoring the same photos a second time.
   const pendingDraftRef = useRef(draft ?? null);
   const hydratingRef = useRef(false);
+  // Which row of layouts is on offer. A ref, not state: the row survives
+  // a change of template shape (your shuffle isn't undone by trying the
+  // card portrait), so nothing should re-run when it changes -- only the
+  // Shuffle button and the shape effect read it, and both do so while
+  // already doing the work.
+  const seedRef = useRef(randomSeed());
+  // The current state, for `selectLayout` -- which has to read the slots
+  // it is moving onto the new layout without being rebuilt (and
+  // re-running the effect below) every time one of them changes.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
+  /**
+   * Moves the collage onto `next`, keeping the photos already placed --
+   * see `collageLayouts.js`'s `carrySlots`. Both halves have to travel
+   * together: `layout` is the geometry every slot is positioned and
+   * cropped against, and `state.slots` is what fills it.
+   */
   const selectLayout = useCallback(
-    (layout) => {
-      dispatch({ type: 'SET_LAYOUT', layoutId: layout.id, slotCount: layout.slots.length });
+    (next) => {
+      setLayout(next);
+      dispatch({
+        type: 'SET_LAYOUT',
+        layoutId: next.id,
+        slots: carrySlots(wasmModule, stateRef.current.slots, next, aspectRatio(aspectId), emptySlot),
+      });
     },
-    [],
+    [wasmModule, aspectId],
   );
 
-  // (Re)loads the curated layouts whenever the template shape changes,
-  // and always lands on the first one -- same "pick a sensible default"
-  // rule as the single-photo flow's template picker.
+  /** Deals a new row of layouts. Only the offer changes -- the card keeps
+   * the layout it has until a swatch is actually tapped, which is why
+   * this doesn't call `selectLayout`. */
+  const shuffleLayouts = useCallback(() => {
+    seedRef.current = randomSeed();
+    try {
+      setLayouts(wasmModule.collage_shuffle(aspectId, seedRef.current));
+      // Remounts the row so its deal animation runs again (a changed
+      // `key` is the only thing that restarts a CSS animation on an
+      // element that stays put). Under `prefers-reduced-motion` the
+      // animation is off and this is a no-op remount.
+      setDeals((n) => n + 1);
+    } catch (err) {
+      onError(err);
+    }
+  }, [wasmModule, aspectId, onError]);
+
+  // Deals the row and settles on a layout whenever the template shape
+  // changes (and once on mount).
   useEffect(() => {
     try {
-      const fetched = wasmModule.collage_layouts(aspectId);
-      setLayouts(fetched);
+      const row = wasmModule.collage_shuffle(aspectId, seedRef.current);
+      setLayouts(row);
       // Through `templateGeometry`, never `wasmModule.template_geometry`
       // directly: the binding takes (aspect, coverage, side), and this
       // call passed the aspect alone. wasm-bindgen then read `.length`
@@ -124,17 +163,23 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
       // `postcard_calc::template`'s own doc comment notes) but still
       // required.
       setGeometry(templateGeometry(wasmModule, aspectId, 'full', 'first'));
-      // A draft restores onto the layout it was saved with, not the
-      // default one -- `SET_LAYOUT` is what decides how many slots there
-      // are, so the photos in the effect below have somewhere to land.
-      const saved = pendingDraftRef.current;
-      const restoring = saved && fetched.find((l) => l.id === saved.layoutId);
-      const target = restoring || fetched[0];
+      // Which layout to land on, in order: the one a draft was saved
+      // with, then the one already in use, then the first on offer.
+      //
+      // The first two go back through Rust rather than being reused as
+      // they are, because a layout is built *for* a card shape -- the
+      // same id against a different aspect is the corresponding
+      // arrangement for that shape, not the same rectangles. That is
+      // also what lets a draft saved before generated layouts existed
+      // reopen: `collage_layout` still answers for the old curated ids.
+      const wanted = pendingDraftRef.current?.layoutId ?? stateRef.current.layoutId;
+      const target = (wanted && wasmModule.collage_layout(aspectId, wanted)) || row[0];
       if (target) selectLayout(target);
     } catch (err) {
       onError(err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectLayout is stable (no deps of its own)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectLayout changes
+    // with aspectId, which is already a dep; adding it would re-run on nothing else.
   }, [aspectId, wasmModule]);
 
   useEffect(
@@ -143,8 +188,6 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     },
     [],
   );
-
-  const layout = layouts.find((l) => l.id === state.layoutId);
 
   /** Fills or refills one slot. Returns whether it took. */
   const openSlotPhoto = useCallback(
@@ -450,32 +493,49 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
             single-photo editor's TemplatePicker + LayoutPanel. */}
         <TemplatePicker aspectId={aspectId} onChange={setAspectId} />
 
+        {/* The layouts are generated, not a fixed menu -- Shuffle deals
+            six more (two each of 2, 3 and 4 photos). The row always
+            includes whichever one the card is currently using, even
+            after a shuffle has moved on from it, so there is always
+            exactly one swatch highlighted. */}
         <div className="panel">
-          <h2>{t('collage.layout')}</h2>
-          <div className="collage-layout-options">
-            {layouts.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                className={l.id === state.layoutId ? 'collage-layout-swatch active' : 'collage-layout-swatch'}
-                onClick={() => selectLayout(l)}
-              >
-                <span className="collage-layout-preview" style={{ aspectRatio: aspectRatio(aspectId) }}>
-                  {l.slots.map((s, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        left: `${s.area.x * 100}%`,
-                        top: `${s.area.y * 100}%`,
-                        width: `${s.area.w * 100}%`,
-                        height: `${s.area.h * 100}%`,
-                      }}
-                    />
-                  ))}
-                </span>
-              </button>
-            ))}
+          <div className="panel-head">
+            <h2>{t('collage.layout')}</h2>
+            <button type="button" className="btn outline" onClick={shuffleLayouts}>
+              <DiceIcon />
+              {t('collage.shuffle')}
+            </button>
           </div>
+          <div className="collage-layout-options" key={deals}>
+            {withSelected(layouts, layout).map((l) => {
+              const active = l.id === state.layoutId;
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  className={active ? 'collage-layout-swatch active' : 'collage-layout-swatch'}
+                  aria-pressed={active}
+                  aria-label={t('collage.layoutOf').replace('{n}', l.slots.length)}
+                  onClick={() => selectLayout(l)}
+                >
+                  <span className="collage-layout-preview" style={{ aspectRatio: aspectRatio(aspectId) }}>
+                    {l.slots.map((s, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          left: `${s.area.x * 100}%`,
+                          top: `${s.area.y * 100}%`,
+                          width: `${s.area.w * 100}%`,
+                          height: `${s.area.h * 100}%`,
+                        }}
+                      />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-option-note">{t('collage.layoutHint')}</p>
         </div>
 
         {activeSlot?.photo && (

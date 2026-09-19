@@ -61,6 +61,25 @@ export function SwapIcon() {
   );
 }
 
+/** Reshuffle the collage layout row. A die, not the usual pair of
+ * crossing shuffle arrows: that shape is `SwapIcon`'s "swap this photo
+ * for another one", which sits on the very same screen. A die also says
+ * *what* the button does here -- deal a new set of arrangements -- rather
+ * than the reordering a shuffle glyph usually means. */
+export function DiceIcon() {
+  const pip = { r: 1.15, fill: 'currentColor', stroke: 'none' };
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="3.5" />
+      <circle cx="8.5" cy="8.5" {...pip} />
+      <circle cx="15.5" cy="8.5" {...pip} />
+      <circle cx="12" cy="12" {...pip} />
+      <circle cx="8.5" cy="15.5" {...pip} />
+      <circle cx="15.5" cy="15.5" {...pip} />
+    </svg>
+  );
+}
+
 /** Back out of an editor. A plain chevron, not an arrow doubling back --
  * that shape is `SwapIcon`'s, and these two sit near each other on the
  * card. */

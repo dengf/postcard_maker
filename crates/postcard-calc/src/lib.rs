@@ -4,6 +4,7 @@
 //! DOM, a canvas, or a font -- see the repo's CLAUDE.md for the Rust/JS
 //! boundary this crate sits on.
 
+pub mod collage_gen;
 pub mod crop;
 pub mod face;
 pub mod filters;
@@ -11,6 +12,7 @@ pub mod pipeline;
 pub mod template;
 pub mod vibe;
 
+pub use collage_gen::{layout_for_id as collage_layout_for_id, shuffle as collage_shuffle};
 pub use pipeline::process_photo;
 pub use template::{collage_layouts, geometry as template_geometry, TemplateGeometry};
 pub use vibe::{classify_top_vibes, classify_vibe, Vibe};

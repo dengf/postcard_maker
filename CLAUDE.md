@@ -347,6 +347,53 @@ future attempt has to weigh, not a prompt-tuning problem.
   alongside the named-aspect versions rather than replacing them.
   Message/stickers/doodle are shared across the whole collage, never
   per-slot.
+- **Collage layouts are generated, not curated**
+  (`postcard_calc::collage_gen`). The picker used to offer three fixed
+  layouts per shape — a 50/50 split, a 70/30 split, equal thirds — which
+  are the same idea three times (parallel strips) and the same three
+  every session. Now a layout is built by splitting the card repeatedly,
+  taking each cut's axis and proportion from a seeded sequence, and
+  "Shuffle" deals six more. Worth not re-deriving:
+  - **The seed is the layout.** A draft stores its layout's *id* and
+    nothing else (`g<seed>-<slots>`), so `generate(aspect, seed, n)` has
+    to be a pure function that returns the same rectangles forever — the
+    photos in a saved collage were cropped against those exact slots.
+    That is why the generator is in Rust and not a `Math.random()` in the
+    host layer, and why `the_same_seed_always_builds_the_same_layout`
+    exists. The PRNG is hand-rolled (twenty lines of xorshift) for the
+    same reason: `rand` offers no cross-version value stability, so a
+    dependency bump could silently rearrange everyone's saved cards.
+  - **Randomness is bounded, or it isn't a feature.** A free guillotine
+    cut produces slot shapes no photo survives, so every candidate split
+    is checked (`MIN_SLOT_RATIO`/`MAX_SLOT_RATIO`/`MIN_SLOT_SIDE`) and
+    redrawn if it fails, cuts the *long* side by default (free choice of
+    axis just makes parallel strips again), and draws its proportion from
+    a weighted table of ones that look chosen. A consequence worth
+    knowing before "fixing" it: a 2-photo landscape card is *always* a
+    left/right split, because splitting 3:2 top/bottom gives two 3:1
+    letterboxes — that's the guardrails working, not a stuck axis.
+  - **Slots always come back in reading order**, and slot 0 is always the
+    top-left one. The slot *index* is what a draft stores photos against
+    and what carries them across a layout change; if index 0 were
+    wherever the recursion left it, shuffling would scatter the photos.
+  - **`SET_LAYOUT` no longer resets the collage.** It used to return a
+    fresh `initialCollageState` — picking a layout emptied every slot and
+    threw away the message, stickers and doodle. Survivable when the
+    layout was a one-time pick among three made before there was anything
+    to lose; with a Shuffle button inviting repeated taps it would make
+    every swatch a "discard the card" button. `collageLayouts.js`'s
+    `carrySlots` moves the photos across by index, resetting what belonged
+    to the old *shape* (crop, zoom) and keeping what belongs to the
+    *photo* (filter, adjustments) — the same line `REPLACE_PHOTO` draws in
+    the other direction.
+  - **The layout in use is component state, not a lookup in the offered
+    row.** A shuffle replaces the row, and the card has to keep the
+    arrangement it is drawn with even once that arrangement is no longer
+    on offer; `withSelected` puts it back in the row so exactly one
+    swatch is always highlighted.
+  - **The curated nine are still in `template.rs`** purely so a draft
+    saved before this reopens — `collage_gen::layout_for_id` answers for
+    both kinds of id. They are a compatibility table now, not a menu.
 - **Changing the photo is one feature across both editors, and it did not
   exist at first.** A photo was a one-way door: the collage's only file
   input lived in `EmptySlot`, which unmounts the moment `slot.photo` is
@@ -474,10 +521,14 @@ shapes; keep it that way rather than trusting that it still works.
   wasm target compiles.** `postcard-wasm` depends on `image`, which has
   real platform-specific code paths; always also run `cargo build -p
   postcard-wasm --target wasm32-unknown-unknown --release` before
-  trusting a change that touches `postcard-calc` or `postcard-wasm`. This
-  was verified once already (854KB raw / ~492KB via wasm-pack / ~187KB
-  gzipped) — if a change balloons that, look for a new dependency pulling
-  in something heavy before assuming it's fine.
+  trusting a change that touches `postcard-calc` or `postcard-wasm`.
+  Measured via wasm-pack: **530KB raw / ~192KB gzipped** (was 514KB /
+  187KB before `collage_gen`, and the ~492KB this file used to record had
+  gone stale long before that — re-measure rather than trusting the
+  number here). If a change balloons that, look for a new dependency
+  pulling in something heavy before assuming it's fine: `collage_gen`'s
+  own +15KB raw / +5KB gzipped is `String`/`format!` and the split search,
+  no new crate.
 - **`wasm-pack` wants a `LICENSE` file at the workspace root** to stop
   warning on every build (it doesn't fail without one, just nags) — kept
   in sync with `Cargo.toml`'s `license = "MIT"`.
