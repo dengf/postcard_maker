@@ -709,15 +709,21 @@ label.btn { cursor: pointer; }
      ShareBar's CelebrationBurst is a child of it and is `position: fixed`,
      so hiding the parent outright would suppress the burst too. The
      shortcut itself is hidden alongside (.finish-jump), since the fixed
-     bar already keeps Share/Save one tap away at any scroll position. */
+     bar already keeps Share/Save one tap away at any scroll position.
+
+     Keyed on the `.finish-panel` class, not the `#finish-panel` id: the
+     id is App.jsx's scroll anchor for the Finish shortcut, so only that
+     editor has one, and the collage editor was left carrying the full
+     card chrome plus a heading the phone layout doesn't need. Both wrap
+     their ShareBar in the class. */
   .finish-jump { display: none; }
-  #finish-panel > .panel {
+  .finish-panel > .panel {
     padding: 0;
     border: none;
     background: none;
     box-shadow: none;
   }
-  #finish-panel > .panel > h2 { display: none; }
+  .finish-panel > .panel > h2 { display: none; }
   .share-sticky-bar {
     display: flex;
     flex-direction: column;
