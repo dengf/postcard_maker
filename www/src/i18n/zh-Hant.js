@@ -5,7 +5,7 @@ export default {
   "meta.ogTitle": "明信片製作 — 一款 meifio 應用",
 
   "app.title": "明信片製作",
-  "app.byline": "{logo} 出品",
+  "app.byline": "— {logo} 出品",
   "app.language": "語言",
   "app.theme": "主題",
   "app.themeSystem": "跟隨系統",
