@@ -359,21 +359,38 @@ label.btn { cursor: pointer; }
   }
 }
 /* Behind the photo box, visible wherever a split layout's photo doesn't
-   cover -- a plain color for 'solid'/'auto', or (via an inline
-   background-image) a blurred, frame-covering copy of the photo for
-   'blur'. Absent entirely for a full-bleed photo (see PostcardCanvas.jsx). */
+   cover -- a plain color for 'solid'/'auto', or (for 'blur') a second,
+   blurred `.photo-layer` copy of the photo stretched across the whole
+   frame. Absent entirely for a full-bleed photo (see PostcardCanvas.jsx). */
 .postcard-fill {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   background-repeat: no-repeat;
   background-size: cover;
 }
 .postcard-photo-box {
   position: absolute;
   overflow: hidden;
-  background-repeat: no-repeat;
   touch-action: none;
   cursor: grab;
+}
+
+/* The photo itself, inside whichever frame is showing it -- the single
+   card, a collage slot, or the blurred fill behind a split layout.
+   It used to be the frame's own background-image, which is simpler and
+   cannot be rotated at all; `rotateGeometry.js`'s `photoLayerStyle`
+   computes the size/offset/rotate that put the right part of it in view.
+   `pointer-events: none` matters: the gesture handlers are on the frame,
+   and an `<img>` on top of them would swallow every pan, and a long-press
+   on a phone would offer to save the photo mid-drag. */
+.photo-layer {
+  position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 .postcard-photo-box:active { cursor: grabbing; }
 .postcard-vignette {
@@ -496,6 +513,24 @@ label.btn { cursor: pointer; }
 
 .slider-field { display: flex; flex-direction: column; gap: 4px; }
 .slider-field-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); }
+
+/* Rotation: a quarter-turn button either side of the fine slider. The
+   slider is the one that has to stay wide, so the buttons are fixed at
+   the 44px touch minimum and it takes the rest. Both buttons keep their
+   own accessible name in a `.visually-hidden` span -- an icon-only
+   control with a title attribute would be a hover-only label, which a
+   touch screen never shows. */
+.rotate-row { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.rotate-row input[type='range'] { flex: 1; min-width: 0; }
+.rotate-step {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
 
 /* Zoom/brightness/contrast/saturation. A native range is 16px tall, which
    is a hard thing to catch with a fingertip on the one control in this app
@@ -976,11 +1011,21 @@ label.btn { cursor: pointer; }
   outline-offset: -2px;
 }
 .collage-slot.active { outline-color: var(--accent); }
+/* An unfilled slot paints above the shared message/sticker/doodle overlay,
+   which is otherwise drawn over it by DOM order (the overlay comes after
+   the slots and nothing here sets a z-index). A greeting drawn across an
+   empty slot put its text on top of the "Add photo" label, leaving both
+   unreadable -- and the placeholder is the thing you still have to tap.
+   The rule this encodes: an empty slot is a *hole* in the card, so no
+   part of the card should paint over it. Once every slot is filled --
+   the only state you can Share from -- nothing is raised and the overlay
+   is exactly as it was. */
+.collage-slot.empty { z-index: 1; }
 .collage-photo-slot {
   position: relative;
   width: 100%;
   height: 100%;
-  background-repeat: no-repeat;
+  overflow: hidden;
   touch-action: none;
   cursor: grab;
 }

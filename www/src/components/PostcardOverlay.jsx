@@ -38,13 +38,14 @@ export default function PostcardOverlay({
   onStickerRemove,
   photoUrl,
   crop,
+  photoView,
   cssFilter,
   fillStyle,
   fillColor,
 }) {
   const { t } = useI18n();
   const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
-  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor, messagePosition);
+  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition);
   // Split-layout-only elements the user asked to carry over from the
   // back side's own classic-postcard redesign: a real divider at the
   // photo/blank boundary, a labeled stamp placeholder, and a "To" +
@@ -252,7 +253,7 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * the actual composited pixels, same "preview approximates, export is
  * authoritative" split as everywhere else in this file.
  */
-function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillStyle, fillColor, messagePosition) {
+function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition) {
   const [resolved, setResolved] = useState(textColor);
   const imgRef = useRef(null);
   const isFullCoverage = !geometry || (geometry.photoArea.w >= 1 && geometry.photoArea.h >= 1);
@@ -289,7 +290,7 @@ function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillSt
               h: geometry.messageArea.h,
             }
           : { x: 0, y: 0, w: 1, h: 1 };
-        const avg = sampleFrameColor(img, crop, cssFilter, sampleArea);
+        const avg = sampleFrameColor(img, crop, cssFilter, sampleArea, photoView);
         setResolved(bestContrastColor(avg));
       } catch {
         setResolved(AUTO_COLOR_FALLBACK);
@@ -315,7 +316,7 @@ function useAutoTextColor(textColor, photoUrl, crop, cssFilter, geometry, fillSt
     // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
     // fields are the real dependency, not its object identity, which
     // changes on every pan/zoom dispatch.
-  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, geometry, isFullCoverage, fillStyle, fillColor, messagePosition?.x, messagePosition?.y]);
+  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, photoView?.rotation, cssFilter, geometry, isFullCoverage, fillStyle, fillColor, messagePosition?.x, messagePosition?.y]);
 
   return resolved;
 }

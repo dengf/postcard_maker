@@ -26,6 +26,7 @@ const photo = (naturalW, naturalH) => ({
 function fakeWasm() {
   return {
     suggest_crop_ratio: vi.fn((w, h, ratio) => ({ x: 0, y: 0, w, h, ratio })),
+    suggest_crop_rotated: vi.fn((w, h, rotation, ratio) => ({ x: 0, y: 0, w, h, ratio, rotation })),
   };
 }
 
@@ -115,7 +116,7 @@ describe("carrySlots", () => {
       1.5,
       emptySlot,
     );
-    expect(wasm.suggest_crop_ratio).toHaveBeenCalledWith(100, 100, 0.75);
+    expect(wasm.suggest_crop_rotated).toHaveBeenCalledWith(100, 100, 0, 0.75);
     expect(carried[0].crop).toBe(carried[0].baseCrop);
     expect(carried[0].zoom).toBe(1);
   });
@@ -136,6 +137,24 @@ describe("carrySlots", () => {
     );
     expect(carried[0].filter).toBe("vintage");
     expect(carried[0].adjustments).toEqual({ brightness: 0.2 });
+  });
+
+  it("carries the angle a photo was turned to, and re-fits at it", () => {
+    // Rotation belongs to the photo, not the slot: a photo someone
+    // straightened is straight wherever it lands. The crop that fits at
+    // that angle is what depends on the slot, so the new suggestion has
+    // to be asked for *at* the angle rather than upright.
+    const wasm = fakeWasm();
+    const slots = [filled(100, 100, { rotation: 20 })];
+    const carried = carrySlots(
+      wasm,
+      slots,
+      layout("g1-2", HALVES),
+      1.5,
+      emptySlot,
+    );
+    expect(carried[0].rotation).toBe(20);
+    expect(wasm.suggest_crop_rotated).toHaveBeenCalledWith(100, 100, 20, 0.75);
   });
 
   it("pads with empty slots when the new layout has more of them", () => {
@@ -165,7 +184,7 @@ describe("carrySlots", () => {
   });
 
   it("asks wasm nothing about a slot that has no photo", () => {
-    // `suggest_crop_ratio` would be reading `naturalW` off `null`.
+    // `suggest_crop_rotated` would be reading `naturalW` off `null`.
     const wasm = fakeWasm();
     carrySlots(
       wasm,
@@ -174,7 +193,7 @@ describe("carrySlots", () => {
       1.5,
       emptySlot,
     );
-    expect(wasm.suggest_crop_ratio).not.toHaveBeenCalled();
+    expect(wasm.suggest_crop_rotated).not.toHaveBeenCalled();
   });
 
   it("starts an empty collage off with empty slots", () => {

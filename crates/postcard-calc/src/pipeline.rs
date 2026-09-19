@@ -5,7 +5,7 @@ use image::codecs::png::PngEncoder;
 use image::{DynamicImage, ImageDecoder, ImageEncoder, ImageReader};
 use postcard_core::{Adjustments, ExportFormat, Filter, PostcardError, PostcardResult, Rect};
 
-use crate::{crop, filters};
+use crate::{crop, filters, rotate};
 
 /// Decodes `bytes` and normalizes it to the orientation a browser would
 /// *display* it in. A phone photo commonly carries an EXIF orientation
@@ -34,14 +34,21 @@ pub(crate) fn decode_oriented(bytes: &[u8]) -> PostcardResult<DynamicImage> {
     Ok(decoded)
 }
 
-/// Decode -> crop -> filter -> resize -> encode, in that fixed order.
-/// This is the entire contract with `postcard-wasm`: pixels in, a
+/// Decode -> rotate -> crop -> filter -> resize -> encode, in that fixed
+/// order. This is the entire contract with `postcard-wasm`: pixels in, a
 /// finished base-layer image out. Text and stickers are drawn on top of
 /// this result on a `<canvas>` afterward -- see the repo's CLAUDE.md for
 /// why that split is deliberate, not a shortcut.
+///
+/// `rotation` is in degrees clockwise, and the crop rectangle is read in
+/// the *rotated* photo's coordinates -- `rotate`'s own module docs cover
+/// why the crop lives there rather than on the upright photo, and
+/// `rotate::render` collapses the rotate and crop into one step so an
+/// angled photo never materialises a full rotated canvas.
 pub fn process_photo(
     bytes: &[u8],
     crop_rect: Rect,
+    rotation: f32,
     adjustments: Adjustments,
     filter: Filter,
     max_dimension: u32,
@@ -53,12 +60,13 @@ pub fn process_photo(
 
     let decoded = decode_oriented(bytes)?;
 
-    let (image_w, image_h) = (decoded.width(), decoded.height());
-    crop::validate(image_w, image_h, crop_rect)?;
+    // Validated against the turned photo's bounding box, which at zero
+    // degrees is the photo's own size -- so an unrotated card is checked
+    // exactly as it always was.
+    let (bounds_w, bounds_h) = rotate::bounds(decoded.width(), decoded.height(), rotation);
+    crop::validate(bounds_w, bounds_h, crop_rect)?;
 
-    let mut cropped =
-        image::imageops::crop_imm(&decoded, crop_rect.x, crop_rect.y, crop_rect.w, crop_rect.h)
-            .to_image();
+    let mut cropped = rotate::render(decoded.into_rgba8(), rotation, crop_rect);
 
     filters::apply(&mut cropped, adjustments, filter);
 
@@ -160,6 +168,7 @@ mod tests {
                 w: 1,
                 h: 1,
             },
+            0.0,
             Adjustments::default(),
             Filter::None,
             0,
@@ -178,6 +187,7 @@ mod tests {
                 w: 1,
                 h: 1,
             },
+            0.0,
             Adjustments::default(),
             Filter::None,
             0,
@@ -226,6 +236,7 @@ mod tests {
                 w: 50,
                 h: 40,
             }, // y+h=190: out of bounds for raw 100 height, fine for 200
+            0.0,
             Adjustments::default(),
             Filter::None,
             0,
@@ -245,6 +256,7 @@ mod tests {
                 w: 20,
                 h: 20,
             },
+            0.0,
             Adjustments::default(),
             Filter::None,
             0,
@@ -264,6 +276,7 @@ mod tests {
                 w: 40,
                 h: 20,
             },
+            0.0,
             Adjustments::default(),
             Filter::None,
             0,
@@ -285,6 +298,7 @@ mod tests {
                 w: 40,
                 h: 20,
             },
+            0.0,
             Adjustments::default(),
             Filter::None,
             999,
@@ -306,6 +320,7 @@ mod tests {
                 w: 400,
                 h: 200,
             },
+            0.0,
             Adjustments::default(),
             Filter::None,
             100,
@@ -314,6 +329,52 @@ mod tests {
         .unwrap();
         let decoded = image::load_from_memory(&out).unwrap();
         assert_eq!((decoded.width(), decoded.height()), (100, 50));
+    }
+
+    #[test]
+    fn a_rotated_crop_is_read_against_the_turned_photos_bounds() {
+        // A 40x20 photo turned a quarter turn is 20x40, and a crop only
+        // valid in that taller box has to be accepted -- the same shape of
+        // bug as the EXIF one above, but from the user's own rotation
+        // rather than the camera's.
+        let bytes = fixture_jpeg(40, 20);
+        let out = process_photo(
+            &bytes,
+            Rect {
+                x: 0,
+                y: 25,
+                w: 20,
+                h: 15,
+            },
+            90.0,
+            Adjustments::default(),
+            Filter::None,
+            0,
+            ExportFormat::Png,
+        )
+        .unwrap();
+        let decoded = image::load_from_memory(&out).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (20, 15));
+    }
+
+    #[test]
+    fn a_crop_outside_the_turned_photo_is_still_rejected() {
+        let bytes = fixture_jpeg(40, 20);
+        let err = process_photo(
+            &bytes,
+            Rect {
+                x: 0,
+                y: 0,
+                w: 40,
+                h: 20,
+            }, // the unrotated size, which no longer fits the 20x40 box
+            90.0,
+            Adjustments::default(),
+            Filter::None,
+            0,
+            ExportFormat::Png,
+        );
+        assert!(matches!(err, Err(PostcardError::CropOutOfBounds(_))));
     }
 
     #[test]
@@ -327,6 +388,7 @@ mod tests {
                 w: 10,
                 h: 10,
             },
+            0.0,
             Adjustments::default(),
             Filter::None,
             0,

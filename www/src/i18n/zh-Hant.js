@@ -61,9 +61,12 @@ export default {
   "layout.fill.variant.tonal": "同色調",
   "layout.fill.variant.mono": "雙色",
 
-  "editor.cropHint": "拖曳以調整位置，雙指或滑桿可縮放。雙擊照片可更換。",
+  "editor.cropHint": "拖曳以調整位置，雙指捏合可縮放、旋轉可轉動照片。雙擊照片可更換。",
   "editor.replacePhoto": "換一張照片",
   "editor.back": "返回",
+  "editor.rotate": "旋轉",
+  "editor.rotateLeft": "向左旋轉 90 度",
+  "editor.rotateRight": "向右旋轉 90 度",
   "editor.zoom": "縮放",
   "editor.filter": "濾鏡",
   "editor.filter.none": "原圖",

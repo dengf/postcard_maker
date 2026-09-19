@@ -368,4 +368,78 @@ describe('postcardReducer', () => {
     expect(state.zoom).toBe(1);
     expect(state.geometry).toBe(splitGeo);
   });
+
+  describe('rotation', () => {
+    const opened = () =>
+      postcardReducer(initialState('landscape'), {
+        type: 'OPEN_PHOTO',
+        photo,
+        aspect: 'landscape',
+        base,
+        geometry: geo,
+      });
+
+    it('starts level', () => {
+      expect(initialState('landscape').rotation).toBe(0);
+      expect(opened().rotation).toBe(0);
+    });
+
+    it('comes back from a draft at the angle it was saved at', () => {
+      const state = postcardReducer(initialState('landscape'), {
+        type: 'OPEN_PHOTO',
+        photo,
+        aspect: 'landscape',
+        base,
+        geometry: geo,
+        restored: { rotation: 42 },
+      });
+      expect(state.rotation).toBe(42);
+    });
+
+    it('is left alone by a zoom that does not mention it', () => {
+      // The slider cannot rotate, so it dispatches CHANGE_ZOOM without a
+      // rotation -- reading that as 0 would straighten the photo every
+      // time someone touched the zoom.
+      let state = postcardReducer(opened(), {
+        type: 'SET_ROTATION',
+        rotation: 30,
+        base,
+        crop: base,
+      });
+      state = postcardReducer(state, {
+        type: 'CHANGE_ZOOM',
+        crop: { x: 1, y: 1, w: 10, h: 10 },
+        zoom: 2,
+      });
+      expect(state.rotation).toBe(30);
+      expect(state.zoom).toBe(2);
+    });
+
+    it('is carried by a pinch, which twists on the same two fingers', () => {
+      const state = postcardReducer(opened(), {
+        type: 'CHANGE_ZOOM',
+        crop: { x: 1, y: 1, w: 10, h: 10 },
+        zoom: 1.5,
+        rotation: 12,
+      });
+      expect(state.rotation).toBe(12);
+    });
+
+    it('resets with the photo it belonged to', () => {
+      // Same line every other per-photo setting is on: an angle chosen to
+      // straighten one photo means nothing for the next one.
+      const turned = postcardReducer(opened(), {
+        type: 'SET_ROTATION',
+        rotation: 90,
+        base,
+        crop: base,
+      });
+      const replaced = postcardReducer(turned, {
+        type: 'REPLACE_PHOTO',
+        photo: { ...photo, url: 'blob:z' },
+        base,
+      });
+      expect(replaced.rotation).toBe(0);
+    });
+  });
 });

@@ -1,11 +1,12 @@
 import React from 'react';
 import { useI18n } from '../i18n';
-import { MAX_ZOOM, MIN_ZOOM } from '../cropGesture';
+import { MAX_ZOOM, MIN_ZOOM, QUARTER_TURN, normalizeRotation } from '../cropGesture';
 import CollapsiblePanel from './CollapsiblePanel';
+import { RotateIcon } from './icons';
 
 const FILTERS = ['none', 'grayscale', 'sepia', 'vintage'];
 
-export default function FilterPanel({ zoom, onZoomChange, filter, onFilterChange, adjustments, onAdjustmentsChange, onReset }) {
+export default function FilterPanel({ zoom, onZoomChange, rotation, onRotationChange, filter, onFilterChange, adjustments, onAdjustmentsChange, onReset }) {
   const { t } = useI18n();
 
   const setAdjustment = (key) => (e) =>
@@ -14,6 +15,8 @@ export default function FilterPanel({ zoom, onZoomChange, filter, onFilterChange
   return (
     <CollapsiblePanel title={t('editor.filter')}>
       <p className="text-option-note">{t('editor.cropHint')}</p>
+
+      <RotationField rotation={rotation} onChange={onRotationChange} />
 
       {/* Bounds come from `cropGesture` so the slider and a pinch can't
           drift apart -- a pinch past the slider's end would leave the
@@ -62,6 +65,62 @@ export default function FilterPanel({ zoom, onZoomChange, filter, onFilterChange
         {t('editor.reset')}
       </button>
     </CollapsiblePanel>
+  );
+}
+
+/**
+ * Turning the photo, for anyone not holding it: two quarter-turn buttons
+ * either side of a fine slider.
+ *
+ * The two-finger twist on the preview is the primary way to do this on a
+ * phone and does not need a control at all -- but a gesture nothing on
+ * screen mentions is a gesture most people never find, and a mouse cannot
+ * perform it. So this is both the discoverable label for the gesture and
+ * the only way in on a desktop.
+ *
+ * The slider runs -180..180 rather than the stored 0..360 because a
+ * straightening nudge is the common case and "-3 degrees" is what that
+ * feels like; `normalizeRotation` converts back on the way in, so the
+ * stored value stays in one range no matter which control wrote it.
+ */
+function RotationField({ rotation, onChange }) {
+  const { t } = useI18n();
+  const signed = rotation > 180 ? Math.round(rotation) - 360 : Math.round(rotation);
+
+  return (
+    <div className="slider-field">
+      <div className="slider-field-row">
+        <span>{t('editor.rotate')}</span>
+        <span>{`${signed}°`}</span>
+      </div>
+      <div className="rotate-row">
+        <button
+          type="button"
+          className="btn ghost rotate-step"
+          onClick={() => onChange(normalizeRotation(rotation - QUARTER_TURN))}
+        >
+          <RotateIcon clockwise={false} />
+          <span className="visually-hidden">{t('editor.rotateLeft')}</span>
+        </button>
+        <input
+          type="range"
+          min={-180}
+          max={180}
+          step={1}
+          value={signed}
+          aria-label={t('editor.rotate')}
+          onChange={(e) => onChange(normalizeRotation(Number(e.target.value)))}
+        />
+        <button
+          type="button"
+          className="btn ghost rotate-step"
+          onClick={() => onChange(normalizeRotation(rotation + QUARTER_TURN))}
+        >
+          <RotateIcon />
+          <span className="visually-hidden">{t('editor.rotateRight')}</span>
+        </button>
+      </div>
+    </div>
   );
 }
 

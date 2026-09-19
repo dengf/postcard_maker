@@ -14,6 +14,8 @@
  * around it, and re-deriving crops when a slot changes shape.
  */
 
+import { suggestRotatedCrop } from './rotateGeometry';
+
 /** A slot's own on-card pixel aspect ratio: its fraction of the card,
  * scaled by the whole card's ratio -- see CLAUDE.md/`crop.rs`'s
  * `suggest_for_ratio` for why a collage slot needs this instead of one of
@@ -61,9 +63,13 @@ export function withSelected(row, selected) {
  * What resets per slot is what belonged to the *old shape*: the crop and
  * the zoom, which were framed for different proportions and would be
  * wrong (or out of bounds) against the new ones. What carries is what
- * belongs to the *photo* -- the filter and the adjustments -- the same
- * line `REPLACE_PHOTO` draws in the other direction, where the shape
- * stays and the photo changes.
+ * belongs to the *photo* -- the filter, the adjustments, and the angle it
+ * was turned to -- the same line `REPLACE_PHOTO` draws in the other
+ * direction, where the shape stays and the photo changes. (A photo
+ * someone straightened is straight regardless of which slot it lands in;
+ * the crop that fits at that angle is what depends on the slot, which is
+ * why the rotation is carried *into* the new suggestion rather than
+ * reset alongside the crop.)
  *
  * A layout with fewer slots than there are photos drops the extras; they
  * are the last ones in reading order, which is the only stable answer
@@ -73,9 +79,12 @@ export function carrySlots(wasmModule, slots, layout, cardRatio, emptySlot) {
   return layout.slots.map((s, index) => {
     const prev = slots[index];
     if (!prev?.photo) return emptySlot();
-    const base = wasmModule.suggest_crop_ratio(
+    const rotation = prev.rotation ?? 0;
+    const base = suggestRotatedCrop(
+      wasmModule,
       prev.photo.naturalW,
       prev.photo.naturalH,
+      rotation,
       slotPixelRatio(s.area, cardRatio),
     );
     return { ...prev, baseCrop: base, crop: base, zoom: 1 };

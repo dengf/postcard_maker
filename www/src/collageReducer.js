@@ -14,7 +14,17 @@
 import { DEFAULT_ADJUSTMENTS, DEFAULT_STROKE_COLOR, DEFAULT_STROKE_WIDTH } from './postcardReducer';
 
 export function emptySlot() {
-  return { photo: null, baseCrop: null, crop: null, zoom: 1, adjustments: DEFAULT_ADJUSTMENTS, filter: 'none' };
+  return {
+    photo: null,
+    baseCrop: null,
+    crop: null,
+    zoom: 1,
+    // Degrees clockwise; the crop is read in the *rotated* photo's
+    // coordinates once this is non-zero -- see `rotateGeometry.js`.
+    rotation: 0,
+    adjustments: DEFAULT_ADJUSTMENTS,
+    filter: 'none',
+  };
 }
 
 export function initialCollageState(layoutId, slotCount) {
@@ -124,6 +134,7 @@ export function collageReducer(state, action) {
           baseCrop: action.base,
           crop: action.base,
           zoom: 1,
+          rotation: 0,
           adjustments: DEFAULT_ADJUSTMENTS,
           filter: 'none',
         }),
@@ -132,8 +143,32 @@ export function collageReducer(state, action) {
     case 'SET_SLOT_CROP':
       return { ...state, slots: updateSlot(state.slots, action.index, { crop: action.crop }) };
 
+    // Pinch and twist ride the same two fingers, so one action carries
+    // crop, zoom and rotation together; `rotation` is optional because the
+    // zoom slider, which cannot rotate, dispatches this too.
     case 'SET_SLOT_ZOOM':
-      return { ...state, slots: updateSlot(state.slots, action.index, { crop: action.crop, zoom: action.zoom }) };
+      return {
+        ...state,
+        slots: updateSlot(state.slots, action.index, {
+          crop: action.crop,
+          zoom: action.zoom,
+          ...(action.rotation === undefined ? null : { rotation: action.rotation }),
+        }),
+      };
+
+    // Turning a slot's photo changes both the box its crop lives in and
+    // the zoom-1 crop that fits -- `CollageEditor`'s `rotateSlot` works
+    // all of it out together, since it has the wasm module.
+    case 'SET_SLOT_ROTATION':
+      return {
+        ...state,
+        slots: updateSlot(state.slots, action.index, {
+          rotation: action.rotation,
+          baseCrop: action.base,
+          crop: action.crop,
+          ...(action.zoom === undefined ? null : { zoom: action.zoom }),
+        }),
+      };
 
     case 'SET_SLOT_ADJUSTMENTS':
       return { ...state, slots: updateSlot(state.slots, action.index, { adjustments: action.adjustments }) };

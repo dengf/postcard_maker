@@ -3,6 +3,7 @@ import usePhotoGestures from '../usePhotoGestures';
 import { previewFilterCss } from '../previewFilter';
 import { hexToRgb, sampleFrameColor } from '../autoTextColor';
 import { fillCss, parseFillStyle } from '../fillTreatments';
+import { photoLayerStyle } from '../rotateGeometry';
 import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
 import ReplacePhotoButton from './ReplacePhotoButton';
@@ -19,7 +20,7 @@ const FULL_AREA = { x: 0, y: 0, w: 1, h: 1 };
  * version from the real drawn pixels, same "preview approximates, export
  * is authoritative" split as everywhere else this app does this.
  */
-function useAutoFillColor(photoUrl, crop, cssFilter, active) {
+function useAutoFillColor(photoUrl, crop, cssFilter, view, active) {
   const [rgb, setRgb] = useState(null);
   const imgRef = useRef(null);
 
@@ -38,7 +39,7 @@ function useAutoFillColor(photoUrl, crop, cssFilter, active) {
       const img = imgRef.current;
       if (!img || !img.complete || img.naturalWidth === 0) return;
       try {
-        const sampled = sampleFrameColor(img, crop, cssFilter, FULL_AREA);
+        const sampled = sampleFrameColor(img, crop, cssFilter, FULL_AREA, view);
         setRgb(sampled.map(Math.round));
       } catch {
         setRgb(null);
@@ -63,7 +64,7 @@ function useAutoFillColor(photoUrl, crop, cssFilter, active) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
     // fields are the real dependency, not its object identity.
-  }, [photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, active]);
+  }, [photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, view.rotation, active]);
 
   return rgb;
 }
@@ -97,6 +98,9 @@ export default function PostcardCanvas({
   crop,
   baseCrop,
   zoom,
+  rotation,
+  bounds,
+  cropMath,
   onCropChange,
   onPinchZoom,
   aspectRatio,
@@ -132,34 +136,28 @@ export default function PostcardCanvas({
     crop,
     baseCrop,
     zoom,
-    naturalW,
-    naturalH,
+    rotation,
+    cropMath,
     onCropChange,
     onPinchZoom,
     onDoubleTap: onReplacePhoto,
   });
 
-  const bgSizeX = (naturalW / crop.w) * 100;
-  const bgSizeY = (naturalH / crop.h) * 100;
-  const bgPosX = naturalW > crop.w ? (crop.x / (naturalW - crop.w)) * 100 : 0;
-  const bgPosY = naturalH > crop.h ? (crop.y / (naturalH - crop.h)) * 100 : 0;
   const cssFilter = previewFilterCss(adjustments, filter);
+  // The photo is drawn as an `<img>` child of its frame rather than as a
+  // background image, because a background cannot be rotated; see
+  // `rotateGeometry.js`'s `photoLayerStyle`.
+  const layerStyle = photoLayerStyle(crop, bounds, naturalW, naturalH, rotation);
+  const photoView = { bounds, rotation };
 
   const photoArea = geometry?.photoArea ?? FULL_AREA;
   const split = photoArea.w < 1 || photoArea.h < 1;
   const { shape, variant } = parseFillStyle(fillStyle);
   const needsAutoRgb = split && shape !== 'blur' && fillColor === 'auto';
-  const autoFillRgb = useAutoFillColor(photoUrl, crop, cssFilter, needsAutoRgb);
+  const autoFillRgb = useAutoFillColor(photoUrl, crop, cssFilter, photoView, needsAutoRgb);
 
-  let fillBoxStyle;
-  if (shape === 'blur') {
-    fillBoxStyle = {
-      backgroundImage: `url(${photoUrl})`,
-      backgroundSize: `${bgSizeX}% ${bgSizeY}%`,
-      backgroundPosition: `${bgPosX}% ${bgPosY}%`,
-      filter: `${cssFilter} blur(18px)`,
-    };
-  } else {
+  let fillBoxStyle = null;
+  if (shape !== 'blur') {
     const baseRgb = fillColor === 'auto' ? (autoFillRgb ?? [244, 237, 224]) : hexToRgb(fillColor);
     fillBoxStyle = fillCss(shape, variant, baseRgb);
   }
@@ -169,15 +167,21 @@ export default function PostcardCanvas({
     top: `${photoArea.y * 100}%`,
     width: `${photoArea.w * 100}%`,
     height: `${photoArea.h * 100}%`,
-    backgroundImage: `url(${photoUrl})`,
-    backgroundSize: `${bgSizeX}% ${bgSizeY}%`,
-    backgroundPosition: `${bgPosX}% ${bgPosY}%`,
     filter: cssFilter,
   };
 
   return (
     <div className="postcard-frame" style={{ aspectRatio, '--card-ratio': aspectRatio }} ref={frameRef}>
-      {split && <div className="postcard-fill" style={fillBoxStyle} />}
+      {split && shape === 'blur' && (
+        // A second, blurred copy of the same crop stretched across the
+        // whole card. It reuses the photo box's own percentages against a
+        // differently-shaped box on purpose -- that stretch is what fills
+        // the card edge to edge.
+        <div className="postcard-fill" style={{ filter: `${cssFilter} blur(18px)` }}>
+          <img className="photo-layer" src={photoUrl} alt="" draggable="false" style={layerStyle} />
+        </div>
+      )}
+      {split && shape !== 'blur' && <div className="postcard-fill" style={fillBoxStyle} />}
 
       <div
         ref={photoBoxRef}
@@ -185,6 +189,7 @@ export default function PostcardCanvas({
         style={photoBoxStyle}
         {...gestures}
       >
+        <img className="photo-layer" src={photoUrl} alt="" draggable="false" style={layerStyle} />
         {filter === 'vintage' && <div className="postcard-vignette" />}
         {onReplacePhoto && <ReplacePhotoButton onRequest={onReplacePhoto} />}
       </div>
@@ -201,6 +206,7 @@ export default function PostcardCanvas({
         onMessageMove={onMessageMove}
         photoUrl={photoUrl}
         crop={crop}
+        photoView={photoView}
         cssFilter={cssFilter}
         fillStyle={fillStyle}
         fillColor={fillColor}

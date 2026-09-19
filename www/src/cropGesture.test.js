@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_ZOOM,
   MIN_ZOOM,
+  SNAP_WINDOW,
+  normalizeRotation,
   panCrop,
   pinchAnchor,
+  pinchRotation,
   pinchZoom,
+  rebaseCrop,
+  snapRotation,
+  twistAngle,
   zoomedCrop,
   zoomedCropAt,
 } from './cropGesture';
@@ -128,5 +134,91 @@ describe('panCrop', () => {
     const next = panCrop(crop, -100, -100, 1000, 1000);
     expect(next.x).toBe(800);
     expect(next.y).toBe(850);
+  });
+});
+
+describe('normalizeRotation', () => {
+  it('folds any angle into one turn', () => {
+    expect(normalizeRotation(0)).toBe(0);
+    expect(normalizeRotation(360)).toBe(0);
+    expect(normalizeRotation(-90)).toBe(270);
+    expect(normalizeRotation(725)).toBe(5);
+  });
+
+  it('treats a degenerate angle as no rotation', () => {
+    // A twist between two pointers at the same point produces NaN, and a
+    // NaN reaching the wasm boundary is a thrown binding, not a tilt.
+    expect(normalizeRotation(NaN)).toBe(0);
+    expect(normalizeRotation(Infinity)).toBe(0);
+  });
+});
+
+describe('snapRotation', () => {
+  it('pulls a near-level angle exactly level', () => {
+    // Level is what people want and the hardest angle to hit with two
+    // fingers on glass -- an almost-straight photo reads as a mistake.
+    expect(snapRotation(2)).toBe(0);
+    expect(snapRotation(-2)).toBe(0);
+    expect(snapRotation(88)).toBe(90);
+    expect(snapRotation(358)).toBe(0);
+  });
+
+  it('leaves a deliberate tilt alone', () => {
+    expect(snapRotation(SNAP_WINDOW + 3)).toBe(SNAP_WINDOW + 3);
+    expect(snapRotation(45)).toBe(45);
+  });
+});
+
+describe('twistAngle and pinchRotation', () => {
+  it('reads the angle of the line between two fingers', () => {
+    expect(twistAngle({ x: 0, y: 0 }, { x: 10, y: 0 })).toBeCloseTo(0);
+    expect(twistAngle({ x: 0, y: 0 }, { x: 0, y: 10 })).toBeCloseTo(90);
+  });
+
+  it('adds however far the fingers turned to where the photo started', () => {
+    expect(pinchRotation(0, 0, 30)).toBeCloseTo(30);
+    expect(pinchRotation(100, 10, 40)).toBeCloseTo(130);
+  });
+
+  it('measures from the gesture start, so a twist out and back returns', () => {
+    // Frame-to-frame deltas would accumulate rounding and leave the photo
+    // slightly off from where it began -- the same reason `pinchZoom`
+    // works off `startDist`.
+    const start = 40;
+    let angle = 12;
+    for (const step of [20, 55, 90, 55, 20, 12]) angle = step;
+    expect(pinchRotation(start, 12, angle)).toBeCloseTo(start);
+  });
+
+  it('does not read a turn across the atan2 seam as a full spin', () => {
+    // atan2 jumps from 180 to -180; unfolded, a 10-degree nudge there
+    // would register as a 350-degree jolt.
+    expect(pinchRotation(0, 175, -175)).toBeCloseTo(10);
+    expect(pinchRotation(0, -175, 175)).toBeCloseTo(350);
+  });
+});
+
+describe('rebaseCrop', () => {
+  it('keeps a crop in the same relative place in a new box', () => {
+    // Turning the photo resizes the box the crop lives in. Holding the
+    // fractional centre is what makes a twist continuous instead of
+    // snapping a panned-into-a-corner framing back to the middle.
+    const crop = { x: 0, y: 0, w: 100, h: 100 };
+    const next = rebaseCrop(crop, { w: 400, h: 400 }, { w: 800, h: 800 });
+    expect(next.x).toBe(50); // centre was at 1/8; 1/8 of 800 is 100
+    expect(next.y).toBe(50);
+    expect(next.w).toBe(100);
+  });
+
+  it('is a no-op when the box did not change', () => {
+    const crop = { x: 30, y: 40, w: 100, h: 80 };
+    expect(rebaseCrop(crop, { w: 500, h: 500 }, { w: 500, h: 500 })).toEqual(crop);
+  });
+
+  it('survives a degenerate box rather than producing NaN', () => {
+    const crop = { x: 0, y: 0, w: 10, h: 10 };
+    const next = rebaseCrop(crop, { w: 0, h: 0 }, { w: 100, h: 100 });
+    expect(Number.isFinite(next.x)).toBe(true);
+    expect(Number.isFinite(next.y)).toBe(true);
   });
 });

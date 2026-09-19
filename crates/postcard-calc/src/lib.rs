@@ -9,6 +9,7 @@ pub mod crop;
 pub mod face;
 pub mod filters;
 pub mod pipeline;
+pub mod rotate;
 pub mod template;
 pub mod vibe;
 
