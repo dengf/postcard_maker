@@ -6,6 +6,7 @@ import { captionFor } from "../vibeCaptions";
 import { photoTone } from "../photoTone";
 import { suggestExposure } from "../exposureSuggestion";
 import { suggestGroup, groupCaptionFor } from "../groupSuggestion";
+import { readPhotoMoment, momentCaptionFor } from "../photoMoment";
 import { useIsNarrow } from "../useIsNarrow";
 
 // 2, not more: every vibe has a large pool of look variants (see
@@ -67,6 +68,7 @@ function labelFor(t, candidate) {
  * much smaller model (`count_faces`) downloaded alongside the vibe one.
  */
 export default function VibePanel({
+  wasmModule,
   photoBytes,
   onApply,
   onSetMessage,
@@ -129,9 +131,14 @@ export default function VibePanel({
       // change the displayed line for reasons that have nothing to do
       // with the caption itself.
       const topVibe = matches[0]?.vibe ?? null;
+      // Last rung, and the only one that needs no model at all: the
+      // photo's own EXIF date, read through the *main* wasm bundle, so
+      // it answers for a photo none of the rungs above it can reach --
+      // no matched vibe, no face found. See `photoMoment.js`.
       setCaption(
         (topVibe ? captionFor(topVibe) : null) ??
-          groupCaptionFor(result?.faceCount ?? 0),
+          groupCaptionFor(result?.faceCount ?? 0) ??
+          momentCaptionFor(readPhotoMoment(wasmModule, photoBytes)),
       );
       setPhase("result");
     } catch (err) {

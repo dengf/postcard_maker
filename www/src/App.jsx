@@ -681,6 +681,7 @@ function AppShell({ wasmModule }) {
 
             <div className="editor-controls-col">
               <VibePanel
+                wasmModule={wasmModule}
                 photoBytes={photo.bytes}
                 onApply={applyVibe}
                 onSetMessage={(m) => dispatch({ type: 'SET_MESSAGE', message: m })}

@@ -35,6 +35,14 @@ const ROTATE_BINDINGS = {
   fit_rotated_crop: 7,
 };
 
+// `read_photo_moment(bytes, timezone)` is the same hazard in miniature:
+// the timezone reads like an optional refinement, but wasm-bindgen
+// reaches for `.length` on the missing `&str` and throws before any of
+// this file's own code runs. `photoMoment.js` is its wrapper, and is
+// also where the `Intl` lookup that produces the argument lives.
+const MOMENT_WRAPPER = 'photoMoment.js';
+const MOMENT_BINDINGS = { read_photo_moment: 2 };
+
 /** Every `.js`/`.jsx` source under src/, minus tests, with comments stripped. */
 function sources(dir = SRC) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -98,30 +106,37 @@ describe('wasm call sites', () => {
     expect(call[1].split(',')).toHaveLength(3);
   });
 
-  it.each(Object.keys(ROTATE_BINDINGS))(
-    'reaches %s only through rotateGeometry.js',
-    (binding) => {
-      const direct = sources()
-        .filter(({ file }) => file !== ROTATE_WRAPPER)
-        .filter(({ source }) => new RegExp(`\\.${binding}\\s*\\(`).test(source))
-        .map(({ file }) => file);
-
-      expect(direct).toEqual([]);
-    },
+  // Every remaining guarded binding as [binding, arity, wrapper]. A third
+  // hand-copied pair of blocks is where that stops being worth it -- the
+  // guard itself must not be the thing nobody updates.
+  const guarded = [
+    [ROTATE_WRAPPER, ROTATE_BINDINGS],
+    [MOMENT_WRAPPER, MOMENT_BINDINGS],
+  ].flatMap(([wrapper, bindings]) =>
+    Object.entries(bindings).map(([binding, arity]) => [binding, arity, wrapper]),
   );
 
-  it.each(Object.entries(ROTATE_BINDINGS))(
-    'and rotateGeometry.js forwards all of %s’s arguments',
-    (binding, arity) => {
-      const wrapper = fs.readFileSync(path.join(SRC, ROTATE_WRAPPER), 'utf8');
-      const at = wrapper.indexOf(`.${binding}(`);
+  it.each(guarded)('reaches %s only through %s', (binding, _arity, wrapper) => {
+    const direct = sources()
+      .filter(({ file }) => file !== wrapper)
+      .filter(({ source }) => new RegExp(`\\.${binding}\\s*\\(`).test(source))
+      .map(({ file }) => file);
+
+    expect(direct).toEqual([]);
+  });
+
+  it.each(guarded)(
+    'and the wrapper forwards all %s arguments',
+    (binding, arity, wrapper) => {
+      const source = fs.readFileSync(path.join(SRC, wrapper), 'utf8');
+      const at = source.indexOf(`.${binding}(`);
       expect(at).toBeGreaterThan(-1);
 
       // Split, not matched: an argument like `Math.max(0, Math.round(x))`
       // nests parentheses and commas of its own, which no reasonable
       // regex survives. Take the text between the call's own parentheses,
       // then break it on the commas that sit outside any nested pair.
-      expect(splitArgs(between(wrapper, wrapper.indexOf('(', at)))).toHaveLength(arity);
+      expect(splitArgs(between(source, source.indexOf('(', at)))).toHaveLength(arity);
     },
   );
 });

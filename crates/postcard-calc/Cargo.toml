@@ -8,6 +8,11 @@ license.workspace = true
 [dependencies]
 postcard-core.workspace = true
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+# EXIF metadata (the date a photo was taken) -- `image` exposes only the
+# orientation tag and its own docs point here for everything else. Pure
+# Rust, no dependencies of its own, so it costs the main wasm bundle
+# nothing but the parser itself; see `moment.rs`.
+kamadak-exif = "0.6"
 rten = { version = "0.25", optional = true }
 rten-tensor = { version = "0.25", optional = true }
 
