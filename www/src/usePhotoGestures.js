@@ -9,6 +9,7 @@ import {
   zoomedCropAt,
 } from './cropGesture';
 import { createTapLog, distance, recordTap } from './doubleTap';
+import { fitZoom } from './letterbox';
 
 /**
  * Every gesture one photo surface understands: one finger pans, two
@@ -104,7 +105,6 @@ export default function usePhotoGestures({
         if (points.length < 2) return;
         const start = pinch.current;
         const math = live.current.cropMath;
-        const nextZoom = pinchZoom(start.startZoom, start.startDist, distance(points[0], points[1]));
         const nextRotation = pinchRotation(
           start.startRotation,
           start.startAngle,
@@ -119,6 +119,15 @@ export default function usePhotoGestures({
         // snapping back to centre.
         const bounds = math.bounds(nextRotation);
         const base = math.base(nextRotation);
+        // Which is also why the zoom-out floor is read here and not once
+        // at the start: how far out is worth going is a fact about the
+        // photo *at this angle*, and the angle is still moving.
+        const nextZoom = pinchZoom(
+          start.startZoom,
+          start.startDist,
+          distance(points[0], points[1]),
+          fitZoom(base, bounds),
+        );
         const from = rebaseCrop(start.crop, start.bounds, bounds);
 
         // Always from the crop the pinch started on, so the gesture is

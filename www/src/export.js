@@ -6,6 +6,7 @@ import { stickerById, stickerDataUrl } from './stickers';
 import { wrapText } from './wordwrap';
 import { averageColor, bestContrastColor, hexToRgb } from './autoTextColor';
 import { drawFill, parseFillStyle } from './fillTreatments';
+import { BLUR_BED_RADIUS, BLUR_BED_SCALE, FULL_FIT, isLetterboxed } from './letterbox';
 
 /**
  * The one-time "flatten to final image" step -- see CLAUDE.md for why
@@ -35,8 +36,17 @@ export async function renderPostcard({
   rotation = 0,
   toLabel = 'To',
   messagePosition,
+  photoFit = FULL_FIT,
   maxDimension = 2000,
 }) {
+  // `maxDimension` caps the *crop*, and a letterboxed crop is only part
+  // of the card -- left alone, zooming out would quietly export a bigger
+  // card than a zoomed-in one. Scaling the cap by the smaller of the two
+  // fractions keeps the card itself at the size it always was.
+  const cropMaxDimension = Math.max(
+    1,
+    Math.round(maxDimension * Math.min(photoFit.w, photoFit.h)),
+  );
   const bytes = wasmModule.process_photo(photoBytes, {
     cropX: crop.x,
     cropY: crop.y,
@@ -49,7 +59,7 @@ export async function renderPostcard({
     contrast: adjustments.contrast,
     saturation: adjustments.saturation,
     filter,
-    maxDimension,
+    maxDimension: cropMaxDimension,
     format: 'jpeg',
     quality: 90,
   });
@@ -66,9 +76,16 @@ export async function renderPostcard({
     // occupies -- for `photoArea` = the whole unit square (full-bleed),
     // this reduces to exactly `baseImg`'s own dimensions, same as before
     // this split layout existed.
+    // Zoomed out past 1x, `baseImg` is no longer the whole photo box --
+    // it is `photoFit` of it, the rest being the blurred bed drawn below
+    // (see `letterbox.js`). Dividing by the fit recovers the box, and at
+    // `FULL_FIT` that division is by 1 and this is the line it always
+    // was.
+    const boxW = Math.max(1, Math.round(baseImg.naturalWidth / photoFit.w));
+    const boxH = Math.max(1, Math.round(baseImg.naturalHeight / photoFit.h));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(baseImg.naturalWidth / photoArea.w));
-    canvas.height = Math.max(1, Math.round(baseImg.naturalHeight / photoArea.h));
+    canvas.width = Math.max(1, Math.round(boxW / photoArea.w));
+    canvas.height = Math.max(1, Math.round(boxH / photoArea.h));
     const ctx = canvas.getContext('2d');
 
     const split = photoArea.w < 1 || photoArea.h < 1;
@@ -77,6 +94,12 @@ export async function renderPostcard({
       y: photoArea.y * canvas.height,
       w: photoArea.w * canvas.width,
       h: photoArea.h * canvas.height,
+    };
+    const fitRect = {
+      x: photoRect.x + photoFit.x * photoRect.w,
+      y: photoRect.y + photoFit.y * photoRect.h,
+      w: photoFit.w * photoRect.w,
+      h: photoFit.h * photoRect.h,
     };
 
     const { shape, variant } = parseFillStyle(fillStyle);
@@ -93,7 +116,11 @@ export async function renderPostcard({
       ctx.filter = 'none';
     }
 
-    ctx.drawImage(baseImg, photoRect.x, photoRect.y, photoRect.w, photoRect.h);
+    if (isLetterboxed(photoFit)) {
+      drawBlurBed(ctx, baseImg, photoRect);
+    }
+
+    ctx.drawImage(baseImg, fitRect.x, fitRect.y, fitRect.w, fitRect.h);
 
     if (split && shape !== 'blur') {
       // `photoRect` and `blankArea` never overlap (see
@@ -142,6 +169,32 @@ export async function renderPostcard({
   } finally {
     URL.revokeObjectURL(baseUrl);
   }
+}
+
+/**
+ * Fills `box` with a blurred copy of `img` behind a photo that no longer
+ * covers it -- the export half of `letterbox.js`, and the same treatment
+ * the `blur` split shape above gives a card's blank side.
+ *
+ * Scaled to *cover* rather than stretched, so the bed keeps the photo's
+ * proportions (`coverCrop` is the preview's way of saying the same
+ * thing), over-scanned by the shared `BLUR_BED_SCALE` so both sides frame
+ * it alike, and clipped to the box so neither the overscan nor the blur's
+ * own spread reaches a split card's blank side.
+ */
+function drawBlurBed(ctx, img, box) {
+  const scale =
+    Math.max(box.w / img.naturalWidth, box.h / img.naturalHeight) * BLUR_BED_SCALE;
+  const w = img.naturalWidth * scale;
+  const h = img.naturalHeight * scale;
+  const blurPx = Math.max(8, Math.round(Math.min(box.w, box.h) * BLUR_BED_RADIUS));
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(box.x, box.y, box.w, box.h);
+  ctx.clip();
+  ctx.filter = `blur(${blurPx}px)`;
+  ctx.drawImage(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
+  ctx.restore();
 }
 
 /** Draws a real rule line at the photo/blank boundary of a split layout
@@ -334,7 +387,13 @@ export async function renderCollage({
       // so a later one can legitimately overlap an earlier one's edge
       // (anti-aliasing seams), same reasoning as stickers below.
       const img = await loadImage(url);
-      ctx.drawImage(img, slotX, slotY, slotW, slotH);
+      // A slot zoomed out past 1x shows its photo smaller than the slot,
+      // on a blurred bed of its own -- per slot, since a collage cuts
+      // every photo to a different shape. `FULL_FIT` is the whole slot.
+      const fit = s.photoFit ?? FULL_FIT;
+      const box = { x: slotX, y: slotY, w: slotW, h: slotH };
+      if (isLetterboxed(fit)) drawBlurBed(ctx, img, box);
+      ctx.drawImage(img, box.x + fit.x * box.w, box.y + fit.y * box.h, fit.w * box.w, fit.h * box.h);
     } finally {
       URL.revokeObjectURL(url);
     }

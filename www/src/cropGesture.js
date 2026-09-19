@@ -12,14 +12,21 @@ function clamp(value, lo, hi) {
   return Math.min(Math.max(value, lo), Math.max(lo, hi));
 }
 
+/** The zoom at which the photo exactly fills the card: `crop` is then the
+ * zoom-1 suggestion, the largest rectangle of the card's shape that fits
+ * on the photo. It is the *top* of the zoom-out range, not the bottom --
+ * below it the crop can no longer grow to match, so the photo is drawn
+ * smaller than the card with a blurred bed behind it (`letterbox.js`).
+ * How far below depends on the photo, so the floor is `fitZoom`'s answer
+ * and travels as a parameter rather than living here as a constant. */
+export const FILL_ZOOM = 1;
+export const MAX_ZOOM = 3;
+
 /** What the zoom slider offers, and so what a pinch is held to as well --
  * one gesture and one control driving the same value must agree on its
  * range, or a pinch can leave the slider pinned at an end. */
-export const MIN_ZOOM = 1;
-export const MAX_ZOOM = 3;
-
-export function clampZoom(zoom) {
-  return clamp(zoom, MIN_ZOOM, MAX_ZOOM);
+export function clampZoom(zoom, minZoom = FILL_ZOOM) {
+  return clamp(zoom, minZoom, MAX_ZOOM);
 }
 
 /** What the quick-turn buttons step by, and the angles a twist snaps to. */
@@ -107,10 +114,17 @@ export function rebaseCrop(crop, from, to) {
  * that answer is the authority. This is not a second implementation of
  * it -- it is what stops a mid-gesture rectangle reaching the wasm
  * boundary with a negative origin.
+ *
+ * Below `FILL_ZOOM` the rectangle this asks for is *larger* than the
+ * photo, and the size clamp is what keeps the crop a real rectangle of
+ * real pixels: it stops growing at the photo's own edge, and the gap
+ * between what was asked for and what was given is the letterbox
+ * `photoFit` then measures. Every crop that leaves here is still one
+ * `crop::validate` accepts, at any zoom.
  */
 export function zoomedCropAt(crop, baseCrop, boundsW, boundsH, zoom, anchor) {
-  const w = Math.max(1, Math.round(baseCrop.w / zoom));
-  const h = Math.max(1, Math.round(baseCrop.h / zoom));
+  const w = clamp(Math.round(baseCrop.w / zoom), 1, Math.max(1, boundsW));
+  const h = clamp(Math.round(baseCrop.h / zoom), 1, Math.max(1, boundsH));
   const { fx, fy } = anchor;
   // The source pixel currently under the anchor, which has to stay there.
   const sx = crop.x + fx * crop.w;
@@ -154,10 +168,14 @@ export function pinchAnchor(rect, a, b) {
  * gesture's own starting distance every frame rather than the previous
  * frame's, so a pinch out and back lands exactly where it began instead
  * of accumulating rounding drift.
+ *
+ * `minZoom` is the photo's own zoom-out floor, not a constant, because
+ * how far out is worth going depends on how much of the photo the card's
+ * shape leaves out -- see `letterbox.js`'s `fitZoom`.
  */
-export function pinchZoom(startZoom, startDist, dist) {
-  if (!(startDist > 0)) return clampZoom(startZoom);
-  return clampZoom((startZoom * dist) / startDist);
+export function pinchZoom(startZoom, startDist, dist, minZoom = FILL_ZOOM) {
+  if (!(startDist > 0)) return clampZoom(startZoom, minZoom);
+  return clampZoom((startZoom * dist) / startDist, minZoom);
 }
 
 /** Pans `crop` by a delta already converted into source-photo pixels. */

@@ -62,6 +62,10 @@ it('the shared hook reads a twist off the same two pointers', () => {
 // could reach 4x would leave the slider pinned at its own maximum while
 // the photo kept growing.
 it('the zoom slider spans exactly what a pinch can reach', () => {
-  expect(panel).toMatch(/min=\{MIN_ZOOM\} max=\{MAX_ZOOM\}/);
+  expect(panel).toMatch(/min=\{minZoom\} max=\{MAX_ZOOM\}/);
   expect(panel).toMatch(/from '\.\.\/cropGesture'/);
+  // The bottom end is the photo's, so both controls have to be handed
+  // the same one rather than each falling back to the constant.
+  expect(panel).toMatch(/minZoom = FILL_ZOOM/);
+  expect(read('usePhotoGestures.js')).toMatch(/fitZoom\(base, bounds\)/);
 });

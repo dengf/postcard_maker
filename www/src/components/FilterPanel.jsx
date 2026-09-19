@@ -1,12 +1,12 @@
 import React from 'react';
 import { useI18n } from '../i18n';
-import { MAX_ZOOM, MIN_ZOOM, QUARTER_TURN, normalizeRotation } from '../cropGesture';
+import { FILL_ZOOM, MAX_ZOOM, QUARTER_TURN, normalizeRotation } from '../cropGesture';
 import CollapsiblePanel from './CollapsiblePanel';
 import { RotateIcon } from './icons';
 
 const FILTERS = ['none', 'grayscale', 'sepia', 'vintage'];
 
-export default function FilterPanel({ zoom, onZoomChange, rotation, onRotationChange, filter, onFilterChange, adjustments, onAdjustmentsChange, onReset }) {
+export default function FilterPanel({ zoom, minZoom = FILL_ZOOM, onZoomChange, rotation, onRotationChange, filter, onFilterChange, adjustments, onAdjustmentsChange, onReset }) {
   const { t } = useI18n();
 
   const setAdjustment = (key) => (e) =>
@@ -20,8 +20,12 @@ export default function FilterPanel({ zoom, onZoomChange, rotation, onRotationCh
 
       {/* Bounds come from `cropGesture` so the slider and a pinch can't
           drift apart -- a pinch past the slider's end would leave the
-          two controls disagreeing about the same number. */}
-      <SliderField label={t('editor.zoom')} value={zoom} min={MIN_ZOOM} max={MAX_ZOOM} step={0.01} onChange={(e) => onZoomChange(Number(e.target.value))} display={`${zoom.toFixed(1)}x`} />
+          two controls disagreeing about the same number. The bottom end
+          is the photo's own, not a constant: below 1x the card shows the
+          whole photo on a blurred bed, and how far below that is worth
+          going depends on how much this photo's shape differs from the
+          card's (`letterbox.js`'s `fitZoom`). */}
+      <SliderField label={t('editor.zoom')} value={zoom} min={minZoom} max={MAX_ZOOM} step={0.01} onChange={(e) => onZoomChange(Number(e.target.value))} display={`${zoom.toFixed(2).replace(/0$/, '')}x`} />
 
       <div className="filter-options">
         {FILTERS.map((f) => (

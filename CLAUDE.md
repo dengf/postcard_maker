@@ -548,9 +548,11 @@ future attempt has to weigh, not a prompt-tuning problem.
     on**, against the fingers' starting distance — not from the previous
     frame — so a pinch out and back lands exactly where it began instead
     of accumulating rounding drift.
-  - **The pinch and the zoom slider share `MIN_ZOOM`/`MAX_ZOOM`.** They
-    write the same stored number; a pinch that could pass the slider's
-    own maximum would leave the two controls disagreeing on screen.
+  - **The pinch and the zoom slider share their range.** They write the
+    same stored number; a pinch that could pass the slider's own maximum
+    would leave the two controls disagreeing on screen. The top of that
+    range is `MAX_ZOOM`, but the bottom is the *photo's* — see
+    "Zooming out" below.
   - **Lifting one of two fingers re-bases the pan on the crop the pinch
     just produced**, or the photo jumps as the remaining finger moves
     against a stale crop — and that continued pan is marked untappable,
@@ -563,6 +565,69 @@ future attempt has to weigh, not a prompt-tuning problem.
   by default; when on, `share.js`'s `shareFiles`/`saveFiles` carry two
   files, relying on `navigator.share`'s native multi-file support rather
   than anything new.
+
+## Zooming out: the whole photo on the card, on a blurred bed
+
+The zoom slider does not scale the photo, it sizes the crop
+(`crop.w = baseCrop.w / zoom`), and `baseCrop` is Rust's
+`suggest_for_ratio` -- the largest rectangle of the card's shape that
+fits on the photo. So `zoom = 1` was already as far out as cropping can
+go, and any photo whose proportions differ from the card's arrived with
+its edges cut off and no way to get them back: a 4:3 phone photo on the
+3:2 card lost 333 of its 3000 rows before the editor even opened. That
+was reported as "why can't I zoom smaller than the original size". The
+answer is `letterbox.js`, and the parts worth not re-deriving:
+
+- **The crop stays a real rectangle of real pixels at every zoom.**
+  Below 1x the rectangle the zoom asks for is bigger than the photo, so
+  `zoomedCropAt` stops it at the photo's own edge. Nothing out of bounds
+  reaches the wasm boundary, `crop::validate` needed no relaxing, and a
+  draft saved at any zoom reopens through the path it always did
+  (verified by reload, not assumed). The shortfall between the
+  rectangle asked for and the one given *is* the letterbox --
+  `photoFit` measures it as a fraction of the frame, and everything
+  downstream is that one number.
+- **`photoFit` returns the identity at 1x and above**, so a card that
+  was never zoomed out renders and exports down exactly the code path
+  it did before. The preview's `.photo-fit` box defaults to the whole
+  frame; the bed is not rendered at all.
+- **The margin gets a blurred copy of the same photo**, the treatment
+  `fillTreatments.js`'s `blur` shape already gives a split card's blank
+  side. It is scaled to *cover*, never stretched (`coverCrop` in the
+  preview, `drawBlurBed`'s cover-fit at export) -- a stretch would be
+  invisible under the blur but it would be the one place this app draws
+  a photo out of proportion.
+- **The bed is over-scanned by `BLUR_BED_SCALE`** because a CSS
+  `filter: blur()` samples past what it is blurring, finds nothing, and
+  fades -- a bed sized exactly to the frame leaves a pale rim, which
+  the frame's `overflow: hidden` clips away once the bed is bigger than
+  it.
+- **The blur radius is `cqmin`, not pixels** (`BLUR_BED_RADIUS`, spent
+  in `main.css` and multiplied out in `drawBlurBed`). The preview frame
+  is a few hundred pixels across and the exported card a couple of
+  thousand; a fixed radius that reads as a soft wash on screen comes
+  out a legible second photo in the saved file. This is the one place a
+  container query is load-bearing -- `.postcard-photo-box` and
+  `.collage-photo-slot` carry `container-type: size` for it.
+- **The floor is rounded down onto the slider's 0.01 step.** An
+  `<input type=range>` counts its steps from its own minimum, so a raw
+  floor of 0.8892 puts the nearest stops at 0.9892 and 0.9992 and makes
+  1x -- the zoom every photo starts at -- the one value the slider
+  cannot return to. `fitZoom` does the rounding so the pinch agrees.
+- **It is exact at quarter turns and approximate in between.** At
+  0/90/180/270 the photo fills its own bounding box and zooming out to
+  the floor really does reveal every pixel. At any other angle
+  `rotate::fit` still holds the crop's corners on the tilted photo, so
+  zooming out there shrinks the photo on the card instead of revealing
+  more of it. That is deliberate: the alternative is transparent
+  corners where the crop overhangs the tilted photo, and this keeps
+  `rotate::fit` the single authority on what a turned photo may show.
+- **`maxDimension` is scaled by the fit at export**, or zooming out
+  would quietly save a bigger card than zooming in -- the cap applies
+  to the crop, and a letterboxed crop is only part of the card.
+- Collage slots get all of this per slot, since a collage cuts every
+  photo to a different shape. `letterbox.test.js` covers the
+  arithmetic; the browser harness is `scratchpad/review/s22`/`s23`.
 
 ## Rotating the photo
 

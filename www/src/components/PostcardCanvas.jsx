@@ -3,6 +3,7 @@ import usePhotoGestures from '../usePhotoGestures';
 import { previewFilterCss } from '../previewFilter';
 import { hexToRgb, sampleFrameColor } from '../autoTextColor';
 import { fillCss, parseFillStyle } from '../fillTreatments';
+import { BLUR_BED_SCALE, coverCrop, isLetterboxed, photoFit } from '../letterbox';
 import { photoLayerStyle } from '../rotateGeometry';
 import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
@@ -150,6 +151,17 @@ export default function PostcardCanvas({
   const layerStyle = photoLayerStyle(crop, bounds, naturalW, naturalH, rotation);
   const photoView = { bounds, rotation };
 
+  // Below 1x the crop has stopped growing at the photo's own edge, so the
+  // photo covers only part of the box and the rest gets a blurred,
+  // over-scanned copy of it -- see `letterbox.js`. At 1x and above `fit`
+  // is the whole box and the bed is not rendered at all, leaving the
+  // markup a card that was never zoomed out has always had.
+  const fit = photoFit(crop, baseCrop, zoom);
+  const letterboxed = isLetterboxed(fit);
+  const fitStyle = letterboxed
+    ? { left: `${fit.x * 100}%`, top: `${fit.y * 100}%`, width: `${fit.w * 100}%`, height: `${fit.h * 100}%` }
+    : undefined;
+
   const photoArea = geometry?.photoArea ?? FULL_AREA;
   const split = photoArea.w < 1 || photoArea.h < 1;
   const { shape, variant } = parseFillStyle(fillStyle);
@@ -189,8 +201,25 @@ export default function PostcardCanvas({
         style={photoBoxStyle}
         {...gestures}
       >
-        <img className="photo-layer" src={photoUrl} alt="" draggable="false" style={layerStyle} />
-        {filter === 'vintage' && <div className="postcard-vignette" />}
+        {letterboxed && (
+          /* `.postcard-photo-box` already carries `cssFilter`, so the bed
+             inherits the look of the photo and the class only adds the
+             blur. The over-scan keeps that blur's own faded edge outside
+             the box, where the box's `overflow: hidden` clips it. */
+          <div className="photo-blur-bed" style={{ transform: `scale(${BLUR_BED_SCALE})` }} aria-hidden="true">
+            <img
+              className="photo-layer"
+              src={photoUrl}
+              alt=""
+              draggable="false"
+              style={photoLayerStyle(coverCrop(crop, baseCrop), bounds, naturalW, naturalH, rotation)}
+            />
+          </div>
+        )}
+        <div className="photo-fit" style={fitStyle}>
+          <img className="photo-layer" src={photoUrl} alt="" draggable="false" style={layerStyle} />
+          {filter === 'vintage' && <div className="postcard-vignette" />}
+        </div>
         {onReplacePhoto && <ReplacePhotoButton onRequest={onReplacePhoto} />}
       </div>
 
