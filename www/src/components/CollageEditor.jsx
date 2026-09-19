@@ -5,6 +5,7 @@ import { zoomedCrop } from '../cropGesture';
 import { effectiveFont } from '../fonts';
 import { detectLocation } from '../location';
 import { renderCollage } from '../export';
+import { templateGeometry } from '../photoLayout';
 import { collageReducer, initialCollageState } from '../collageReducer';
 import { nextStickerKey } from '../postcardReducer';
 import TemplatePicker from './TemplatePicker';
@@ -63,7 +64,16 @@ export default function CollageEditor({ wasmModule, onError, onExit }) {
     try {
       const fetched = wasmModule.collage_layouts(aspectId);
       setLayouts(fetched);
-      setGeometry(wasmModule.template_geometry(aspectId));
+      // Through `templateGeometry`, never `wasmModule.template_geometry`
+      // directly: the binding takes (aspect, coverage, side), and this
+      // call passed the aspect alone. wasm-bindgen then read `.length`
+      // off an undefined string and threw -- on every entry to the
+      // collage editor, which meant `selectLayout` below never ran and
+      // the editor rendered zero slots. A collage fills the whole card,
+      // so coverage is 'full', which makes `side` moot (as
+      // `postcard_calc::template`'s own doc comment notes) but still
+      // required.
+      setGeometry(templateGeometry(wasmModule, aspectId, 'full', 'first'));
       if (fetched[0]) selectLayout(fetched[0]);
     } catch (err) {
       onError(err);

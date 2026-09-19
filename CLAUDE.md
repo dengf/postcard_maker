@@ -337,6 +337,14 @@ future attempt has to weigh, not a prompt-tuning problem.
   category of scope cut as the single-draft-only limitation above, just
   narrower.
 
+**The collage editor had never actually worked in a shipped build** — see
+the `template_geometry` arity entry under verification traps. It threw on
+entry and rendered no slots, and nobody noticed because the resulting
+toast was blank. Treat that as the standing warning about this section:
+"parked, not a bug" is a claim about code someone has *run*. The collage
+flow now has browser coverage exercising all three layouts and all three
+shapes; keep it that way rather than trusting that it still works.
+
 ## Verification traps specific to this repo
 
 - **The browser and `image` (Rust) can disagree about a photo's own
@@ -415,6 +423,18 @@ future attempt has to weigh, not a prompt-tuning problem.
   script — React doesn't mount until after an async wasm load, so
   anything waiting on `theme.js` would flash the wrong theme for the
   length of that load.
+- **Calling a wasm binding with too few arguments fails with a message
+  that names nothing in this codebase.** wasm-bindgen reads `.length` off
+  the missing `&str`, so you get `undefined is not an object (evaluating
+  'n.length')` — no file, no line, no clue. This shipped:
+  `CollageEditor` called `wasmModule.template_geometry(aspectId)` when the
+  binding takes `(aspect, coverage, side)`, which threw on *every* entry
+  to the collage editor, before `selectLayout` could run, so the editor
+  rendered zero slots and no photo could be added at all. Go through
+  `photoLayout.js`'s `templateGeometry` wrapper, which is what
+  `wasm-call-sites.test.js` now enforces. If another binding grows an
+  argument, give it a wrapper and add it to that guard — the JS side gets
+  no arity checking of its own.
 - **`ErrorToast` only renders what it's given, so `setError(new Error(…))`
   used to produce a toast with a dismiss button and no words in it.** Its
   chain is now `error.code` (translated) → `error.text` (the wasm
