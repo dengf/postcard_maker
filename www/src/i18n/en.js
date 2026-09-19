@@ -7,6 +7,10 @@ export default {
   "app.title": "Postcard Maker",
   "app.byline": "a {logo} app",
   "app.language": "Language",
+  "app.theme": "Theme",
+  "app.themeSystem": "System",
+  "app.themeLight": "Light",
+  "app.themeDark": "Dark",
   "app.updateAvailable": "A new version is ready.",
   "app.reload": "Reload",
 

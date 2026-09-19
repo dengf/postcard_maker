@@ -7,6 +7,10 @@ export default {
   "app.title": "明信片製作",
   "app.byline": "{logo} 出品",
   "app.language": "語言",
+  "app.theme": "主題",
+  "app.themeSystem": "跟隨系統",
+  "app.themeLight": "淺色",
+  "app.themeDark": "深色",
   "app.updateAvailable": "有新版本可用。",
   "app.reload": "重新整理",
 

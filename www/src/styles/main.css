@@ -3,8 +3,32 @@
    accent -- budget_planner and mortgage_calculator kept the blue/green
    accent mortgage_calculator started with rather than take on a bigger
    brand decision than either app asked for; a brand-new tool has no such
-   inherited palette to preserve. */
+   inherited palette to preserve. (budget_planner has since adopted this
+   same plum, so the two tools' chrome now agrees.)
+
+   Three-tier light/dark, matching budget_planner exactly: this `:root`
+   block is the dark default, the `prefers-color-scheme: light` block
+   below applies whenever the OS says light *and* nothing has overridden
+   it, and `:root[data-theme='light']` (Header's theme picker, via
+   theme.js) forces light regardless of what the OS says. The media-query
+   rule is guarded with `:not([data-theme='dark'])` rather than
+   `:not([data-theme])` for two reasons: picking "System" again clears the
+   attribute entirely (see theme.js's `applyTheme`) so that guard still
+   falls through correctly, and an explicit *dark* choice on a light-OS
+   device needs the media query to get out of the way rather than fight
+   it. There's no `[data-theme='dark']` block because dark is already
+   what bare `:root` says -- the guard is the whole mechanism. The light
+   values are necessarily written twice (media-guarded and explicit)
+   since plain custom properties have no shared-block mechanism. */
 :root {
+  /* Follows the tokens through all three tiers so UA-drawn chrome -- the
+     <select> popups in the header, scrollbars, focus rings -- matches the
+     theme actually on screen. Before the picker existed this was always
+     the OS's own answer and needed no declaration; an explicit choice can
+     now disagree with the OS, and without this a dark page on a light
+     device gets a light dropdown. */
+  color-scheme: dark;
+
   --bg: #0f1720;
   --panel: #131c26;
   --panel-alt: #161e2b;
@@ -30,7 +54,9 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
     --bg: #f8f6f5;
     --panel: #ffffff;
     --panel-alt: #f3eef0;
@@ -54,6 +80,36 @@
     --negative-border: #e7b7b3;
     --gold: #8a6a2c;
   }
+}
+
+/* Same values as the media query above, applied on an explicit choice
+   instead of an OS preference. Keep the two in step -- there is no way to
+   share one block between them in plain CSS. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f8f6f5;
+  --panel: #ffffff;
+  --panel-alt: #f3eef0;
+  --surface: #ffffff;
+  --ink: #241a1e;
+  --muted: #6b5860;
+  --muted-2: #9c8a91;
+  --byline: #8a747d;
+  --line: #e6dade;
+  --line-soft: #efe6e9;
+  --input-border: #d9c9cf;
+
+  --accent: #b01243;
+  --accent-ink: #ffffff;
+  --positive: #1f7a3d;
+  --positive-ink: #ffffff;
+  --positive-bg: #e4f3e8;
+  --positive-border: #b8ddc2;
+  --negative: #b3261e;
+  --negative-bg: #fbeae9;
+  --negative-border: #e7b7b3;
+  --gold: #8a6a2c;
 }
 
 * { box-sizing: border-box; }
@@ -97,23 +153,26 @@ body {
 .app-byline:hover, .app-byline:focus-visible { color: var(--ink); }
 .meifio-mark { width: auto; display: block; color: var(--ink); vertical-align: middle; }
 
-.app-regions { display: flex; gap: 2px; background: var(--panel-alt); padding: 3px; border-radius: 8px; }
-.app-region {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  min-width: 44px;
-  border: none;
+/* Language and theme, as two native <select>s -- the same pattern
+   budget_planner settled on. The old three-button segmented control
+   showed only 'EN' / '简' / '繁', so the full language name lived in a
+   `title` a touch screen can't reach; a <select> shows it in the list and
+   in the closed control, and adding theme as a second control of the same
+   shape costs no header width. `min-height` (not `height`) keeps the 44px
+   tap target while letting the control grow with its own text. */
+.app-switches { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.app-select {
   background: transparent;
   color: var(--muted);
-  padding: 6px 14px;
-  border-radius: 6px;
+  border: none;
+  padding: 6px 8px;
+  min-height: 44px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
-.app-region.active { background: var(--accent); color: var(--accent-ink); }
+.app-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .app-main { padding: 24px 0 64px; display: flex; flex-direction: column; gap: 24px; }
 
