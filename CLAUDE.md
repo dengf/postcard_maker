@@ -69,6 +69,18 @@ implementation would be a real bug.
   fixed color — `export.js`'s `renderCollage` still resolves 'auto'
   exactly at export regardless, since it samples the real canvas the
   same way `renderPostcard` does.
+- **'auto' is the *default*, in both reducers — don't set a literal
+  back.** It shipped as a literal `#ffffff` at first, which meant the
+  contrast math above only ran for people who went looking for it. A
+  usage-flow review measured the result on an ordinary bright photo:
+  white over pale sand came to **1.56:1**, under WCAG's 3:1 floor for
+  large text, where 'auto' resolved the same card to ~**10.9:1**. The
+  first postcard someone makes is the one they send, so the safe pick
+  has to be the one they get without asking. `postcardReducer`'s and
+  `collageReducer`'s initial state and the `OPEN_PHOTO` restore fallback
+  all say `'auto'`, and `postcardReducer.test.js` pins it so a
+  regression can't ship quietly. A literal stays one tap away in
+  `TextPanel` for anyone who wants to override it.
 
 ### A real, non-obvious UX interaction
 
@@ -371,6 +383,37 @@ future attempt has to weigh, not a prompt-tuning problem.
   defers the actual canvas resize to `requestAnimationFrame` to break the
   synchronous loop; keep that pattern if another component ever needs to
   resize a canvas to match its container.
+- **`.panel` is `display: flex; flex-direction: column`, so any panel
+  that wants a row has to say `flex-direction: row` explicitly.** Setting
+  only `display: flex` on a `.panel` child class looks right and silently
+  inherits the column — the draft banner's thumbnail stacked above its
+  text instead of sitting beside it until the direction was named. Same
+  family as budget_planner's CSS source-order trap: the rule that bites
+  is the one already there, not the one being written.
+- **The theme has three tiers and only two of them are CSS blocks.**
+  `main.css`'s bare `:root` is dark; the `prefers-color-scheme: light`
+  media query is guarded `:root:not([data-theme='dark'])`; and
+  `:root[data-theme='light']` repeats the same eleven light values for an
+  explicit choice. There is deliberately no `[data-theme='dark']` block —
+  dark is what bare `:root` already says, and the media query's guard is
+  the entire mechanism that lets an explicit dark choice win on a
+  light-OS device. A light token added to one of the two light blocks and
+  not the other produces a theme that is correct only when the OS happens
+  to agree. `color-scheme` follows the tokens through all three tiers so
+  UA-drawn chrome (the header's `<select>` popups, scrollbars) matches;
+  it needed no declaration before the picker existed, because the OS was
+  always right. `index.html` carries a fourth, hand-duplicated copy of
+  the same three tiers for the loading screen plus an inline pre-paint
+  script — React doesn't mount until after an async wasm load, so
+  anything waiting on `theme.js` would flash the wrong theme for the
+  length of that load.
+- **`prettier --check` does not pass on this repo and is not a CI gate**
+  — `.github/workflows/ci.yml`'s `www-test` job runs `npm test` only.
+  ~75 files under `www/src` are already non-conformant on `main`. Match
+  the surrounding style by hand; do **not** run `prettier --write` across
+  the tree as part of an unrelated change, or the real diff disappears
+  into a reformat. (This differs from `budget_planner`, where
+  `format:check` *is* enforced — don't carry the habit across.)
 
 ## Landing changes
 

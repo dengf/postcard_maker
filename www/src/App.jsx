@@ -44,9 +44,13 @@ function AppShell({ wasmModule }) {
 
   const [state, dispatch] = useReducer(postcardReducer, DEFAULT_ASPECT, initialState);
   const [error, setError] = useState(null);
-  const [draftAvailable, setDraftAvailable] = useState(false);
+  // `null` when there's nothing to resume; otherwise the draft's own photo
+  // as an object URL plus when it was last touched, so the banner can show
+  // *which* postcard it means -- see the comment on the loader below.
+  const [draftPreview, setDraftPreview] = useState(null);
 
   const objectUrlRef = useRef(null);
+  const draftPreviewUrlRef = useRef(null);
   const { photo, aspectId, baseCrop, crop, zoom, geometry, adjustments, filter } = state;
   const { message, fontChoice, fontScale, textColor, textAlign, messagePosition, stickers, strokes, drawMode } = state;
   const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } = state;
@@ -56,15 +60,46 @@ function AppShell({ wasmModule }) {
   // visit that isn't a continuation) shouldn't have yesterday's photo
   // reappear without asking. Collage drafts aren't persisted in v1 -- a
   // scope cut, not an oversight, see CLAUDE.md.
+  //
+  // The photo comes back as an object URL for the banner's thumbnail: the
+  // blob is already read here to decide whether to offer resuming at all,
+  // so showing it costs one `createObjectURL` and answers the question the
+  // prompt used to leave open -- *which* unfinished postcard? A day later
+  // the sentence alone doesn't tell you, and Discard is right next to it.
   useEffect(() => {
     if (wasmModule?.unavailable) return;
+    let cancelled = false;
     loadDraft()
-      .then((draft) => setDraftAvailable(!!draft))
+      .then((draft) => {
+        if (cancelled || !draft) return;
+        const url = URL.createObjectURL(draft.photoBlob);
+        draftPreviewUrlRef.current = url;
+        setDraftPreview({ url, updatedAt: draft.updatedAt ?? null });
+      })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [wasmModule]);
+
+  // Drops the banner and its thumbnail without touching what's stored --
+  // used whenever the banner stops being relevant (resumed, discarded, or
+  // superseded by a fresh photo).
+  const releaseDraftPreview = useCallback(() => {
+    if (draftPreviewUrlRef.current) {
+      URL.revokeObjectURL(draftPreviewUrlRef.current);
+      draftPreviewUrlRef.current = null;
+    }
+    setDraftPreview(null);
+  }, []);
 
   const openPhoto = useCallback(
     async (file, restored) => {
+      // Whatever the banner was offering is moot now -- autosave is about
+      // to overwrite that draft with this photo, so leaving the old
+      // thumbnail on screen would advertise something that no longer
+      // exists. (`resumeDraft` has already released it by this point.)
+      releaseDraftPreview();
       const bytes = new Uint8Array(await file.arrayBuffer());
       const url = URL.createObjectURL(file);
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -90,20 +125,33 @@ function AppShell({ wasmModule }) {
         setError(err);
       }
     },
-    [wasmModule],
+    [wasmModule, releaseDraftPreview],
   );
 
   const resumeDraft = useCallback(async () => {
-    setDraftAvailable(false);
+    releaseDraftPreview();
     const draft = await loadDraft();
     if (!draft) return;
     await openPhoto(new File([draft.photoBlob], 'postcard.jpg', { type: draft.photoBlob.type }), draft);
-  }, [openPhoto]);
+  }, [openPhoto, releaseDraftPreview]);
 
-  const discardDraft = useCallback(() => {
-    setDraftAvailable(false);
+  // Deletes the stored draft outright, no prompt -- for callers that have
+  // already asked (`startOver`), so the user isn't made to confirm twice
+  // for one decision.
+  const forgetDraft = useCallback(() => {
+    releaseDraftPreview();
     clearDraft().catch(() => {});
-  }, []);
+  }, [releaseDraftPreview]);
+
+  // The banner's own Discard *does* ask. It sits one thumb-width from
+  // Resume on the screen someone lands on before they've oriented
+  // themselves, and it's unrecoverable -- the same loss `startOver` has
+  // always confirmed, so it gets the same guard.
+  const discardDraft = useCallback(async () => {
+    const ok = await confirm(t('confirm.discardDraftBody'), t('confirm.discardDraft'));
+    if (!ok) return;
+    forgetDraft();
+  }, [confirm, t, forgetDraft]);
 
   const changeAspect = useCallback(
     (nextAspect) => {
@@ -230,8 +278,8 @@ function AppShell({ wasmModule }) {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = null;
     dispatch({ type: 'RESET', defaultAspect: DEFAULT_ASPECT });
-    discardDraft();
-  }, [confirm, t, discardDraft]);
+    forgetDraft();
+  }, [confirm, t, forgetDraft]);
 
   // A one-tap jump to the Share/Save panel -- it's the last thing in a
   // long single-column control stack on phones, and desktop has no
@@ -292,6 +340,7 @@ function AppShell({ wasmModule }) {
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    if (draftPreviewUrlRef.current) URL.revokeObjectURL(draftPreviewUrlRef.current);
   }, []);
 
   if (wasmModule?.unavailable) {
@@ -312,16 +361,29 @@ function AppShell({ wasmModule }) {
     <div className="app">
       <Header />
       <main className="app-main">
-        {draftAvailable && (
-          <div className="panel">
-            <p>{t('draft.restoredPrompt')}</p>
-            <div className="share-actions">
-              <button type="button" className="btn" onClick={resumeDraft}>
-                {t('draft.resume')}
-              </button>
-              <button type="button" className="btn secondary" onClick={discardDraft}>
-                {t('draft.discard')}
-              </button>
+        {draftPreview && (
+          <div className="panel draft-banner">
+            <img className="draft-thumb" src={draftPreview.url} alt={t('draft.previewAlt')} />
+            <div className="draft-banner-body">
+              <p className="draft-banner-prompt">{t('draft.restoredPrompt')}</p>
+              {draftPreview.updatedAt && (
+                <p className="draft-banner-meta">
+                  {t('draft.lastEdited', {
+                    date: new Date(draftPreview.updatedAt).toLocaleDateString(locale, {
+                      month: 'short',
+                      day: 'numeric',
+                    }),
+                  })}
+                </p>
+              )}
+              <div className="share-actions">
+                <button type="button" className="btn" onClick={resumeDraft}>
+                  {t('draft.resume')}
+                </button>
+                <button type="button" className="btn secondary" onClick={discardDraft}>
+                  {t('draft.discard')}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -370,7 +432,11 @@ function AppShell({ wasmModule }) {
                 <button type="button" className="btn ghost" onClick={startOver}>
                   {t('intro.startOver')}
                 </button>
-                <button type="button" className="btn ghost" onClick={scrollToFinish}>
+                {/* Hidden on phones by CSS, not dropped from the DOM: the
+                    sticky Share/Save bar is already on screen there at
+                    every scroll position, so this would only scroll to a
+                    panel whose buttons that bar has taken over. */}
+                <button type="button" className="btn ghost finish-jump" onClick={scrollToFinish}>
                   {t('share.heading')}
                 </button>
               </div>

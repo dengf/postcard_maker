@@ -3,8 +3,32 @@
    accent -- budget_planner and mortgage_calculator kept the blue/green
    accent mortgage_calculator started with rather than take on a bigger
    brand decision than either app asked for; a brand-new tool has no such
-   inherited palette to preserve. */
+   inherited palette to preserve. (budget_planner has since adopted this
+   same plum, so the two tools' chrome now agrees.)
+
+   Three-tier light/dark, matching budget_planner exactly: this `:root`
+   block is the dark default, the `prefers-color-scheme: light` block
+   below applies whenever the OS says light *and* nothing has overridden
+   it, and `:root[data-theme='light']` (Header's theme picker, via
+   theme.js) forces light regardless of what the OS says. The media-query
+   rule is guarded with `:not([data-theme='dark'])` rather than
+   `:not([data-theme])` for two reasons: picking "System" again clears the
+   attribute entirely (see theme.js's `applyTheme`) so that guard still
+   falls through correctly, and an explicit *dark* choice on a light-OS
+   device needs the media query to get out of the way rather than fight
+   it. There's no `[data-theme='dark']` block because dark is already
+   what bare `:root` says -- the guard is the whole mechanism. The light
+   values are necessarily written twice (media-guarded and explicit)
+   since plain custom properties have no shared-block mechanism. */
 :root {
+  /* Follows the tokens through all three tiers so UA-drawn chrome -- the
+     <select> popups in the header, scrollbars, focus rings -- matches the
+     theme actually on screen. Before the picker existed this was always
+     the OS's own answer and needed no declaration; an explicit choice can
+     now disagree with the OS, and without this a dark page on a light
+     device gets a light dropdown. */
+  color-scheme: dark;
+
   --bg: #0f1720;
   --panel: #131c26;
   --panel-alt: #161e2b;
@@ -30,7 +54,9 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
     --bg: #f8f6f5;
     --panel: #ffffff;
     --panel-alt: #f3eef0;
@@ -54,6 +80,36 @@
     --negative-border: #e7b7b3;
     --gold: #8a6a2c;
   }
+}
+
+/* Same values as the media query above, applied on an explicit choice
+   instead of an OS preference. Keep the two in step -- there is no way to
+   share one block between them in plain CSS. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f8f6f5;
+  --panel: #ffffff;
+  --panel-alt: #f3eef0;
+  --surface: #ffffff;
+  --ink: #241a1e;
+  --muted: #6b5860;
+  --muted-2: #9c8a91;
+  --byline: #8a747d;
+  --line: #e6dade;
+  --line-soft: #efe6e9;
+  --input-border: #d9c9cf;
+
+  --accent: #b01243;
+  --accent-ink: #ffffff;
+  --positive: #1f7a3d;
+  --positive-ink: #ffffff;
+  --positive-bg: #e4f3e8;
+  --positive-border: #b8ddc2;
+  --negative: #b3261e;
+  --negative-bg: #fbeae9;
+  --negative-border: #e7b7b3;
+  --gold: #8a6a2c;
 }
 
 * { box-sizing: border-box; }
@@ -97,23 +153,26 @@ body {
 .app-byline:hover, .app-byline:focus-visible { color: var(--ink); }
 .meifio-mark { width: auto; display: block; color: var(--ink); vertical-align: middle; }
 
-.app-regions { display: flex; gap: 2px; background: var(--panel-alt); padding: 3px; border-radius: 8px; }
-.app-region {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  min-width: 44px;
-  border: none;
+/* Language and theme, as two native <select>s -- the same pattern
+   budget_planner settled on. The old three-button segmented control
+   showed only 'EN' / '简' / '繁', so the full language name lived in a
+   `title` a touch screen can't reach; a <select> shows it in the list and
+   in the closed control, and adding theme as a second control of the same
+   shape costs no header width. `min-height` (not `height`) keeps the 44px
+   tap target while letting the control grow with its own text. */
+.app-switches { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.app-select {
   background: transparent;
   color: var(--muted);
-  padding: 6px 14px;
-  border-radius: 6px;
+  border: none;
+  padding: 6px 8px;
+  min-height: 44px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
-.app-region.active { background: var(--accent); color: var(--accent-ink); }
+.app-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .app-main { padding: 24px 0 64px; display: flex; flex-direction: column; gap: 24px; }
 
@@ -397,22 +456,101 @@ label.btn { cursor: pointer; }
 .postcard-sticker svg { display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)); }
 .postcard-sticker-remove {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 20px;
-  height: 20px;
+  top: -10px;
+  right: -10px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: none;
   background: var(--negative);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   line-height: 1;
   cursor: pointer;
+}
+/* The visible dot stays small so it doesn't swamp a 48px sticker, but the
+   *tappable* box is the 44px CLAUDE.md asks for -- the visible box was
+   20px, and missing it on a touch screen doesn't no-op, it grabs the
+   sticker's own drag surface and moves what you meant to delete.
+   Centring the hit area on a button that already sits outside the
+   sticker's corner keeps all but ~6% of it off the drag surface. */
+.postcard-sticker-remove::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .slider-field { display: flex; flex-direction: column; gap: 4px; }
 .slider-field-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); }
-.slider-field input[type='range'] { width: 100%; accent-color: var(--accent); }
+
+/* Zoom/brightness/contrast/saturation. A native range is 16px tall, which
+   is a hard thing to catch with a fingertip on the one control in this app
+   that wants precision. `appearance: none` is what makes the element box
+   sizeable at all -- it also means the track and thumb have to be drawn
+   here, and that `accent-color` no longer applies. The 44px is the
+   tappable box; the track stays visually thin. */
+.slider-field input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.slider-field input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--input-border);
+}
+.slider-field input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  /* Centres a 26px thumb on a 6px track: -(26 - 6) / 2. */
+  margin-top: -10px;
+}
+.slider-field input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--input-border);
+}
+.slider-field input[type='range']::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+}
+.slider-field input[type='range']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The resume banner leads with the draft's own photo -- see App.jsx.
+   `flex-direction` is set explicitly because `.panel` (the class this
+   shares) already declares `column`, and inheriting that stacks the
+   thumbnail above the text instead of beside it. */
+.draft-banner { display: flex; flex-direction: row; align-items: flex-start; gap: 14px; }
+.draft-thumb {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-alt);
+}
+.draft-banner-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.draft-banner-prompt { margin: 0; }
+.draft-banner-meta { margin: 0; font-size: 0.82rem; color: var(--muted); }
 
 .filter-options { display: flex; gap: 8px; flex-wrap: wrap; }
 .filter-option {
@@ -554,6 +692,22 @@ label.btn { cursor: pointer; }
      resume/discard banner (App.jsx) and the doodle undo/clear row
      (DoodleToolbar.jsx), which broke when this rule hid it by mistake. */
   .share-panel-actions { display: none; }
+  /* With the buttons gone to the fixed bar, what's left of #finish-panel
+     in the flow is its heading and nothing else -- a 58px card containing
+     one word, which is exactly where the "Finish" shortcut used to land
+     you. Collapse the chrome rather than `display: none` on the panel:
+     ShareBar's CelebrationBurst is a child of it and is `position: fixed`,
+     so hiding the parent outright would suppress the burst too. The
+     shortcut itself is hidden alongside (.finish-jump), since the fixed
+     bar already keeps Share/Save one tap away at any scroll position. */
+  .finish-jump { display: none; }
+  #finish-panel > .panel {
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+  }
+  #finish-panel > .panel > h2 { display: none; }
   .share-sticky-bar {
     display: flex;
     flex-direction: column;
@@ -681,8 +835,18 @@ label.btn { cursor: pointer; }
   touch-action: none;
 }
 .doodle-layer canvas { display: block; width: 100%; height: 100%; }
-.field-check-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
-.field-check-row input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+/* The label is the tappable area here, not the box -- clicking anywhere on
+   it toggles -- so it's the label that has to clear 44px. It measured 34
+   even wrapped over two lines. */
+.field-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.field-check-row input { accent-color: var(--accent); width: 20px; height: 20px; margin: 0; flex: none; }
 .back-side-location {
   width: 100%;
   background: var(--surface);

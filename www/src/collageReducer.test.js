@@ -6,6 +6,13 @@ const photoB = { bytes: new Uint8Array([2]), url: 'blob:b', naturalW: 200, natur
 const base = { x: 0, y: 0, w: 100, h: 100 };
 
 describe('collageReducer', () => {
+  // Kept in step with postcardReducer's own default -- the two flows are
+  // parallel by design, and a collage's greeting has the same contrast
+  // problem over a photo that a single-photo card does.
+  it('defaults the greeting colour to auto, matching the single-photo flow', () => {
+    expect(initialCollageState('x', 2).textColor).toBe('auto');
+  });
+
   it('SET_LAYOUT starts with the right number of empty slots', () => {
     const state = collageReducer(initialCollageState('x', 2), { type: 'SET_LAYOUT', layoutId: 'landscape-thirds', slotCount: 3 });
     expect(state.layoutId).toBe('landscape-thirds');

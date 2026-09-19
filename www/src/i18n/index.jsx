@@ -7,10 +7,15 @@ import zhHant from './zh-Hant';
 // catalogs and no plurals to speak of, and the library costs more gzipped
 // than the charting library we already declined for the same reason.
 
+// `name` is the endonym, and it's the only label: the header's picker is a
+// <select> that has room for it. The abbreviated `label` ('EN' / '简' /
+// '繁') the old segmented control showed is gone with it -- it only ever
+// existed because three buttons had to fit a phone header, and it pushed
+// the real name into a `title` attribute no touch screen can reach.
 export const LOCALES = [
-  { id: 'en', label: 'EN', name: 'English' },
-  { id: 'zh-Hans', label: '简', name: '简体中文' },
-  { id: 'zh-Hant', label: '繁', name: '繁體中文' },
+  { id: 'en', name: 'English' },
+  { id: 'zh-Hans', name: '简体中文' },
+  { id: 'zh-Hant', name: '繁體中文' },
 ];
 
 const CATALOGS = { en, 'zh-Hans': zhHans, 'zh-Hant': zhHant };

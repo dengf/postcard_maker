@@ -7,6 +7,10 @@ export default {
   "app.title": "明信片製作",
   "app.byline": "{logo} 出品",
   "app.language": "語言",
+  "app.theme": "主題",
+  "app.themeSystem": "跟隨系統",
+  "app.themeLight": "淺色",
+  "app.themeDark": "深色",
   "app.updateAvailable": "有新版本可用。",
   "app.reload": "重新整理",
 
@@ -284,6 +288,10 @@ export default {
   "text.align.right": "靠右",
   "text.color": "顏色",
   "text.color.auto": "自動",
+  "text.color.white": "白色",
+  "text.color.ink": "墨黑",
+  "text.color.plum": "梅紅",
+  "text.color.gold": "金色",
 
   "stickers.heading": "貼紙",
   "stickers.remove": "移除貼紙",
@@ -315,11 +323,15 @@ export default {
   "draft.restoredPrompt": "你有一張尚未完成的明信片。",
   "draft.resume": "繼續編輯",
   "draft.discard": "放棄",
+  "draft.previewAlt": "你尚未完成的明信片",
+  "draft.lastEdited": "上次編輯：{date}",
 
   "confirm.startOverTitle": "開始製作新的明信片？",
   "confirm.startOverBody": "這會捨棄目前的照片以及已加入的所有內容。",
   "confirm.cancel": "取消",
   "confirm.confirm": "重新開始",
+  "confirm.discardDraftBody": "這會刪除你尚未完成的明信片，且無法復原。",
+  "confirm.discardDraft": "放棄",
 
   "errors.dismiss": "關閉",
   "errors.badRequest": "部分內容缺失或無效，請再試一次。",

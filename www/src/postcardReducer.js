@@ -31,7 +31,14 @@ export function initialState(defaultAspect) {
     // 1 = "Auto" -- the fit-to-message-area size `fitText.js` computes,
     // not a fixed pixel value. Other choices scale relative to that.
     fontScale: 1,
-    textColor: '#ffffff',
+    // 'auto' rather than a literal, so the very first postcard someone
+    // makes gets `autoTextColor.js`'s WCAG contrast pick against the
+    // pixels actually behind the message. The old default of plain white
+    // measured 1.56:1 over a pale sand photo -- under WCAG's 3:1 floor
+    // for large text -- while 'auto' resolved the same card to ~10.9:1.
+    // A literal is still one tap away in TextPanel for anyone who wants
+    // to override it.
+    textColor: 'auto',
     textAlign: 'center',
     // `null` means "wherever `geometry.messageArea` puts it" (the only
     // behavior that existed before dragging did) -- an explicit
@@ -91,7 +98,7 @@ export function postcardReducer(state, action) {
         message: action.restored?.message ?? '',
         fontChoice: action.restored?.fontChoice ?? 'system',
         fontScale: action.restored?.fontScale ?? 1,
-        textColor: action.restored?.textColor ?? '#ffffff',
+        textColor: action.restored?.textColor ?? 'auto',
         textAlign: action.restored?.textAlign ?? 'center',
         messagePosition: action.restored?.messagePosition ?? null,
         stickers: action.restored?.stickers ?? [],

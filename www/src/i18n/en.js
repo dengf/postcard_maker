@@ -7,6 +7,10 @@ export default {
   "app.title": "Postcard Maker",
   "app.byline": "a {logo} app",
   "app.language": "Language",
+  "app.theme": "Theme",
+  "app.themeSystem": "System",
+  "app.themeLight": "Light",
+  "app.themeDark": "Dark",
   "app.updateAvailable": "A new version is ready.",
   "app.reload": "Reload",
 
@@ -356,6 +360,10 @@ export default {
   "text.align.right": "Right",
   "text.color": "Color",
   "text.color.auto": "Auto",
+  "text.color.white": "White",
+  "text.color.ink": "Ink",
+  "text.color.plum": "Plum",
+  "text.color.gold": "Gold",
 
   "stickers.heading": "Stickers",
   "stickers.remove": "Remove sticker",
@@ -387,12 +395,17 @@ export default {
   "draft.restoredPrompt": "You have an unfinished postcard.",
   "draft.resume": "Resume",
   "draft.discard": "Discard",
+  "draft.previewAlt": "Your unfinished postcard",
+  "draft.lastEdited": "Last edited {date}",
 
   "confirm.startOverTitle": "Start a new postcard?",
   "confirm.startOverBody":
     "This discards the photo and everything you’ve added so far.",
   "confirm.cancel": "Cancel",
   "confirm.confirm": "Start over",
+  "confirm.discardDraftBody":
+    "This deletes your unfinished postcard. It can’t be brought back.",
+  "confirm.discardDraft": "Discard",
 
   "errors.dismiss": "Dismiss",
   "errors.badRequest": "Some values are missing or aren’t valid. Try again.",

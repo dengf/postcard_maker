@@ -4,7 +4,15 @@ import { containsCjk } from '../fonts';
 import { useIsNarrow } from '../useIsNarrow';
 import { FontGlyphIcon, SizeIcon, AlignGlyphIcon, ColorSwatchGlyphIcon, ChevronIcon } from './icons';
 
-const COLORS = ['#ffffff', '#241a1e', '#B01243', '#d9b46a'];
+// Named, not bare hex: the toggle shows the current value as a word the
+// same way Style/Size/Align do, and the swatch buttons need an accessible
+// name a screen reader can actually read out ("Plum", not "#B01243").
+const COLORS = [
+  { value: '#ffffff', key: 'white' },
+  { value: '#241a1e', key: 'ink' },
+  { value: '#B01243', key: 'plum' },
+  { value: '#d9b46a', key: 'gold' },
+];
 const ALIGNS = ['left', 'center', 'right'];
 const FONTS = ['system', 'serif', 'decorative'];
 // Relative to the auto-fit size -- see `fitText.js`. 1 is "Auto" itself,
@@ -62,6 +70,14 @@ export default function TextPanel({
       ? t('text.size.auto')
       : t(`text.size.${fontScale === 0.75 ? 'smaller' : fontScale === 1.3 ? 'larger' : 'largest'}`);
 
+  // A literal colour reads as its own name, so the Colour toggle says what
+  // it's set to like the other three do instead of showing a bare swatch.
+  // An unrecognised value (an old draft, a future palette) falls back to
+  // the category word rather than rendering an empty toggle.
+  const colorKey = COLORS.find((c) => c.value === textColor)?.key;
+  const colorLabel =
+    textColor === 'auto' ? t('text.color.auto') : colorKey ? t(`text.color.${colorKey}`) : t('text.color');
+
   return (
     <div className="panel text-field">
       <h2>{t('text.heading')}</h2>
@@ -114,15 +130,15 @@ export default function TextPanel({
         </OptionGroup>
 
         <OptionGroup
-          icon={textColor === 'auto' ? <ColorSwatchGlyphIcon /> : null}
-          label={t('text.color')}
-          preview={
+          icon={
             textColor === 'auto' ? (
-              t('text.color.auto')
+              <ColorSwatchGlyphIcon />
             ) : (
               <span className="text-color-dot" style={{ background: textColor }} />
             )
           }
+          label={t('text.color')}
+          preview={colorLabel}
         >
           <button
             type="button"
@@ -133,12 +149,13 @@ export default function TextPanel({
           </button>
           {COLORS.map((c) => (
             <button
-              key={c}
+              key={c.value}
               type="button"
-              className={c === textColor ? 'text-color-swatch active' : 'text-color-swatch'}
-              style={{ background: c }}
-              aria-label={c}
-              onClick={() => onTextColorChange(c)}
+              className={c.value === textColor ? 'text-color-swatch active' : 'text-color-swatch'}
+              style={{ background: c.value }}
+              aria-label={t(`text.color.${c.key}`)}
+              aria-pressed={c.value === textColor}
+              onClick={() => onTextColorChange(c.value)}
             />
           ))}
         </OptionGroup>
