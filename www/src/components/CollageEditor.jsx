@@ -21,7 +21,7 @@ import PostcardOverlay from './PostcardOverlay';
 import DoodleLayer from './DoodleLayer';
 import CollagePhotoSlot from './CollagePhotoSlot';
 import ReplacePhotoButton, { PhotoPickerInput } from './ReplacePhotoButton';
-import { ImageIcon } from './icons';
+import { BackIcon, ImageIcon } from './icons';
 
 /** Matches the single-photo flow's own debounce -- see `App.jsx`. */
 const AUTOSAVE_DELAY_MS = 800;
@@ -33,6 +33,43 @@ function loadImageDimensions(url) {
     img.onerror = () => reject(new Error(`could not read dimensions for ${url}`));
     img.src = url;
   });
+}
+
+/**
+ * The record `draftStore` keeps for a collage. `kind` is what tells it
+ * apart from the single-photo shape, which carries no `kind` at all --
+ * see `draftStore.js`. Named rather than built inline in the autosave
+ * effect because Back saves the same thing without waiting out the
+ * debounce.
+ */
+function collageDraft(state, aspectId) {
+  return {
+    kind: COLLAGE_KIND,
+    aspectId,
+    layoutId: state.layoutId,
+    slots: state.slots.map((slot) =>
+      slot.photo
+        ? {
+            photoBlob: new Blob([slot.photo.bytes], { type: slot.photo.mimeType }),
+            crop: slot.crop,
+            zoom: slot.zoom,
+            adjustments: slot.adjustments,
+            filter: slot.filter,
+          }
+        : null,
+    ),
+    message: state.message,
+    fontChoice: state.fontChoice,
+    fontScale: state.fontScale,
+    textColor: state.textColor,
+    textAlign: state.textAlign,
+    messagePosition: state.messagePosition,
+    stickers: state.stickers,
+    strokes: state.strokes,
+    strokeColor: state.strokeColor,
+    strokeWidth: state.strokeWidth,
+    backSide: state.backSide,
+  };
 }
 
 /** A slot's own on-card pixel aspect ratio: its fraction of the card,
@@ -47,7 +84,7 @@ function slotPixelRatio(area, cardRatio) {
  * The multi-photo collage flow -- a parallel state machine to the
  * single-photo `App.jsx`, not a variant of it. See CLAUDE.md for why.
  */
-export default function CollageEditor({ wasmModule, onError, onExit, draft }) {
+export default function CollageEditor({ wasmModule, onError, onExit, onBack, draft }) {
   const { t, locale } = useI18n();
   const [aspectId, setAspectId] = useState(draft?.aspectId ?? ASPECTS[0].id);
   const [layouts, setLayouts] = useState([]);
@@ -257,36 +294,21 @@ export default function CollageEditor({ wasmModule, onError, onExit, draft }) {
   useEffect(() => {
     if (!anySlotFilled || !state.layoutId) return undefined;
     const handle = setTimeout(() => {
-      saveDraft({
-        kind: COLLAGE_KIND,
-        aspectId,
-        layoutId: state.layoutId,
-        slots: state.slots.map((slot) =>
-          slot.photo
-            ? {
-                photoBlob: new Blob([slot.photo.bytes], { type: slot.photo.mimeType }),
-                crop: slot.crop,
-                zoom: slot.zoom,
-                adjustments: slot.adjustments,
-                filter: slot.filter,
-              }
-            : null,
-        ),
-        message: state.message,
-        fontChoice: state.fontChoice,
-        fontScale: state.fontScale,
-        textColor: state.textColor,
-        textAlign: state.textAlign,
-        messagePosition: state.messagePosition,
-        stickers: state.stickers,
-        strokes: state.strokes,
-        strokeColor: state.strokeColor,
-        strokeWidth: state.strokeWidth,
-        backSide: state.backSide,
-      }).catch(() => {});
+      saveDraft(collageDraft(state, aspectId)).catch(() => {});
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(handle);
   }, [anySlotFilled, aspectId, state]);
+
+  /**
+   * Back to the intro, keeping the collage. It saves on the spot instead
+   * of waiting out the debounce, so stepping away doesn't cost the last
+   * thing you typed, and then it's App's problem -- which offers the
+   * card again in the resume banner.
+   */
+  const backToIntro = useCallback(async () => {
+    if (anySlotFilled && state.layoutId) await saveDraft(collageDraft(state, aspectId)).catch(() => {});
+    onBack();
+  }, [anySlotFilled, state, aspectId, onBack]);
 
   const changeActiveZoom = (nextZoom) => {
     if (!activeSlot?.photo) return;
@@ -403,11 +425,21 @@ export default function CollageEditor({ wasmModule, onError, onExit, draft }) {
           />
         </div>
 
-        {/* Tells App whether there is anything to lose, so an empty
-            collage leaves without a confirmation nobody needs. */}
-        <button type="button" className="btn ghost" onClick={() => onExit(anySlotFilled)}>
-          {t('intro.startOver')}
-        </button>
+        <div className="editor-preview-actions">
+          {/* Back keeps the collage (it's autosaved, and saved again here
+              rather than whenever the debounce next fires); Start over
+              throws it away. Both land on the intro, which is why having
+              only the second one read as "there's no way back". */}
+          <button type="button" className="btn ghost" onClick={backToIntro}>
+            <BackIcon />
+            {t('editor.back')}
+          </button>
+          {/* Tells App whether there is anything to lose, so an empty
+              collage leaves without a confirmation nobody needs. */}
+          <button type="button" className="btn ghost" onClick={() => onExit(anySlotFilled)}>
+            {t('intro.startOver')}
+          </button>
+        </div>
       </div>
 
       <div className="editor-controls-col">

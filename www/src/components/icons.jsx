@@ -61,6 +61,17 @@ export function SwapIcon() {
   );
 }
 
+/** Back out of an editor. A plain chevron, not an arrow doubling back --
+ * that shape is `SwapIcon`'s, and these two sit near each other on the
+ * card. */
+export function BackIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M15 5 8 12l7 7" />
+    </svg>
+  );
+}
+
 export function ShareIcon() {
   return (
     <svg {...ICON_PROPS}>

@@ -63,6 +63,7 @@ export default {
 
   "editor.cropHint": "拖曳以調整位置，雙指或滑桿可縮放。雙擊照片可更換。",
   "editor.replacePhoto": "換一張照片",
+  "editor.back": "返回",
   "editor.zoom": "縮放",
   "editor.filter": "濾鏡",
   "editor.filter.none": "原圖",

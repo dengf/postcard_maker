@@ -137,6 +137,21 @@ postcard". Things worth not re-deriving:
   threw away back in the resume banner on the next visit. An empty
   collage skips the question, which is why `onExit` takes whether any
   slot is filled.
+- **Both editors have a Back, and it is not Start over.** Start over was
+  the only control that reached the intro, and it asks to throw the card
+  away to get there — so "go back and look at the front page" meant
+  either losing the work or using the browser's own Back button, which
+  is what a user reported. Back keeps everything: it writes the draft
+  **on the spot** rather than waiting out the 800ms debounce (leaving
+  must not cost the last keystroke — that's why `postcardDraft()` and
+  `collageDraft()` are named functions and not inline in their autosave
+  effects), then App re-offers the card through `showDraftBanner()`.
+  Reaching the intro again is what made that loader worth extracting;
+  before this it only ever ran at startup.
+- **The single-photo autosave never wrote `messagePosition`**, though
+  `OPEN_PHOTO` had always restored it — so a greeting dragged off centre
+  came back centred. Fixed in passing when the payload moved into
+  `postcardDraft()`.
 
 ## "Suggest a look" -- the one on-device ML feature, and why it's shaped this way
 

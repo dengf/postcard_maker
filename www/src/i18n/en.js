@@ -64,6 +64,7 @@ export default {
 
   "editor.cropHint": "Drag to reposition, pinch or use the slider to zoom. Double-tap a photo to swap it for another.",
   "editor.replacePhoto": "Use a different photo",
+  "editor.back": "Back",
   "editor.zoom": "Zoom",
   "editor.filter": "Filter",
   "editor.filter.none": "Original",
