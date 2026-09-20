@@ -31,23 +31,48 @@ describe('toneFromImageData', () => {
   });
 
   it('averages across multiple pixels', () => {
-    const { brightness } = toneFromImageData(fakeImageData([[0, 0, 0], [255, 255, 255]]));
+    const { brightness } = toneFromImageData(
+      fakeImageData([
+        [0, 0, 0],
+        [255, 255, 255],
+      ]),
+    );
     expect(brightness).toBeCloseTo(0.5, 5);
   });
 
   it('reads a uniform image as zero contrast', () => {
-    const { contrast } = toneFromImageData(fakeImageData([[128, 128, 128], [128, 128, 128]]));
+    const { contrast } = toneFromImageData(
+      fakeImageData([
+        [128, 128, 128],
+        [128, 128, 128],
+      ]),
+    );
     expect(contrast).toBe(0);
   });
 
   it('reads a half-black-half-white image as near-maximum contrast', () => {
-    const { contrast } = toneFromImageData(fakeImageData([[0, 0, 0], [255, 255, 255]]));
+    const { contrast } = toneFromImageData(
+      fakeImageData([
+        [0, 0, 0],
+        [255, 255, 255],
+      ]),
+    );
     expect(contrast).toBeCloseTo(127.5 / 128, 5);
   });
 
   it('reads a photo with a narrow luminance range as low contrast', () => {
-    const { contrast: narrow } = toneFromImageData(fakeImageData([[100, 100, 100], [110, 110, 110]]));
-    const { contrast: wide } = toneFromImageData(fakeImageData([[0, 0, 0], [255, 255, 255]]));
+    const { contrast: narrow } = toneFromImageData(
+      fakeImageData([
+        [100, 100, 100],
+        [110, 110, 110],
+      ]),
+    );
+    const { contrast: wide } = toneFromImageData(
+      fakeImageData([
+        [0, 0, 0],
+        [255, 255, 255],
+      ]),
+    );
     expect(narrow).toBeLessThan(wide);
   });
 });

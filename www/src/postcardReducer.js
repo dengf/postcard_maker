@@ -87,7 +87,10 @@ export function nextStickerKey() {
 export function postcardReducer(state, action) {
   switch (action.type) {
     case 'OPEN_PHOTO': {
-      const { fillStyle, fillColor } = normalizeLegacyFill(action.restored?.fillStyle, action.restored?.fillColor);
+      const { fillStyle, fillColor } = normalizeLegacyFill(
+        action.restored?.fillStyle,
+        action.restored?.fillColor,
+      );
       return {
         ...initialState(action.aspect),
         photo: action.photo,
@@ -245,13 +248,18 @@ export function postcardReducer(state, action) {
     case 'ADD_STICKER':
       return {
         ...state,
-        stickers: [...state.stickers, { key: action.key, id: action.id, x: action.x, y: action.y, scale: 1 }],
+        stickers: [
+          ...state.stickers,
+          { key: action.key, id: action.id, x: action.x, y: action.y, scale: 1 },
+        ],
       };
 
     case 'MOVE_STICKER':
       return {
         ...state,
-        stickers: state.stickers.map((s, i) => (i === action.index ? { ...s, x: action.x, y: action.y } : s)),
+        stickers: state.stickers.map((s, i) =>
+          i === action.index ? { ...s, x: action.x, y: action.y } : s,
+        ),
       };
 
     case 'REMOVE_STICKER':
@@ -274,7 +282,9 @@ export function postcardReducer(state, action) {
       return {
         ...state,
         filter: action.filter ?? state.filter,
-        adjustments: action.adjustments ? { ...state.adjustments, ...action.adjustments } : state.adjustments,
+        adjustments: action.adjustments
+          ? { ...state.adjustments, ...action.adjustments }
+          : state.adjustments,
         stickers: action.stickerId
           ? [...state.stickers, { key: action.key, id: action.stickerId, x: 0.5, y: 0.5, scale: 1 }]
           : state.stickers,

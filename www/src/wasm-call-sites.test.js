@@ -125,18 +125,15 @@ describe('wasm call sites', () => {
     expect(direct).toEqual([]);
   });
 
-  it.each(guarded)(
-    'and the wrapper forwards all %s arguments',
-    (binding, arity, wrapper) => {
-      const source = fs.readFileSync(path.join(SRC, wrapper), 'utf8');
-      const at = source.indexOf(`.${binding}(`);
-      expect(at).toBeGreaterThan(-1);
+  it.each(guarded)('and the wrapper forwards all %s arguments', (binding, arity, wrapper) => {
+    const source = fs.readFileSync(path.join(SRC, wrapper), 'utf8');
+    const at = source.indexOf(`.${binding}(`);
+    expect(at).toBeGreaterThan(-1);
 
-      // Split, not matched: an argument like `Math.max(0, Math.round(x))`
-      // nests parentheses and commas of its own, which no reasonable
-      // regex survives. Take the text between the call's own parentheses,
-      // then break it on the commas that sit outside any nested pair.
-      expect(splitArgs(between(source, source.indexOf('(', at)))).toHaveLength(arity);
-    },
-  );
+    // Split, not matched: an argument like `Math.max(0, Math.round(x))`
+    // nests parentheses and commas of its own, which no reasonable
+    // regex survives. Take the text between the call's own parentheses,
+    // then break it on the commas that sit outside any nested pair.
+    expect(splitArgs(between(source, source.indexOf('(', at)))).toHaveLength(arity);
+  });
 });

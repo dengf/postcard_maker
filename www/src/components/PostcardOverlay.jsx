@@ -47,7 +47,18 @@ export default function PostcardOverlay({
 }) {
   const { t } = useI18n();
   const fittedSize = useFittedFontSize(frameRef, geometry, message, font, fontScale);
-  const resolvedTextColor = useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition, autoColorSampleArea);
+  const resolvedTextColor = useAutoTextColor(
+    textColor,
+    photoUrl,
+    crop,
+    photoView,
+    cssFilter,
+    geometry,
+    fillStyle,
+    fillColor,
+    messagePosition,
+    autoColorSampleArea,
+  );
   // Split-layout-only elements the user asked to carry over from the
   // back side's own classic-postcard redesign: a real divider at the
   // photo/blank boundary, a labeled stamp placeholder, and a "To" +
@@ -84,8 +95,14 @@ export default function PostcardOverlay({
       const dy = (e.clientY - messageDrag.current.y) / rect.height;
       // Clamped to keep the box fully on the card -- its size
       // (`msgArea.w`/`.h`) never changes, only its position does.
-      const nextX = Math.min(Math.max(0, 1 - msgArea.w), Math.max(0, messageDrag.current.startX + dx));
-      const nextY = Math.min(Math.max(0, 1 - msgArea.h), Math.max(0, messageDrag.current.startY + dy));
+      const nextX = Math.min(
+        Math.max(0, 1 - msgArea.w),
+        Math.max(0, messageDrag.current.startX + dx),
+      );
+      const nextY = Math.min(
+        Math.max(0, 1 - msgArea.h),
+        Math.max(0, messageDrag.current.startY + dy),
+      );
       onMessageMove(nextX, nextY);
     },
     [frameRef, msgArea, onMessageMove],
@@ -113,7 +130,11 @@ export default function PostcardOverlay({
       {divider && (
         <div
           className={`postcard-divider postcard-divider-${divider.axis}`}
-          style={divider.axis === 'x' ? { left: `${divider.pos * 100}%` } : { top: `${divider.pos * 100}%` }}
+          style={
+            divider.axis === 'x'
+              ? { left: `${divider.pos * 100}%` }
+              : { top: `${divider.pos * 100}%` }
+          }
         />
       )}
 
@@ -262,7 +283,18 @@ function useFittedFontSize(frameRef, geometry, message, font, fontScale) {
  * composited pixels, same "preview approximates, export is
  * authoritative" split as everywhere else in this file.
  */
-function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geometry, fillStyle, fillColor, messagePosition, sampleAreaOverride) {
+function useAutoTextColor(
+  textColor,
+  photoUrl,
+  crop,
+  photoView,
+  cssFilter,
+  geometry,
+  fillStyle,
+  fillColor,
+  messagePosition,
+  sampleAreaOverride,
+) {
   const [resolved, setResolved] = useState(textColor);
   const imgRef = useRef(null);
   const isFullCoverage = !geometry || (geometry.photoArea.w >= 1 && geometry.photoArea.h >= 1);
@@ -310,7 +342,10 @@ function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geome
         // own base is this same average when its color is 'auto' -- so
         // the ink has to contrast against the shade that base gets
         // painted as, not against the photo the shade came from.
-        const surface = isFullCoverage || fillShape === 'blur' ? avg : fillSurfaceColor(fillShape, avg.map(Math.round));
+        const surface =
+          isFullCoverage || fillShape === 'blur'
+            ? avg
+            : fillSurfaceColor(fillShape, avg.map(Math.round));
         setResolved(bestContrastColor(surface));
       } catch {
         setResolved(AUTO_COLOR_FALLBACK);
@@ -333,10 +368,29 @@ function useAutoTextColor(textColor, photoUrl, crop, photoView, cssFilter, geome
       cancelled = true;
       if (raf !== null) cancelAnimationFrame(raf);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
+    // crop's own
     // fields are the real dependency, not its object identity, which
     // changes on every pan/zoom dispatch.
-  }, [textColor, photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, photoView?.rotation, cssFilter, geometry, isFullCoverage, fillStyle, fillColor, messagePosition?.x, messagePosition?.y, sampleAreaOverride?.x, sampleAreaOverride?.y, sampleAreaOverride?.w, sampleAreaOverride?.h]);
+  }, [
+    textColor,
+    photoUrl,
+    crop?.x,
+    crop?.y,
+    crop?.w,
+    crop?.h,
+    photoView?.rotation,
+    cssFilter,
+    geometry,
+    isFullCoverage,
+    fillStyle,
+    fillColor,
+    messagePosition?.x,
+    messagePosition?.y,
+    sampleAreaOverride?.x,
+    sampleAreaOverride?.y,
+    sampleAreaOverride?.w,
+    sampleAreaOverride?.h,
+  ]);
 
   return resolved;
 }

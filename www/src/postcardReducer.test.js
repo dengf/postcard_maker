@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS } from './postcardReducer';
 
-const photo = { bytes: new Uint8Array([1]), url: 'blob:x', naturalW: 100, naturalH: 50, mimeType: 'image/jpeg' };
+const photo = {
+  bytes: new Uint8Array([1]),
+  url: 'blob:x',
+  naturalW: 100,
+  naturalH: 50,
+  mimeType: 'image/jpeg',
+};
 const base = { x: 0, y: 0, w: 100, h: 50 };
 const geo = { safeMargin: 0.04, stampBox: {}, messageArea: {} };
 
@@ -96,9 +102,16 @@ describe('postcardReducer', () => {
         x: 0.4,
         y: 0.6,
       });
-      state = postcardReducer(state, { type: 'ADD_STROKE', stroke: { points: [], color: '#fff', width: 4 } });
+      state = postcardReducer(state, {
+        type: 'ADD_STROKE',
+        stroke: { points: [], color: '#fff', width: 4 },
+      });
       state = postcardReducer(state, { type: 'SET_FILTER', filter: 'sepia' });
-      state = postcardReducer(state, { type: 'CHANGE_ZOOM', crop: { x: 5, y: 5, w: 50, h: 25 }, zoom: 2 });
+      state = postcardReducer(state, {
+        type: 'CHANGE_ZOOM',
+        crop: { x: 5, y: 5, w: 50, h: 25 },
+        zoom: 2,
+      });
       return state;
     };
 
@@ -142,9 +155,18 @@ describe('postcardReducer', () => {
       base,
       geometry: geo,
     });
-    state = postcardReducer(state, { type: 'CHANGE_ZOOM', crop: { x: 5, y: 5, w: 50, h: 25 }, zoom: 2 });
+    state = postcardReducer(state, {
+      type: 'CHANGE_ZOOM',
+      crop: { x: 5, y: 5, w: 50, h: 25 },
+      zoom: 2,
+    });
     const newBase = { x: 0, y: 0, w: 60, h: 60 };
-    state = postcardReducer(state, { type: 'CHANGE_ASPECT', aspect: 'square', base: newBase, geometry: geo });
+    state = postcardReducer(state, {
+      type: 'CHANGE_ASPECT',
+      aspect: 'square',
+      base: newBase,
+      geometry: geo,
+    });
     expect(state.aspectId).toBe('square');
     expect(state.crop).toBe(newBase);
     expect(state.zoom).toBe(1);
@@ -176,7 +198,13 @@ describe('postcardReducer', () => {
   });
 
   it('REMOVE_STICKER removes only the targeted index', () => {
-    let state = postcardReducer(initialState('landscape'), { type: 'ADD_STICKER', id: 'a', key: 'k1', x: 0, y: 0 });
+    let state = postcardReducer(initialState('landscape'), {
+      type: 'ADD_STICKER',
+      id: 'a',
+      key: 'k1',
+      x: 0,
+      y: 0,
+    });
     state = postcardReducer(state, { type: 'ADD_STICKER', id: 'b', key: 'k2', x: 0, y: 0 });
     state = postcardReducer(state, { type: 'REMOVE_STICKER', index: 0 });
     expect(state.stickers.map((s) => s.id)).toEqual(['b']);
@@ -215,8 +243,14 @@ describe('postcardReducer', () => {
 
   it('ADD_STROKE/UNDO_STROKE/CLEAR_STROKES manage the doodle list', () => {
     let state = initialState('landscape');
-    state = postcardReducer(state, { type: 'ADD_STROKE', stroke: { color: '#000', width: 4, points: [] } });
-    state = postcardReducer(state, { type: 'ADD_STROKE', stroke: { color: '#fff', width: 2, points: [] } });
+    state = postcardReducer(state, {
+      type: 'ADD_STROKE',
+      stroke: { color: '#000', width: 4, points: [] },
+    });
+    state = postcardReducer(state, {
+      type: 'ADD_STROKE',
+      stroke: { color: '#fff', width: 2, points: [] },
+    });
     expect(state.strokes).toHaveLength(2);
     state = postcardReducer(state, { type: 'UNDO_STROKE' });
     expect(state.strokes).toHaveLength(1);
@@ -226,7 +260,10 @@ describe('postcardReducer', () => {
 
   it('RESET_ADJUSTMENTS returns to the default identity adjustments', () => {
     let state = initialState('landscape');
-    state = postcardReducer(state, { type: 'SET_ADJUSTMENTS', adjustments: { brightness: 0.5, contrast: 1.2, saturation: 0.8 } });
+    state = postcardReducer(state, {
+      type: 'SET_ADJUSTMENTS',
+      adjustments: { brightness: 0.5, contrast: 1.2, saturation: 0.8 },
+    });
     state = postcardReducer(state, { type: 'RESET_ADJUSTMENTS' });
     expect(state.adjustments).toEqual(DEFAULT_ADJUSTMENTS);
   });
@@ -235,8 +272,15 @@ describe('postcardReducer', () => {
     let state = initialState('landscape');
     state = postcardReducer(state, { type: 'SET_BACK_SIDE_ENABLED', enabled: true });
     state = postcardReducer(state, { type: 'SET_BACK_SIDE_LOCATION', location: 'Singapore' });
-    state = postcardReducer(state, { type: 'SET_BACK_SIDE_ADDRESS', address: 'Jane Doe\n123 Main St' });
-    expect(state.backSide).toEqual({ enabled: true, location: 'Singapore', address: 'Jane Doe\n123 Main St' });
+    state = postcardReducer(state, {
+      type: 'SET_BACK_SIDE_ADDRESS',
+      address: 'Jane Doe\n123 Main St',
+    });
+    expect(state.backSide).toEqual({
+      enabled: true,
+      location: 'Singapore',
+      address: 'Jane Doe\n123 Main St',
+    });
   });
 
   it('OPEN_PHOTO fills in a missing backSide.address from a draft saved before it existed', () => {
@@ -253,7 +297,13 @@ describe('postcardReducer', () => {
   });
 
   it('RESET returns to a clean initial state', () => {
-    let state = postcardReducer(initialState('landscape'), { type: 'OPEN_PHOTO', photo, aspect: 'landscape', base, geometry: geo });
+    let state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+    });
     state = postcardReducer(state, { type: 'RESET', defaultAspect: 'landscape' });
     expect(state.photo).toBeNull();
     expect(state.crop).toBeNull();
@@ -273,7 +323,12 @@ describe('postcardReducer', () => {
   });
 
   it('OPEN_PHOTO restores a prior layout/fill choice from a draft', () => {
-    const restored = { photoCoverage: 'bigSmall', photoSide: 'second', fillStyle: 'solid', fillColor: '#ffffff' };
+    const restored = {
+      photoCoverage: 'bigSmall',
+      photoSide: 'second',
+      fillStyle: 'solid',
+      fillColor: '#ffffff',
+    };
     const state = postcardReducer(initialState('landscape'), {
       type: 'OPEN_PHOTO',
       photo,
@@ -289,7 +344,12 @@ describe('postcardReducer', () => {
   });
 
   it('OPEN_PHOTO migrates a draft saved before fillStyle became shape-based', () => {
-    const restored = { photoCoverage: 'half', photoSide: 'first', fillStyle: 'auto', fillColor: '#f4ede0' };
+    const restored = {
+      photoCoverage: 'half',
+      photoSide: 'first',
+      fillStyle: 'auto',
+      fillColor: '#f4ede0',
+    };
     const state = postcardReducer(initialState('landscape'), {
       type: 'OPEN_PHOTO',
       photo,
@@ -306,11 +366,27 @@ describe('postcardReducer', () => {
   });
 
   it('SET_LAYOUT changes coverage/side and re-suggests the crop, like CHANGE_ASPECT does for aspect', () => {
-    let state = postcardReducer(initialState('landscape'), { type: 'OPEN_PHOTO', photo, aspect: 'landscape', base, geometry: geo });
-    state = postcardReducer(state, { type: 'CHANGE_ZOOM', crop: { x: 5, y: 5, w: 50, h: 25 }, zoom: 2 });
+    let state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+    });
+    state = postcardReducer(state, {
+      type: 'CHANGE_ZOOM',
+      crop: { x: 5, y: 5, w: 50, h: 25 },
+      zoom: 2,
+    });
     const splitBase = { x: 0, y: 0, w: 40, h: 50 };
     const splitGeo = { ...geo, photoArea: { x: 0, y: 0, w: 0.5, h: 1 } };
-    state = postcardReducer(state, { type: 'SET_LAYOUT', coverage: 'half', side: 'first', base: splitBase, geometry: splitGeo });
+    state = postcardReducer(state, {
+      type: 'SET_LAYOUT',
+      coverage: 'half',
+      side: 'first',
+      base: splitBase,
+      geometry: splitGeo,
+    });
     expect(state.photoCoverage).toBe('half');
     expect(state.photoSide).toBe('first');
     expect(state.crop).toBe(splitBase);
@@ -346,14 +422,26 @@ describe('postcardReducer', () => {
   });
 
   it('APPLY_VIBE with no layout leaves photoCoverage/photoSide/geometry untouched', () => {
-    let state = postcardReducer(initialState('landscape'), { type: 'OPEN_PHOTO', photo, aspect: 'landscape', base, geometry: geo });
+    let state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+    });
     state = postcardReducer(state, { type: 'APPLY_VIBE', filter: 'sepia' });
     expect(state.photoCoverage).toBe('full');
     expect(state.geometry).toBe(geo);
   });
 
   it('APPLY_VIBE with a layout patch changes coverage/side/crop/geometry in the same step', () => {
-    let state = postcardReducer(initialState('landscape'), { type: 'OPEN_PHOTO', photo, aspect: 'landscape', base, geometry: geo });
+    let state = postcardReducer(initialState('landscape'), {
+      type: 'OPEN_PHOTO',
+      photo,
+      aspect: 'landscape',
+      base,
+      geometry: geo,
+    });
     const splitBase = { x: 0, y: 0, w: 40, h: 50 };
     const splitGeo = { ...geo, photoArea: { x: 0, y: 0, w: 0.5, h: 1 } };
     state = postcardReducer(state, {

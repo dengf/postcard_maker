@@ -25,7 +25,11 @@ export function useConfirm() {
   }, []);
 
   const dialog = state ? (
-    <ConfirmDialogView message={state.message} confirmLabel={state.confirmLabel} onAnswer={answer} />
+    <ConfirmDialogView
+      message={state.message}
+      confirmLabel={state.confirmLabel}
+      onAnswer={answer}
+    />
   ) : null;
 
   return [confirm, dialog];
@@ -51,19 +55,35 @@ function ConfirmDialogView({ message, confirmLabel, onAnswer }) {
   }, [onAnswer]);
 
   return (
-    <div className="confirm-backdrop" role="presentation" onClick={() => onAnswer(false)}>
+    // `e.target === e.currentTarget` is what limits this to a click on the
+    // backdrop itself. The dialog used to carry its own `stopPropagation`
+    // handler to the same end, which made a plain container look like an
+    // interactive element to anything reading the tree -- assistive
+    // technology and the linter both.
+    <div
+      className="confirm-backdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onAnswer(false);
+      }}
+    >
       <div
         className="confirm-dialog"
         role="alertdialog"
         aria-modal="true"
         aria-describedby="confirm-message"
-        onClick={(e) => e.stopPropagation()}
       >
-        <p className="confirm-message" id="confirm-message">{message}</p>
+        <p className="confirm-message" id="confirm-message">
+          {message}
+        </p>
         <div className="confirm-actions">
           <button className="btn secondary" onClick={() => onAnswer(false)}>
             {t('confirm.cancel')}
           </button>
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus -- an alertdialog
+              is the one place autofocus is the accessible choice: it is modal,
+              it interrupts, and focus has to land inside it or a screen reader
+              is left reading the page behind. */}
           <button className="btn danger" onClick={() => onAnswer(true)} autoFocus>
             {confirmLabel ?? t('confirm.confirm')}
           </button>

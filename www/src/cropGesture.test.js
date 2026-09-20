@@ -130,7 +130,9 @@ describe('pinchAnchor', () => {
   });
 
   it('falls back to the center for a box with no size yet', () => {
-    expect(pinchAnchor({ left: 0, top: 0, width: 0, height: 0 }, { x: 1, y: 2 }, { x: 3, y: 4 })).toEqual({
+    expect(
+      pinchAnchor({ left: 0, top: 0, width: 0, height: 0 }, { x: 1, y: 2 }, { x: 3, y: 4 }),
+    ).toEqual({
       fx: 0.5,
       fy: 0.5,
     });

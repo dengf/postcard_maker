@@ -33,10 +33,10 @@ export function toneAdjustments(tone) {
 }
 
 function labelFor(adjustments) {
-  if (adjustments.brightness > 0) return "exposure.brighten";
-  if (adjustments.brightness < 0) return "exposure.dim";
-  if (adjustments.contrast) return "exposure.contrast";
-  return "exposure.saturate";
+  if (adjustments.brightness > 0) return 'exposure.brighten';
+  if (adjustments.brightness < 0) return 'exposure.dim';
+  if (adjustments.contrast) return 'exposure.contrast';
+  return 'exposure.saturate';
 }
 
 // A fixed, simple starting point for the fields "Suggest a look" now also
@@ -48,6 +48,12 @@ function labelFor(adjustments) {
 export function suggestExposure(tone) {
   const adjustments = toneAdjustments(tone);
   return adjustments
-    ? { labelKey: labelFor(adjustments), adjustments, fontChoice: 'system', fontScale: 1, textColor: 'auto' }
+    ? {
+        labelKey: labelFor(adjustments),
+        adjustments,
+        fontChoice: 'system',
+        fontScale: 1,
+        textColor: 'auto',
+      }
     : null;
 }

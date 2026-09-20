@@ -1,5 +1,3 @@
-import { hexToRgb } from './autoTextColor';
-
 /**
  * The blank-area "fill" (see `LayoutPanel.jsx`) is built from three small,
  * independently-picked dimensions crossed together, the same trick
@@ -28,7 +26,16 @@ import { hexToRgb } from './autoTextColor';
  * no need for the preview to only *approximate* it.
  */
 
-export const FILL_SHAPES = ['solid', 'gradient', 'radial', 'dots', 'stripes', 'lines', 'airmail', 'blur'];
+export const FILL_SHAPES = [
+  'solid',
+  'gradient',
+  'radial',
+  'dots',
+  'stripes',
+  'lines',
+  'airmail',
+  'blur',
+];
 
 export const FILL_VARIANTS = {
   gradient: ['diagonal', 'vertical', 'horizontal'],
@@ -198,9 +205,13 @@ export function fillCss(shape, variant, baseRgb) {
   const [light, dark] = lightDark(baseRgb);
   switch (shape) {
     case 'gradient':
-      return { background: `linear-gradient(${GRADIENT_ANGLE_DEG[variant]}deg, ${light}, ${dark})` };
+      return {
+        background: `linear-gradient(${GRADIENT_ANGLE_DEG[variant]}deg, ${light}, ${dark})`,
+      };
     case 'radial':
-      return { background: `radial-gradient(circle at ${RADIAL_POSITION[variant]}, ${light}, ${dark})` };
+      return {
+        background: `radial-gradient(circle at ${RADIAL_POSITION[variant]}, ${light}, ${dark})`,
+      };
     case 'dots': {
       const spacing = DOT_SPACING[variant];
       return {
@@ -349,7 +360,12 @@ export function drawFill(ctx, rect, shape, variant, baseRgb) {
       const borderWidth = Math.max(6, Math.round(Math.min(w, h) * 0.055));
       drawDiagonalBands(ctx, rect, colors, bandPx, 45);
       ctx.fillStyle = rgbCss(shadeRgb(baseRgb, 0.8));
-      ctx.fillRect(x + borderWidth, y + borderWidth, Math.max(0, w - borderWidth * 2), Math.max(0, h - borderWidth * 2));
+      ctx.fillRect(
+        x + borderWidth,
+        y + borderWidth,
+        Math.max(0, w - borderWidth * 2),
+        Math.max(0, h - borderWidth * 2),
+      );
       return;
     }
     case 'solid':

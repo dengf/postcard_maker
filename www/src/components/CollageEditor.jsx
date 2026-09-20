@@ -150,6 +150,9 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
   // it is moving onto the new layout without being rebuilt (and
   // re-running the effect below) every time one of them changes.
   const stateRef = useRef(state);
+  // Same latest-ref pattern as `usePhotoGestures.js`: written during render,
+  // read only from `selectLayout`. Nothing renders off `stateRef.current`.
+  // eslint-disable-next-line react-hooks/refs
   stateRef.current = state;
 
   /**
@@ -164,7 +167,13 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
       dispatch({
         type: 'SET_LAYOUT',
         layoutId: next.id,
-        slots: carrySlots(wasmModule, stateRef.current.slots, next, aspectRatio(aspectId), emptySlot),
+        slots: carrySlots(
+          wasmModule,
+          stateRef.current.slots,
+          next,
+          aspectRatio(aspectId),
+          emptySlot,
+        ),
       });
     },
     [wasmModule, aspectId],
@@ -218,7 +227,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     } catch (err) {
       onError(err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectLayout changes
+    // selectLayout changes
     // with aspectId, which is already a dep; adding it would re-run on nothing else.
   }, [aspectId, wasmModule]);
 
@@ -366,7 +375,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when
+    // runs once, when
     // the saved layout arrives; `state.slots` is the empty set SET_LAYOUT just made.
   }, [layout]);
 
@@ -395,7 +404,8 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
    * card again in the resume banner.
    */
   const backToIntro = useCallback(async () => {
-    if (anySlotFilled && state.layoutId) await saveDraft(collageDraft(state, aspectId)).catch(() => {});
+    if (anySlotFilled && state.layoutId)
+      await saveDraft(collageDraft(state, aspectId)).catch(() => {});
     onBack();
   }, [anySlotFilled, state, aspectId, onBack]);
 
@@ -502,7 +512,11 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
 
   const allSlotsFilled = state.slots.length > 0 && state.slots.every((s) => s.photo);
   const effFont = effectiveFont(state.fontChoice, state.message);
-  const postmarkDate = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+  const postmarkDate = new Date().toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 
   return (
     <div className="editor-layout">
@@ -529,6 +543,12 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
           style={{ aspectRatio: aspectRatio(aspectId), '--card-ratio': aspectRatio(aspectId) }}
         >
           {state.slots.map((slot, index) => (
+            // A known gap, recorded rather than papered over: tapping a
+            // filled slot selects it and there is no keyboard equivalent. The
+            // obvious fix -- role="button" plus a key handler on this div --
+            // would nest ReplacePhotoButton inside a button, so this wants its
+            // own round and a real decision about where the tab stop belongs.
+            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
             <div
               key={index}
               className={[
@@ -622,7 +642,9 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                 rotation: inkSample.slot.rotation,
               }
             }
-            cssFilter={inkSample && previewFilterCss(inkSample.slot.adjustments, inkSample.slot.filter)}
+            cssFilter={
+              inkSample && previewFilterCss(inkSample.slot.adjustments, inkSample.slot.filter)
+            }
             autoColorSampleArea={inkSample?.area}
           />
           <DoodleLayer
@@ -681,7 +703,10 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                   aria-label={t('collage.layoutOf').replace('{n}', l.slots.length)}
                   onClick={() => selectLayout(l)}
                 >
-                  <span className="collage-layout-preview" style={{ aspectRatio: aspectRatio(aspectId) }}>
+                  <span
+                    className="collage-layout-preview"
+                    style={{ aspectRatio: aspectRatio(aspectId) }}
+                  >
                     {l.slots.map((s, i) => (
                       <span
                         key={i}
@@ -709,10 +734,20 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
             onRotationChange={rotateActiveSlot}
             onZoomChange={changeActiveZoom}
             filter={activeSlot.filter}
-            onFilterChange={(f) => dispatch({ type: 'SET_SLOT_FILTER', index: state.activeSlotIndex, filter: f })}
+            onFilterChange={(f) =>
+              dispatch({ type: 'SET_SLOT_FILTER', index: state.activeSlotIndex, filter: f })
+            }
             adjustments={activeSlot.adjustments}
-            onAdjustmentsChange={(a) => dispatch({ type: 'SET_SLOT_ADJUSTMENTS', index: state.activeSlotIndex, adjustments: a })}
-            onReset={() => dispatch({ type: 'RESET_SLOT_ADJUSTMENTS', index: state.activeSlotIndex })}
+            onAdjustmentsChange={(a) =>
+              dispatch({
+                type: 'SET_SLOT_ADJUSTMENTS',
+                index: state.activeSlotIndex,
+                adjustments: a,
+              })
+            }
+            onReset={() =>
+              dispatch({ type: 'RESET_SLOT_ADJUSTMENTS', index: state.activeSlotIndex })
+            }
           />
         )}
 

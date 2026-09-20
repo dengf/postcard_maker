@@ -68,5 +68,7 @@ export function applyTheme(theme) {
   const isLight =
     theme === 'light' ||
     (theme !== 'dark' && window.matchMedia?.('(prefers-color-scheme: light)').matches);
-  document.getElementById('theme-color-meta')?.setAttribute('content', isLight ? LIGHT_BG : DARK_BG);
+  document
+    .getElementById('theme-color-meta')
+    ?.setAttribute('content', isLight ? LIGHT_BG : DARK_BG);
 }

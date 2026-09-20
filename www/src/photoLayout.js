@@ -37,7 +37,16 @@ export function photoAreaRatio(photoArea, cardRatio) {
  * calls are kept for the upright case rather than routed through the
  * rotated one (which agrees with them exactly at zero degrees) so the
  * path every already-saved postcard reopens through is untouched. */
-export function suggestCropForLayout(wasmModule, naturalW, naturalH, aspectId, coverage, photoArea, cardRatio, rotation = 0) {
+export function suggestCropForLayout(
+  wasmModule,
+  naturalW,
+  naturalH,
+  aspectId,
+  coverage,
+  photoArea,
+  cardRatio,
+  rotation = 0,
+) {
   const ratio = coverage === 'full' ? cardRatio : photoAreaRatio(photoArea, cardRatio);
   if (rotation) {
     return suggestRotatedCrop(wasmModule, naturalW, naturalH, rotation, ratio);

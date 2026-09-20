@@ -126,7 +126,10 @@ export function SaveIcon() {
 /** Used by CollapsiblePanel -- rotated 180deg via CSS when its section is open. */
 export function ChevronIcon({ className }) {
   return (
-    <svg {...ICON_PROPS} className={className ? `${ICON_PROPS.className} ${className}` : ICON_PROPS.className}>
+    <svg
+      {...ICON_PROPS}
+      className={className ? `${ICON_PROPS.className} ${className}` : ICON_PROPS.className}
+    >
       <path d="M6 9 L12 15 L18 9" />
     </svg>
   );
@@ -135,7 +138,15 @@ export function ChevronIcon({ className }) {
 export function FontGlyphIcon() {
   return (
     <svg {...ICON_PROPS}>
-      <text x="2.5" y="17.5" fontSize="13" fontWeight="700" fill="currentColor" stroke="none" fontFamily="serif">
+      <text
+        x="2.5"
+        y="17.5"
+        fontSize="13"
+        fontWeight="700"
+        fill="currentColor"
+        stroke="none"
+        fontFamily="serif"
+      >
         Aa
       </text>
     </svg>

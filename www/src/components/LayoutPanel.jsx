@@ -1,7 +1,14 @@
 import React from 'react';
 import { useI18n } from '../i18n';
 import CollapsiblePanel from './CollapsiblePanel';
-import { FILL_COLORS, FILL_COLOR_NAMES, FILL_SHAPES, FILL_VARIANTS, buildFillStyle, parseFillStyle } from '../fillTreatments';
+import {
+  FILL_COLORS,
+  FILL_COLOR_NAMES,
+  FILL_SHAPES,
+  FILL_VARIANTS,
+  buildFillStyle,
+  parseFillStyle,
+} from '../fillTreatments';
 
 const COVERAGES = ['full', 'half', 'bigSmall'];
 

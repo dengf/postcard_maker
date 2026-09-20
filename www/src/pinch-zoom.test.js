@@ -38,7 +38,9 @@ describe('a pinch reaches each editor as one crop-zoom-and-rotation action', () 
   it('on the single-photo card', () => {
     expect(app).toMatch(/onPinchZoom=\{pinchZoomPhoto\}/);
     const fn = app.slice(app.indexOf('const pinchZoomPhoto'), app.indexOf('const rotateTo'));
-    expect(fn).toMatch(/type: 'CHANGE_ZOOM', crop: nextCrop, zoom: nextZoom, rotation: nextRotation/);
+    expect(fn).toMatch(
+      /type: 'CHANGE_ZOOM', crop: nextCrop, zoom: nextZoom, rotation: nextRotation/,
+    );
   });
 
   it('and in a collage slot', () => {
@@ -62,7 +64,9 @@ it('the shared hook reads a twist off the same two pointers', () => {
 // could reach 4x would leave the slider pinned at its own maximum while
 // the photo kept growing.
 it('the zoom slider spans exactly what a pinch can reach', () => {
-  expect(panel).toMatch(/min=\{minZoom\} max=\{MAX_ZOOM\}/);
+  // `\s+`, not a literal space: these are two JSX props, and whether the
+  // formatter keeps them on one line is not what this test is about.
+  expect(panel).toMatch(/min=\{minZoom\}\s+max=\{MAX_ZOOM\}/);
   expect(panel).toMatch(/from '\.\.\/cropGesture'/);
   // The bottom end is the photo's, so both controls have to be handed
   // the same one rather than each falling back to the constant.

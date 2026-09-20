@@ -27,12 +27,8 @@ describe('readPhotoMoment', () => {
   });
 
   it('turns the binding’s null into a plain null', () => {
-    expect(
-      readPhotoMoment({ read_photo_moment: () => null }, new Uint8Array()),
-    ).toBeNull();
-    expect(
-      readPhotoMoment({ read_photo_moment: () => undefined }, new Uint8Array()),
-    ).toBeNull();
+    expect(readPhotoMoment({ read_photo_moment: () => null }, new Uint8Array())).toBeNull();
+    expect(readPhotoMoment({ read_photo_moment: () => undefined }, new Uint8Array())).toBeNull();
   });
 });
 
@@ -50,12 +46,8 @@ describe('momentCaptionFor', () => {
     // Eight lines in the pool: four winter, four evening. Both halves
     // have to be reachable -- always leading with the season would make
     // every photo from one trip open the same way.
-    expect([...seen].some((k) => k.startsWith('moment.caption.winter.'))).toBe(
-      true,
-    );
-    expect([...seen].some((k) => k.startsWith('moment.caption.evening.'))).toBe(
-      true,
-    );
+    expect([...seen].some((k) => k.startsWith('moment.caption.winter.'))).toBe(true);
+    expect([...seen].some((k) => k.startsWith('moment.caption.evening.'))).toBe(true);
   });
 
   it('still has a line for a tropical photo, which claims no season', () => {

@@ -20,7 +20,7 @@
  * be a worse failure than saying nothing.
  */
 
-import { pickCaption } from "./vibeCaptions";
+import { pickCaption } from './vibeCaptions';
 
 const SOLO_COUNT = 1;
 const GROUP_THRESHOLD = 2;
@@ -29,35 +29,35 @@ const GROUP_THRESHOLD = 2;
 // (Frost for solo, Su Shi for group) matched to the theme -- see
 // `vibeCaptions.js`'s own doc comment for the same convention there.
 const SOLO_CAPTIONS = [
-  "solo.caption.0",
-  "solo.caption.1",
-  "solo.caption.2",
-  "solo.caption.3",
-  "solo.caption.4",
-  "solo.caption.5",
-  "solo.caption.6",
-  "solo.caption.7",
-  "solo.caption.8",
-  "solo.caption.9",
-  "solo.caption.10",
-  "solo.caption.11",
-  "solo.caption.12",
+  'solo.caption.0',
+  'solo.caption.1',
+  'solo.caption.2',
+  'solo.caption.3',
+  'solo.caption.4',
+  'solo.caption.5',
+  'solo.caption.6',
+  'solo.caption.7',
+  'solo.caption.8',
+  'solo.caption.9',
+  'solo.caption.10',
+  'solo.caption.11',
+  'solo.caption.12',
 ];
 
 const GROUP_CAPTIONS = [
-  "group.caption.0",
-  "group.caption.1",
-  "group.caption.2",
-  "group.caption.3",
-  "group.caption.4",
-  "group.caption.5",
-  "group.caption.6",
-  "group.caption.7",
-  "group.caption.8",
-  "group.caption.9",
-  "group.caption.10",
-  "group.caption.11",
-  "group.caption.12",
+  'group.caption.0',
+  'group.caption.1',
+  'group.caption.2',
+  'group.caption.3',
+  'group.caption.4',
+  'group.caption.5',
+  'group.caption.6',
+  'group.caption.7',
+  'group.caption.8',
+  'group.caption.9',
+  'group.caption.10',
+  'group.caption.11',
+  'group.caption.12',
 ];
 
 // Same fixed, safe starting point as `exposureSuggestion.js`'s own
@@ -66,9 +66,9 @@ const SAFE_LOOK_DEFAULTS = { fontChoice: 'system', fontScale: 1, textColor: 'aut
 
 export function suggestGroup(faceCount) {
   if (faceCount >= GROUP_THRESHOLD)
-    return { labelKey: "group.together", sticker: "confetti", ...SAFE_LOOK_DEFAULTS };
+    return { labelKey: 'group.together', sticker: 'confetti', ...SAFE_LOOK_DEFAULTS };
   if (faceCount === SOLO_COUNT)
-    return { labelKey: "group.solo", sticker: "heart", ...SAFE_LOOK_DEFAULTS };
+    return { labelKey: 'group.solo', sticker: 'heart', ...SAFE_LOOK_DEFAULTS };
   return null;
 }
 
