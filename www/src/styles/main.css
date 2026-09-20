@@ -188,6 +188,11 @@ body {
 
 .app-brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.45rem; }
 .app-title { font-size: 1.3rem; font-weight: 700; margin: 0; }
+/* The tappable box measured 103x18 on a phone -- the text's own line box,
+   against the 44px floor the top-level CLAUDE.md sets, and this is the only
+   route from the tool back to meifio itself. The height is bought with
+   padding so the words sit exactly where they did; the negative margins
+   spend the same 26px back so the header does not grow to pay for it. */
 .app-byline {
   display: flex;
   align-items: center;
@@ -195,6 +200,10 @@ body {
   font-size: 0.82rem;
   color: var(--byline);
   text-decoration: none;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0.8125rem 0;
+  margin: -0.5625rem 0 -0.8125rem;
 }
 .app-byline:hover, .app-byline:focus-visible { color: var(--ink); }
 .meifio-mark { width: auto; display: block; color: var(--ink); vertical-align: middle; }
