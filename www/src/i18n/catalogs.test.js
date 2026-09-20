@@ -65,7 +65,7 @@ describe('matchLocale', () => {
 
 describe('translate', () => {
   it('interpolates named values', () => {
-    expect(translate('en', 'app.byline', { logo: 'meifio' })).toBe('a meifio app');
+    expect(translate('en', 'app.byline', { logo: 'meifio' })).toBe('— a meifio app');
   });
 
   it('falls back to English rather than rendering blank', () => {

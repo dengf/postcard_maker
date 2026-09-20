@@ -35,14 +35,35 @@
   --surface: #0f1720;
   --ink: #e6edf3;
   --muted: #9fb0c3;
-  --muted-2: #5c6b7d;
+  /* Was #5c6b7d -- 3.15:1 on `--panel`, under WCAG AA's 4.5:1 floor for
+     the normal-size text this token actually carries (`.text-option-note`
+     at 0.76rem is text, not decoration). #7a8ca0 measures 4.85-5.23:1,
+     and is the same value the other two tools already corrected theirs
+     to, so the three now agree on this token as well as on its ratio. */
+  --muted-2: #7a8ca0;
   --byline: #9aa7b4;
   --line: #223;
   --line-soft: #1a2433;
   --input-border: #2a3546;
 
-  --accent: #d1436a;
+  /* Was #d1436a, which put `--accent-ink` on it at 4.22:1 -- the primary
+     button's own label under WCAG AA's 4.5:1. One step darker takes the
+     label to 4.65:1 while the fill still reads 3.68:1 against the page,
+     over 1.4.11's 3:1 floor for a non-text boundary. budget_planner's
+     identical token moved with it. */
+  --accent: #c93b62;
   --accent-ink: #fff7f9;
+  /* The same intent drawn as ink instead of as a fill, which is a
+     different contrast problem against the same background: the old
+     #d1436a measured 3.76-3.86:1 as text on `--panel`/`--panel-alt`, so
+     the four `color: var(--accent)` sites below were failing AA. This is
+     the brand's own dark plum (meifio-brand/README.md), 5.06-5.46:1.
+     Borders and fills keep `--accent`; only ink uses this. */
+  --accent-text: #f2547f;
+  /* The blossom in MeifioMark, which needs to follow the theme between
+     the brand's two plums rather than hardcode the light one on a dark
+     page. See that component's comment. */
+  --brand-plum: #f2547f;
   --positive: #7ee787;
   --positive-ink: #0f1720;
   --positive-bg: #16311f;
@@ -63,14 +84,25 @@
     --surface: #ffffff;
     --ink: #241a1e;
     --muted: #6b5860;
-    --muted-2: #9c8a91;
-    --byline: #8a747d;
+    /* Was #9c8a91 (3.02:1 on `--bg`, 3.25:1 on white) and #8a747d
+       (4.00:1 on `--bg`) -- both under AA for normal-size text, the same
+       failure as the dark tier above but needing to move darker rather
+       than lighter. These clear 4.5:1 on all three light surfaces
+       (`--bg`, `--panel`, `--panel-alt`) and stay in this palette's warm,
+       plum-leaning grey rather than borrowing the cool grey the other two
+       tools use -- the ratio is the requirement, the hue is this app's. */
+    --muted-2: #7b656d;
+    --byline: #746069;
     --line: #e6dade;
     --line-soft: #efe6e9;
     --input-border: #d9c9cf;
 
     --accent: #b01243;
     --accent-ink: #ffffff;
+    /* Light needs no split -- #B01243 is 6.15:1 even on the
+       lightest panel, so the fill colour doubles as the ink. */
+    --accent-text: #b01243;
+    --brand-plum: #b01243;
     --positive: #1f7a3d;
     --positive-ink: #ffffff;
     --positive-bg: #e4f3e8;
@@ -94,14 +126,18 @@
   --surface: #ffffff;
   --ink: #241a1e;
   --muted: #6b5860;
-  --muted-2: #9c8a91;
-  --byline: #8a747d;
+  /* See the media-query block above for the measurements. */
+  --muted-2: #7b656d;
+  --byline: #746069;
   --line: #e6dade;
   --line-soft: #efe6e9;
   --input-border: #d9c9cf;
 
   --accent: #b01243;
   --accent-ink: #ffffff;
+  /* See the media-query block above. */
+  --accent-text: #b01243;
+  --brand-plum: #b01243;
   --positive: #1f7a3d;
   --positive-ink: #ffffff;
   --positive-bg: #e4f3e8;
@@ -236,7 +272,10 @@ label.btn { cursor: pointer; }
   padding: 6px 4px;
   font-weight: 500;
 }
-.btn.link.primary { color: var(--accent); font-weight: 700; }
+/* Ink on a page, not a fill -- see `--accent-text`. Same for the three
+   `.active` rules below, whose label is real text; their borders stay
+   on `--accent`, which only has 1.4.11's 3:1 to clear. */
+.btn.link.primary { color: var(--accent-text); font-weight: 700; }
 
 /* icons.jsx's small inline outline icons (camera, image, share, save).
    Without an explicit size, an SVG with a viewBox but no width/height
@@ -300,7 +339,7 @@ label.btn { cursor: pointer; }
   font-size: 0.82rem;
   font-weight: 600;
 }
-.template-option.active { border-color: var(--accent); color: var(--accent); }
+.template-option.active { border-color: var(--accent); color: var(--accent-text); }
 .template-swatch { border: 1.5px solid currentColor; border-radius: 3px; }
 
 /* Editor layout: preview on top, controls below on narrow screens; side by
@@ -643,7 +682,7 @@ label.btn { cursor: pointer; }
   font-size: 0.82rem;
   cursor: pointer;
 }
-.filter-option.active { border-color: var(--accent); color: var(--accent); }
+.filter-option.active { border-color: var(--accent); color: var(--accent-text); }
 
 .text-field textarea {
   width: 100%;
@@ -674,7 +713,7 @@ label.btn { cursor: pointer; }
   font-size: 0.8rem;
   cursor: pointer;
 }
-.text-option-buttons button.active { border-color: var(--accent); color: var(--accent); }
+.text-option-buttons button.active { border-color: var(--accent); color: var(--accent-text); }
 .text-color-swatch {
   width: 44px;
   height: 44px;

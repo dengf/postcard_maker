@@ -5,7 +5,7 @@ export default {
   "meta.ogTitle": "Postcard Maker — a meifio app",
 
   "app.title": "Postcard Maker",
-  "app.byline": "a {logo} app",
+  "app.byline": "— a {logo} app",
   "app.language": "Language",
   "app.theme": "Theme",
   "app.themeSystem": "System",

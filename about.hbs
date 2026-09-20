@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Source Licenses — Postcard Maker</title>
+    <meta name="description" content="License text for every open-source component Postcard Maker is built from.">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <meta id="theme-color-meta" name="theme-color" content="#0f1720">
+    <script>
+      // The app's own theme picker writes this key (src/theme.js) and
+      // index.html reads it back the same way before first paint. These two
+      // static pages are outside React entirely, so without this they would
+      // sit in whatever the OS says while the app beside them honours an
+      // explicit choice -- open the privacy policy from a deliberately dark
+      // app on a light laptop and the page flipped to light. Inline and
+      // synchronous on purpose: anything deferred paints the wrong theme
+      // first. Wrapped in try/catch because Safari's private mode throws on
+      // localStorage rather than returning null.
+      (function () {
+        var t = null;
+        try {
+          t = localStorage.getItem('pc:theme');
+        } catch (e) {}
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        var isLight =
+          t === 'light' ||
+          (t !== 'dark' && window.matchMedia('(prefers-color-scheme: light)').matches);
+        var meta = document.getElementById('theme-color-meta');
+        if (meta) meta.setAttribute('content', isLight ? '#f8f6f5' : '#0f1720');
+      })();
+    </script>
+      <style>
+        /* Three-tier light/dark, the same mechanism and the same guard as
+           main.css: bare `:root` is dark, the media query applies when the
+           OS says light and nothing has overridden it, and the explicit
+           `[data-theme='light']` block wins over both. These pages used to
+           be dark-only while all three apps shipped a light theme and a
+           picker, so following a link out of a light app landed on a black
+           page. Values are this tool's own palette; the link is the brand
+           plum (meifio-brand/README.md) rather than the three different
+           link colours these pages had between them. */
+        :root {
+          color-scheme: dark;
+          --pg-bg: #0f1720;
+          --pg-ink: #e6edf3;
+          --pg-body: #c6d2df;
+          --pg-muted: #8b9bad;
+          --pg-line: #223;
+          --pg-code: #161e2b;
+          --pg-box: #131c26;
+          --pg-link: #f2547f;
+          --pg-lede-bg: #16311f;
+          --pg-lede-border: #2f6b3f;
+        }
+        @media (prefers-color-scheme: light) {
+          :root:not([data-theme='dark']) {
+            color-scheme: light;
+            --pg-bg: #f8f6f5;
+            --pg-ink: #241a1e;
+            --pg-body: #40333a;
+            --pg-muted: #7b656d;
+            --pg-line: #e6dade;
+            --pg-code: #f3eef0;
+            --pg-box: #ffffff;
+            --pg-link: #b01243;
+            --pg-lede-bg: #e4f3e8;
+            --pg-lede-border: #b8ddc2;
+          }
+        }
+        /* Same values, applied on an explicit choice instead of an OS
+           preference -- keep the two in step. */
+        :root[data-theme='light'] {
+          color-scheme: light;
+          --pg-bg: #f8f6f5;
+          --pg-ink: #241a1e;
+          --pg-body: #40333a;
+          --pg-muted: #7b656d;
+          --pg-line: #e6dade;
+          --pg-code: #f3eef0;
+          --pg-box: #ffffff;
+          --pg-link: #b01243;
+          --pg-lede-bg: #e4f3e8;
+          --pg-lede-border: #b8ddc2;
+        }
+        body {
+          margin: 0;
+          background: var(--pg-bg);
+          color: var(--pg-ink);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          line-height: 1.65;
+        }
+        main { max-width: 40rem; margin: 0 auto; padding: 48px 20px 80px; }
+        h1 { font-size: 1.6rem; margin: 0 0 4px; }
+        h2 { font-size: 1.05rem; margin: 36px 0 8px; }
+        p, li { color: var(--pg-body); }
+        a { color: var(--pg-link); }
+        .updated { color: var(--pg-muted); font-size: 0.85rem; margin: 0 0 32px; }
+        footer {
+          margin-top: 48px;
+          border-top: 1px solid var(--pg-line);
+          padding-top: 16px;
+          font-size: 0.85rem;
+        }
+
+        h3 { font-size: 1rem; margin: 28px 0 4px; }
+        h4 { font-size: 0.85rem; margin: 12px 0 4px; color: var(--pg-muted); font-weight: 600; }
+        code {
+          background: var(--pg-code);
+          padding: 1px 5px;
+          border-radius: 4px;
+          font-size: 0.9em;
+        }
+        .licenses-overview, .licenses-list, .license-used-by {
+          list-style-type: none;
+          margin: 0;
+          padding: 0;
+        }
+        .note { color: var(--pg-muted); font-size: 0.9rem; }
+        .licenses-overview li { display: inline-block; margin: 0 12px 6px 0; }
+        .license-used-by li { display: inline-block; margin: 0 10px 4px 0; font-size: 0.9rem; }
+        .license { border-top: 1px solid var(--pg-line); padding-top: 4px; }
+        /* The license texts are long and there are dozens of them; a scroll box
+           keeps the page navigable without hiding anything. `pre-wrap` matters
+           more than it looks -- these texts are hard-wrapped at 80 columns,
+           which overflows a 375px phone without it. */
+        .license-text {
+          max-height: 240px;
+          overflow-y: auto;
+          white-space: pre-wrap;
+          font-size: 0.8rem;
+          background: var(--pg-box);
+          border: 1px solid var(--pg-line);
+          border-radius: 8px;
+          padding: 12px 14px;
+          color: var(--pg-body);
+        }
+      </style>
+</head>
+
+<body>
+    <main>
+        <h1>Open Source Licenses</h1>
+        <p class="updated">Generated by <code>cargo about</code> from this app's own dependency graph.</p>
+
+        <p>
+            Postcard Maker is built from open-source software. Most of it is
+            compiled into the WebAssembly engine your browser downloads, which
+            makes that file a binary distribution of every project listed
+            below — and their licenses ask that their copyright notices travel
+            with it. This page is where those notices travel. Nothing here is
+            a network service; none of it sees your photo.
+        </p>
+
+        <h2>Machine-learning models</h2>
+        <p>
+            These two are not Cargo dependencies, so they are listed by hand
+            rather than generated. Both ship exactly as downloaded — no change
+            to either model's architecture or its trained weights. See
+            <a href="https://github.com/dengf/postcard_maker/blob/main/MODEL-LICENSES.md">MODEL-LICENSES.md</a>
+            for the fuller record.
+        </p>
+        <ul class="licenses-list">
+            <li class="license">
+                <h3>BSD 3-Clause — MobileNetV3-Small</h3>
+                <h4>Used by:</h4>
+                <ul class="license-used-by">
+                    <li><a href="https://github.com/pytorch/vision">torchvision (mobilenet_v3_small, IMAGENET1K_V1)</a></li>
+                </ul>
+                <pre class="license-text">BSD 3-Clause License
+
+Copyright (c) Soumith Chintala 2016,
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</pre>
+            </li>
+            <li class="license">
+                <h3>MIT — Ultra-Light-Fast-Generic-Face-Detector-1MB</h3>
+                <h4>Used by:</h4>
+                <ul class="license-used-by">
+                    <li><a href="https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB">version-slim-320_simplified.onnx</a></li>
+                </ul>
+                <pre class="license-text">MIT License
+
+Copyright (c) 2019 linzai
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+            </li>
+        </ul>
+
+        <h2>Rust crates — overview</h2>
+        <ul class="licenses-overview">
+            {{#each overview}}
+            <li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
+            {{/each}}
+        </ul>
+
+        <h2>Rust crates — full license text</h2>
+        <p class="note">
+            A license appears once per distinct copyright notice, so the same
+            license shows up several times with a different "Used by" list
+            each time — that repetition is the point, since it is the
+            copyright lines, not the license body, that each project asks to
+            have carried.
+        </p>
+        <ul class="licenses-list">
+            {{#each licenses}}
+            <li class="license">
+                <h3 id="{{id}}">{{name}}</h3>
+                <h4>Used by:</h4>
+                <ul class="license-used-by">
+                    {{#each used_by}}
+                    <li><a href="{{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}}">{{crate.name}} {{crate.version}}</a></li>
+                    {{/each}}
+                </ul>
+                <pre class="license-text">{{text}}</pre>
+            </li>
+            {{/each}}
+        </ul>
+
+        <footer>
+            <a href="./">&larr; Back to the app</a>
+            &nbsp;·&nbsp;
+            <a href="privacy.html">Privacy policy</a>
+        </footer>
+    </main>
+</body>
+
+</html>
