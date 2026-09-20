@@ -126,6 +126,17 @@ inside it. Regenerate with
 `cargo about generate about.hbs -o www/static/third-party-licenses.html`;
 CI fails if the committed page is out of date.
 
+React is **not** a Cargo dependency either, and its code ships in the
+bundle your browser downloads — which makes that file a binary
+distribution of it in exactly the same way the `.wasm` is of the crates.
+The bundler does extract React's own banners into a `.js.LICENSE.txt`
+beside the bundle, but those banners only *point at* a LICENSE file in
+React's source tree that is never shipped, so the licence text itself
+lives in `about.hbs`'s "JavaScript in the page" section, maintained by
+hand. `scripts/check-runtime-deps.mjs` — a CI step — fails if any non-dev
+package in `www/package-lock.json` is missing from that section, which is
+the one thing the regenerate-and-diff above cannot catch.
+
 The two ONNX models are **not** Cargo dependencies, so `cargo-about`
 cannot see them. Their notices live in
 [`MODEL-LICENSES.md`](MODEL-LICENSES.md) and must be maintained by hand.
