@@ -27,7 +27,10 @@ describe('applyFilterToColor', () => {
   });
 
   it('reads a percentage the same as the equivalent number', () => {
-    close(applyFilterToColor([200, 100, 50], 'grayscale(50%)'), applyFilterToColor([200, 100, 50], 'grayscale(0.5)'));
+    close(
+      applyFilterToColor([200, 100, 50], 'grayscale(50%)'),
+      applyFilterToColor([200, 100, 50], 'grayscale(0.5)'),
+    );
   });
 
   it('scales with brightness and pivots contrast around mid grey', () => {

@@ -4,7 +4,10 @@ import { looksLikeAddress, mailtoUrl, parseRecipients } from './mailto';
 describe('parseRecipients', () => {
   it('splits on commas, semicolons and whitespace', () => {
     expect(parseRecipients('a@x.com, b@x.com; c@x.com d@x.com')).toEqual([
-      'a@x.com', 'b@x.com', 'c@x.com', 'd@x.com',
+      'a@x.com',
+      'b@x.com',
+      'c@x.com',
+      'd@x.com',
     ]);
   });
 

@@ -1,7 +1,14 @@
 import React from 'react';
 import { useI18n } from '../i18n';
 
-export default function BackSidePanel({ enabled, onToggle, location, onLocationChange, address, onAddressChange }) {
+export default function BackSidePanel({
+  enabled,
+  onToggle,
+  location,
+  onLocationChange,
+  address,
+  onAddressChange,
+}) {
   const { t } = useI18n();
   return (
     <div className="panel">

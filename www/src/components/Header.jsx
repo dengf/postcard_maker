@@ -42,9 +42,9 @@ export default function Header() {
       <div className="app-brand">
         <h1 className="app-title">{t('app.title')}</h1>
         <a className="app-byline" href={MEIFIO_HOME}>
-          {t('app.byline').split('{logo}').flatMap((part, i) =>
-            i === 0 ? [part] : [<MeifioMark key="mark" />, part],
-          )}
+          {t('app.byline')
+            .split('{logo}')
+            .flatMap((part, i) => (i === 0 ? [part] : [<MeifioMark key="mark" />, part]))}
         </a>
       </div>
 

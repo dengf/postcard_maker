@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { useI18n } from '../i18n';
 import { containsCjk } from '../fonts';
 import { useIsNarrow } from '../useIsNarrow';
-import { FontGlyphIcon, SizeIcon, AlignGlyphIcon, ColorSwatchGlyphIcon, ChevronIcon } from './icons';
+import {
+  FontGlyphIcon,
+  SizeIcon,
+  AlignGlyphIcon,
+  ColorSwatchGlyphIcon,
+  ChevronIcon,
+} from './icons';
 
 // Named, not bare hex: the toggle shows the current value as a word the
 // same way Style/Size/Align do, and the swatch buttons need an accessible
@@ -77,7 +83,11 @@ export default function TextPanel({
   // the category word rather than rendering an empty toggle.
   const colorKey = COLORS.find((c) => c.value === textColor)?.key;
   const colorLabel =
-    textColor === 'auto' ? t('text.color.auto') : colorKey ? t(`text.color.${colorKey}`) : t('text.color');
+    textColor === 'auto'
+      ? t('text.color.auto')
+      : colorKey
+        ? t(`text.color.${colorKey}`)
+        : t('text.color');
 
   return (
     <div className="panel text-field">
@@ -98,14 +108,22 @@ export default function TextPanel({
       {suggestion && !message.trim() && (
         <div className="text-suggestion">
           <p className="text-option-note">{t(suggestion)}</p>
-          <button type="button" className="btn ghost" onClick={() => onMessageChange(t(suggestion))}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => onMessageChange(t(suggestion))}
+          >
             {t('text.useSuggestion')}
           </button>
         </div>
       )}
 
       <div className="text-row">
-        <OptionGroup icon={<FontGlyphIcon />} label={t('text.font')} preview={t(`text.font.${font}`)}>
+        <OptionGroup
+          icon={<FontGlyphIcon />}
+          label={t('text.font')}
+          preview={t(`text.font.${font}`)}
+        >
           {FONTS.map((f) => (
             <button
               key={f}
@@ -127,12 +145,18 @@ export default function TextPanel({
               className={s === fontScale ? 'active' : ''}
               onClick={() => onFontScaleChange(s)}
             >
-              {s === 1 ? t('text.size.auto') : t(`text.size.${s === 0.75 ? 'smaller' : s === 1.3 ? 'larger' : 'largest'}`)}
+              {s === 1
+                ? t('text.size.auto')
+                : t(`text.size.${s === 0.75 ? 'smaller' : s === 1.3 ? 'larger' : 'largest'}`)}
             </button>
           ))}
         </OptionGroup>
 
-        <OptionGroup icon={<AlignGlyphIcon />} label={t('text.align')} preview={t(`text.align.${textAlign}`)}>
+        <OptionGroup
+          icon={<AlignGlyphIcon />}
+          label={t('text.align')}
+          preview={t(`text.align.${textAlign}`)}
+        >
           {ALIGNS.map((a) => (
             <button
               key={a}

@@ -33,7 +33,11 @@ export default function DoodleToolbar({
   return (
     <div className="panel">
       <h2>{t('doodle.heading')}</h2>
-      <button type="button" className={drawMode ? 'btn' : 'btn secondary'} onClick={onToggleDrawMode}>
+      <button
+        type="button"
+        className={drawMode ? 'btn' : 'btn secondary'}
+        onClick={onToggleDrawMode}
+      >
         {drawMode ? t('doodle.drawingOn') : t('doodle.draw')}
       </button>
 
@@ -47,7 +51,9 @@ export default function DoodleToolbar({
                   <button
                     key={c.value}
                     type="button"
-                    className={c.value === strokeColor ? 'text-color-swatch active' : 'text-color-swatch'}
+                    className={
+                      c.value === strokeColor ? 'text-color-swatch active' : 'text-color-swatch'
+                    }
                     style={{ background: c.value }}
                     aria-label={t(`doodle.color.${c.key}`)}
                     aria-pressed={c.value === strokeColor}

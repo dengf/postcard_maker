@@ -70,7 +70,7 @@ export function twistAngle(a, b) {
  * crosses the atan2 discontinuity from reading as a 350-degree jolt.
  */
 export function pinchRotation(startRotation, startAngle, angle) {
-  const delta = (((angle - startAngle) % 360) + 540) % 360 - 180;
+  const delta = ((((angle - startAngle) % 360) + 540) % 360) - 180;
   return snapRotation(startRotation + delta);
 }
 

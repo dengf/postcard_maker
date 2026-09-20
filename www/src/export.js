@@ -44,10 +44,7 @@ export async function renderPostcard({
   // of the card -- left alone, zooming out would quietly export a bigger
   // card than a zoomed-in one. Scaling the cap by the smaller of the two
   // fractions keeps the card itself at the size it always was.
-  const cropMaxDimension = Math.max(
-    1,
-    Math.round(maxDimension * Math.min(photoFit.w, photoFit.h)),
-  );
+  const cropMaxDimension = Math.max(1, Math.round(maxDimension * Math.min(photoFit.w, photoFit.h)));
   const bytes = wasmModule.process_photo(photoBytes, {
     cropX: crop.x,
     cropY: crop.y,
@@ -134,13 +131,23 @@ export async function renderPostcard({
             // an approximation, same reasoning `drawMessage`'s own 'auto'
             // text color sampling below already relies on.
             averageColor(
-              ctx.getImageData(Math.round(photoRect.x), Math.round(photoRect.y), Math.max(1, Math.round(photoRect.w)), Math.max(1, Math.round(photoRect.h))),
+              ctx.getImageData(
+                Math.round(photoRect.x),
+                Math.round(photoRect.y),
+                Math.max(1, Math.round(photoRect.w)),
+                Math.max(1, Math.round(photoRect.h)),
+              ),
             ).map(Math.round)
           : hexToRgb(fillColor);
       const blank = geometry.blankArea;
       drawFill(
         ctx,
-        { x: blank.x * canvas.width, y: blank.y * canvas.height, w: blank.w * canvas.width, h: blank.h * canvas.height },
+        {
+          x: blank.x * canvas.width,
+          y: blank.y * canvas.height,
+          w: blank.w * canvas.width,
+          h: blank.h * canvas.height,
+        },
         shape,
         variant,
         baseRgb,
@@ -162,7 +169,15 @@ export async function renderPostcard({
       drawFrontAddressBlock(ctx, canvas, geometry, { toLabel, address, font, textColor });
     }
 
-    drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry, messagePosition });
+    drawMessage(ctx, canvas, {
+      message,
+      font,
+      fontScale,
+      textColor,
+      textAlign,
+      geometry,
+      messagePosition,
+    });
     await drawStickers(ctx, canvas, stickers);
     drawStrokes(ctx, canvas, strokes);
 
@@ -272,7 +287,14 @@ function hexToRgba(hex, alpha) {
 function resolveInkColor(ctx, textColor, rectPx) {
   if (textColor !== 'auto') return textColor;
   return bestContrastColor(
-    averageColor(ctx.getImageData(Math.round(rectPx.x), Math.round(rectPx.y), Math.max(1, Math.round(rectPx.w)), Math.max(1, Math.round(rectPx.h)))),
+    averageColor(
+      ctx.getImageData(
+        Math.round(rectPx.x),
+        Math.round(rectPx.y),
+        Math.max(1, Math.round(rectPx.w)),
+        Math.max(1, Math.round(rectPx.h)),
+      ),
+    ),
   );
 }
 
@@ -321,7 +343,13 @@ function drawFrontAddressBlock(ctx, canvas, geometry, { toLabel, address, font, 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const fontSize = Math.min(
-    ...addressLines.map((line) => fitFontSize(ctx, line, w, addressLineGap * 0.95, { min: 8, max: addressLineGap * 0.6, fontFamily })),
+    ...addressLines.map((line) =>
+      fitFontSize(ctx, line, w, addressLineGap * 0.95, {
+        min: 8,
+        max: addressLineGap * 0.6,
+        fontFamily,
+      }),
+    ),
   );
   ctx.font = `${fontSize}px ${fontFamily}`;
   addressLines.forEach((line, i) => {
@@ -392,13 +420,27 @@ export async function renderCollage({
       const fit = s.photoFit ?? FULL_FIT;
       const box = { x: slotX, y: slotY, w: slotW, h: slotH };
       if (isLetterboxed(fit)) drawBlurBed(ctx, blurredBitmap(img, BLUR_BED_RADIUS), box);
-      ctx.drawImage(img, box.x + fit.x * box.w, box.y + fit.y * box.h, fit.w * box.w, fit.h * box.h);
+      ctx.drawImage(
+        img,
+        box.x + fit.x * box.w,
+        box.y + fit.y * box.h,
+        fit.w * box.w,
+        fit.h * box.h,
+      );
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
-  drawMessage(ctx, canvas, { message, font, fontScale, textColor, textAlign, geometry, messagePosition });
+  drawMessage(ctx, canvas, {
+    message,
+    font,
+    fontScale,
+    textColor,
+    textAlign,
+    geometry,
+    messagePosition,
+  });
   await drawStickers(ctx, canvas, stickers);
   drawStrokes(ctx, canvas, strokes);
 
@@ -586,7 +628,11 @@ function loadImage(url) {
   });
 }
 
-function drawMessage(ctx, canvas, { message, font, fontScale = 1, textColor, textAlign, geometry, messagePosition }) {
+function drawMessage(
+  ctx,
+  canvas,
+  { message, font, fontScale = 1, textColor, textAlign, geometry, messagePosition },
+) {
   if (!message?.trim()) return;
   const area = geometry.messageArea;
   // `messagePosition` overrides where the box sits (see
@@ -613,7 +659,16 @@ function drawMessage(ctx, canvas, { message, font, fontScale = 1, textColor, tex
   // `autoTextColor.js`.
   ctx.fillStyle =
     textColor === 'auto'
-      ? bestContrastColor(averageColor(ctx.getImageData(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)))))
+      ? bestContrastColor(
+          averageColor(
+            ctx.getImageData(
+              Math.round(x),
+              Math.round(y),
+              Math.max(1, Math.round(w)),
+              Math.max(1, Math.round(h)),
+            ),
+          ),
+        )
       : textColor;
   ctx.textBaseline = 'top';
   ctx.textAlign = textAlign;

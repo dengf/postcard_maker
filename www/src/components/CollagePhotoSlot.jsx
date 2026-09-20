@@ -61,7 +61,11 @@ export default function CollagePhotoSlot({
       {...gestures}
     >
       {letterboxed && (
-        <div className="photo-blur-bed" style={{ transform: `scale(${BLUR_BED_SCALE})` }} aria-hidden="true">
+        <div
+          className="photo-blur-bed"
+          style={{ transform: `scale(${BLUR_BED_SCALE})` }}
+          aria-hidden="true"
+        >
           <img
             className="photo-layer"
             src={photoUrl}
@@ -75,7 +79,12 @@ export default function CollagePhotoSlot({
         className="photo-fit"
         style={
           letterboxed
-            ? { left: `${fit.x * 100}%`, top: `${fit.y * 100}%`, width: `${fit.w * 100}%`, height: `${fit.h * 100}%` }
+            ? {
+                left: `${fit.x * 100}%`,
+                top: `${fit.y * 100}%`,
+                width: `${fit.w * 100}%`,
+                height: `${fit.h * 100}%`,
+              }
             : undefined
         }
       >

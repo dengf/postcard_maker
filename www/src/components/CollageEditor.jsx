@@ -164,7 +164,13 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
       dispatch({
         type: 'SET_LAYOUT',
         layoutId: next.id,
-        slots: carrySlots(wasmModule, stateRef.current.slots, next, aspectRatio(aspectId), emptySlot),
+        slots: carrySlots(
+          wasmModule,
+          stateRef.current.slots,
+          next,
+          aspectRatio(aspectId),
+          emptySlot,
+        ),
       });
     },
     [wasmModule, aspectId],
@@ -395,7 +401,8 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
    * card again in the resume banner.
    */
   const backToIntro = useCallback(async () => {
-    if (anySlotFilled && state.layoutId) await saveDraft(collageDraft(state, aspectId)).catch(() => {});
+    if (anySlotFilled && state.layoutId)
+      await saveDraft(collageDraft(state, aspectId)).catch(() => {});
     onBack();
   }, [anySlotFilled, state, aspectId, onBack]);
 
@@ -502,7 +509,11 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
 
   const allSlotsFilled = state.slots.length > 0 && state.slots.every((s) => s.photo);
   const effFont = effectiveFont(state.fontChoice, state.message);
-  const postmarkDate = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+  const postmarkDate = new Date().toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 
   return (
     <div className="editor-layout">
@@ -622,7 +633,9 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                 rotation: inkSample.slot.rotation,
               }
             }
-            cssFilter={inkSample && previewFilterCss(inkSample.slot.adjustments, inkSample.slot.filter)}
+            cssFilter={
+              inkSample && previewFilterCss(inkSample.slot.adjustments, inkSample.slot.filter)
+            }
             autoColorSampleArea={inkSample?.area}
           />
           <DoodleLayer
@@ -681,7 +694,10 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                   aria-label={t('collage.layoutOf').replace('{n}', l.slots.length)}
                   onClick={() => selectLayout(l)}
                 >
-                  <span className="collage-layout-preview" style={{ aspectRatio: aspectRatio(aspectId) }}>
+                  <span
+                    className="collage-layout-preview"
+                    style={{ aspectRatio: aspectRatio(aspectId) }}
+                  >
                     {l.slots.map((s, i) => (
                       <span
                         key={i}
@@ -709,10 +725,20 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
             onRotationChange={rotateActiveSlot}
             onZoomChange={changeActiveZoom}
             filter={activeSlot.filter}
-            onFilterChange={(f) => dispatch({ type: 'SET_SLOT_FILTER', index: state.activeSlotIndex, filter: f })}
+            onFilterChange={(f) =>
+              dispatch({ type: 'SET_SLOT_FILTER', index: state.activeSlotIndex, filter: f })
+            }
             adjustments={activeSlot.adjustments}
-            onAdjustmentsChange={(a) => dispatch({ type: 'SET_SLOT_ADJUSTMENTS', index: state.activeSlotIndex, adjustments: a })}
-            onReset={() => dispatch({ type: 'RESET_SLOT_ADJUSTMENTS', index: state.activeSlotIndex })}
+            onAdjustmentsChange={(a) =>
+              dispatch({
+                type: 'SET_SLOT_ADJUSTMENTS',
+                index: state.activeSlotIndex,
+                adjustments: a,
+              })
+            }
+            onReset={() =>
+              dispatch({ type: 'RESET_SLOT_ADJUSTMENTS', index: state.activeSlotIndex })
+            }
           />
         )}
 

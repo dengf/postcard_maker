@@ -159,7 +159,12 @@ export default function PostcardCanvas({
   const fit = photoFit(crop, baseCrop, zoom);
   const letterboxed = isLetterboxed(fit);
   const fitStyle = letterboxed
-    ? { left: `${fit.x * 100}%`, top: `${fit.y * 100}%`, width: `${fit.w * 100}%`, height: `${fit.h * 100}%` }
+    ? {
+        left: `${fit.x * 100}%`,
+        top: `${fit.y * 100}%`,
+        width: `${fit.w * 100}%`,
+        height: `${fit.h * 100}%`,
+      }
     : undefined;
 
   const photoArea = geometry?.photoArea ?? FULL_AREA;
@@ -183,7 +188,11 @@ export default function PostcardCanvas({
   };
 
   return (
-    <div className="postcard-frame" style={{ aspectRatio, '--card-ratio': aspectRatio }} ref={frameRef}>
+    <div
+      className="postcard-frame"
+      style={{ aspectRatio, '--card-ratio': aspectRatio }}
+      ref={frameRef}
+    >
       {split && shape === 'blur' && (
         // A second, blurred copy of the same crop stretched across the
         // whole card. It reuses the photo box's own percentages against a
@@ -195,24 +204,29 @@ export default function PostcardCanvas({
       )}
       {split && shape !== 'blur' && <div className="postcard-fill" style={fillBoxStyle} />}
 
-      <div
-        ref={photoBoxRef}
-        className="postcard-photo-box"
-        style={photoBoxStyle}
-        {...gestures}
-      >
+      <div ref={photoBoxRef} className="postcard-photo-box" style={photoBoxStyle} {...gestures}>
         {letterboxed && (
           /* `.postcard-photo-box` already carries `cssFilter`, so the bed
              inherits the look of the photo and the class only adds the
              blur. The over-scan keeps that blur's own faded edge outside
              the box, where the box's `overflow: hidden` clips it. */
-          <div className="photo-blur-bed" style={{ transform: `scale(${BLUR_BED_SCALE})` }} aria-hidden="true">
+          <div
+            className="photo-blur-bed"
+            style={{ transform: `scale(${BLUR_BED_SCALE})` }}
+            aria-hidden="true"
+          >
             <img
               className="photo-layer"
               src={photoUrl}
               alt=""
               draggable="false"
-              style={photoLayerStyle(coverCrop(crop, baseCrop), bounds, naturalW, naturalH, rotation)}
+              style={photoLayerStyle(
+                coverCrop(crop, baseCrop),
+                bounds,
+                naturalW,
+                naturalH,
+                rotation,
+              )}
             />
           </div>
         )}

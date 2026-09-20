@@ -25,7 +25,11 @@ export function useConfirm() {
   }, []);
 
   const dialog = state ? (
-    <ConfirmDialogView message={state.message} confirmLabel={state.confirmLabel} onAnswer={answer} />
+    <ConfirmDialogView
+      message={state.message}
+      confirmLabel={state.confirmLabel}
+      onAnswer={answer}
+    />
   ) : null;
 
   return [confirm, dialog];
@@ -59,7 +63,9 @@ function ConfirmDialogView({ message, confirmLabel, onAnswer }) {
         aria-describedby="confirm-message"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="confirm-message" id="confirm-message">{message}</p>
+        <p className="confirm-message" id="confirm-message">
+          {message}
+        </p>
         <div className="confirm-actions">
           <button className="btn secondary" onClick={() => onAnswer(false)}>
             {t('confirm.cancel')}

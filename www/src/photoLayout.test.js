@@ -36,15 +36,31 @@ describe('photoAreaRatio', () => {
 describe('suggestCropForLayout', () => {
   it('calls the plain named-aspect suggestion for full coverage', () => {
     const wasmModule = { suggest_crop: vi.fn(() => 'full-crop'), suggest_crop_ratio: vi.fn() };
-    const result = suggestCropForLayout(wasmModule, 800, 600, 'landscape', 'full', { w: 1, h: 1 }, 1.5);
+    const result = suggestCropForLayout(
+      wasmModule,
+      800,
+      600,
+      'landscape',
+      'full',
+      { w: 1, h: 1 },
+      1.5,
+    );
     expect(wasmModule.suggest_crop).toHaveBeenCalledWith(800, 600, 'landscape');
     expect(wasmModule.suggest_crop_ratio).not.toHaveBeenCalled();
     expect(result).toBe('full-crop');
   });
 
-  it('calls suggest_crop_ratio with the photo box\'s own ratio for a split coverage', () => {
+  it("calls suggest_crop_ratio with the photo box's own ratio for a split coverage", () => {
     const wasmModule = { suggest_crop: vi.fn(), suggest_crop_ratio: vi.fn(() => 'ratio-crop') };
-    const result = suggestCropForLayout(wasmModule, 800, 600, 'landscape', 'half', { w: 0.5, h: 1 }, 1.5);
+    const result = suggestCropForLayout(
+      wasmModule,
+      800,
+      600,
+      'landscape',
+      'half',
+      { w: 0.5, h: 1 },
+      1.5,
+    );
     expect(wasmModule.suggest_crop).not.toHaveBeenCalled();
     expect(wasmModule.suggest_crop_ratio).toHaveBeenCalledWith(800, 600, 0.75);
     expect(result).toBe('ratio-crop');

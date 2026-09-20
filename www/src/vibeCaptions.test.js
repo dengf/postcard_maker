@@ -20,7 +20,7 @@ describe('captionFor', () => {
     expect(captionFor('not-a-real-vibe')).toBeNull();
   });
 
-  it.each(Object.keys(VIBE_CAPTIONS))('returns a key from %s\'s own pool', (vibe) => {
+  it.each(Object.keys(VIBE_CAPTIONS))("returns a key from %s's own pool", (vibe) => {
     for (let i = 0; i < 20; i += 1) {
       expect(VIBE_CAPTIONS[vibe]).toContain(captionFor(vibe));
     }

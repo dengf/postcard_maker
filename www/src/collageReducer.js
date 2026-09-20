@@ -171,7 +171,10 @@ export function collageReducer(state, action) {
       };
 
     case 'SET_SLOT_ADJUSTMENTS':
-      return { ...state, slots: updateSlot(state.slots, action.index, { adjustments: action.adjustments }) };
+      return {
+        ...state,
+        slots: updateSlot(state.slots, action.index, { adjustments: action.adjustments }),
+      };
 
     case 'RESET_SLOT_ADJUSTMENTS':
       return {
@@ -203,13 +206,18 @@ export function collageReducer(state, action) {
     case 'ADD_STICKER':
       return {
         ...state,
-        stickers: [...state.stickers, { key: action.key, id: action.id, x: action.x, y: action.y, scale: 1 }],
+        stickers: [
+          ...state.stickers,
+          { key: action.key, id: action.id, x: action.x, y: action.y, scale: 1 },
+        ],
       };
 
     case 'MOVE_STICKER':
       return {
         ...state,
-        stickers: state.stickers.map((s, i) => (i === action.index ? { ...s, x: action.x, y: action.y } : s)),
+        stickers: state.stickers.map((s, i) =>
+          i === action.index ? { ...s, x: action.x, y: action.y } : s,
+        ),
       };
 
     case 'REMOVE_STICKER':

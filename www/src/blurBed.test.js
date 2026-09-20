@@ -39,7 +39,13 @@ describe('boxBlur', () => {
 
     boxBlur(data, w, h, 2);
 
-    for (const [x, y] of [[0, 0], [11, 7], [6, 0], [0, 4], [6, 4]]) {
+    for (const [x, y] of [
+      [0, 0],
+      [11, 7],
+      [6, 0],
+      [0, 4],
+      [6, 4],
+    ]) {
       expect(at(data, w, x, y)).toBe(200);
     }
   });

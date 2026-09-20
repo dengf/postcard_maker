@@ -34,7 +34,10 @@ describe('draftThumbBlob', () => {
   // when there is a draft to resume -- so the thumbnail can't just be
   // slot zero.
   it('takes the first filled slot from a collage', () => {
-    const draft = { kind: COLLAGE_KIND, slots: [null, { photoBlob: blob('b') }, { photoBlob: blob('c') }] };
+    const draft = {
+      kind: COLLAGE_KIND,
+      slots: [null, { photoBlob: blob('b') }, { photoBlob: blob('c') }],
+    };
     expect(draftThumbBlob(draft)).toEqual(blob('b'));
   });
 
@@ -93,7 +96,9 @@ describe('packDraft / unpackDraft', () => {
   it('reads an older record that holds a Blob straight through', async () => {
     const old = photo('legacy');
     expect(unpackDraft({ photoBlob: old }).photoBlob).toBe(old);
-    expect(unpackDraft({ kind: COLLAGE_KIND, slots: [{ photoBlob: old }] }).slots[0].photoBlob).toBe(old);
+    expect(
+      unpackDraft({ kind: COLLAGE_KIND, slots: [{ photoBlob: old }] }).slots[0].photoBlob,
+    ).toBe(old);
   });
 
   it('copes with a draft that has no photo yet, and with nothing at all', async () => {

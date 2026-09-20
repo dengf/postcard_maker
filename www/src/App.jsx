@@ -27,7 +27,12 @@ import { saveDraft, loadDraft, clearDraft, draftThumbBlob, isCollageDraft } from
 import { detectLocation } from './location';
 import { useMomentCaption } from './useMomentCaption';
 import { renderPostcard } from './export';
-import { postcardReducer, initialState, DEFAULT_ADJUSTMENTS, nextStickerKey } from './postcardReducer';
+import {
+  postcardReducer,
+  initialState,
+  DEFAULT_ADJUSTMENTS,
+  nextStickerKey,
+} from './postcardReducer';
 import { templateGeometry, suggestCropForLayout, photoAreaRatio } from './photoLayout';
 import LayoutPanel from './components/LayoutPanel';
 
@@ -98,8 +103,19 @@ function AppShell({ wasmModule }) {
   const draftPreviewUrlRef = useRef(null);
   const pickerRef = useRef(null);
   const { photo, aspectId, baseCrop, crop, zoom, rotation, geometry, adjustments, filter } = state;
-  const { message, fontChoice, fontScale, textColor, textAlign, messagePosition, stickers, strokes, drawMode } = state;
-  const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } = state;
+  const {
+    message,
+    fontChoice,
+    fontScale,
+    textColor,
+    textAlign,
+    messagePosition,
+    stickers,
+    strokes,
+    drawMode,
+  } = state;
+  const { strokeColor, strokeWidth, backSide, photoCoverage, photoSide, fillStyle, fillColor } =
+    state;
 
   // A previously unfinished card, of either kind, offered once at startup
   // rather than silently resumed -- someone landing fresh (a shared link,
@@ -164,7 +180,16 @@ function AppShell({ wasmModule }) {
         // the upright one here would reopen the card zoomed differently
         // from how it was saved.
         const turn = restored?.rotation ?? 0;
-        const base = suggestCropForLayout(wasmModule, w, h, aspect, coverage, geo.photoArea, aspectRatio(aspect), turn);
+        const base = suggestCropForLayout(
+          wasmModule,
+          w,
+          h,
+          aspect,
+          coverage,
+          geo.photoArea,
+          aspectRatio(aspect),
+          turn,
+        );
 
         dispatch({
           type: 'OPEN_PHOTO',
@@ -241,7 +266,10 @@ function AppShell({ wasmModule }) {
       setCollageActive(true);
       return;
     }
-    await openPhoto(new File([draft.photoBlob], 'postcard.jpg', { type: draft.photoBlob.type }), draft);
+    await openPhoto(
+      new File([draft.photoBlob], 'postcard.jpg', { type: draft.photoBlob.type }),
+      draft,
+    );
   }, [openPhoto, releaseDraftPreview]);
 
   // Deletes the stored draft outright, no prompt -- for callers that have
@@ -560,10 +588,13 @@ function AppShell({ wasmModule }) {
     fillColor,
   ]);
 
-  useEffect(() => () => {
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    if (draftPreviewUrlRef.current) URL.revokeObjectURL(draftPreviewUrlRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      if (draftPreviewUrlRef.current) URL.revokeObjectURL(draftPreviewUrlRef.current);
+    },
+    [],
+  );
 
   if (wasmModule?.unavailable) {
     return (
@@ -577,7 +608,11 @@ function AppShell({ wasmModule }) {
   }
 
   const effFont = effectiveFont(fontChoice, message);
-  const postmarkDate = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+  const postmarkDate = new Date().toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 
   return (
     <div className="app">
@@ -761,7 +796,9 @@ function AppShell({ wasmModule }) {
                 enabled={backSide.enabled}
                 onToggle={toggleBackSide}
                 location={backSide.location}
-                onLocationChange={(location) => dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })}
+                onLocationChange={(location) =>
+                  dispatch({ type: 'SET_BACK_SIDE_LOCATION', location })
+                }
                 address={backSide.address}
                 onAddressChange={(address) => dispatch({ type: 'SET_BACK_SIDE_ADDRESS', address })}
               />

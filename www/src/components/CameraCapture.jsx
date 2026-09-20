@@ -89,7 +89,12 @@ export default function CameraCapture({ onFile }) {
           <button type="button" className="btn secondary" onClick={cancel}>
             {t('confirm.cancel')}
           </button>
-          <button type="button" className="btn camera-shutter" onClick={capture} aria-label={t('photo.takePhoto')} />
+          <button
+            type="button"
+            className="btn camera-shutter"
+            onClick={capture}
+            aria-label={t('photo.takePhoto')}
+          />
         </div>
       </div>
     );
@@ -97,7 +102,12 @@ export default function CameraCapture({ onFile }) {
 
   return (
     <>
-      <button type="button" className="btn secondary" onClick={start} disabled={phase === 'starting'}>
+      <button
+        type="button"
+        className="btn secondary"
+        onClick={start}
+        disabled={phase === 'starting'}
+      >
         <CameraIcon />
         {phase === 'starting' ? t('photo.cameraStarting') : t('photo.takePhoto')}
       </button>

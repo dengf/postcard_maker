@@ -6,7 +6,18 @@ import { RotateIcon } from './icons';
 
 const FILTERS = ['none', 'grayscale', 'sepia', 'vintage'];
 
-export default function FilterPanel({ zoom, minZoom = FILL_ZOOM, onZoomChange, rotation, onRotationChange, filter, onFilterChange, adjustments, onAdjustmentsChange, onReset }) {
+export default function FilterPanel({
+  zoom,
+  minZoom = FILL_ZOOM,
+  onZoomChange,
+  rotation,
+  onRotationChange,
+  filter,
+  onFilterChange,
+  adjustments,
+  onAdjustmentsChange,
+  onReset,
+}) {
   const { t } = useI18n();
 
   const setAdjustment = (key) => (e) =>
@@ -25,7 +36,15 @@ export default function FilterPanel({ zoom, minZoom = FILL_ZOOM, onZoomChange, r
           whole photo on a blurred bed, and how far below that is worth
           going depends on how much this photo's shape differs from the
           card's (`letterbox.js`'s `fitZoom`). */}
-      <SliderField label={t('editor.zoom')} value={zoom} min={minZoom} max={MAX_ZOOM} step={0.01} onChange={(e) => onZoomChange(Number(e.target.value))} display={`${zoom.toFixed(2).replace(/0$/, '')}x`} />
+      <SliderField
+        label={t('editor.zoom')}
+        value={zoom}
+        min={minZoom}
+        max={MAX_ZOOM}
+        step={0.01}
+        onChange={(e) => onZoomChange(Number(e.target.value))}
+        display={`${zoom.toFixed(2).replace(/0$/, '')}x`}
+      />
 
       <div className="filter-options">
         {FILTERS.map((f) => (

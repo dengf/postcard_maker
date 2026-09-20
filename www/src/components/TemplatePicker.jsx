@@ -17,7 +17,10 @@ export default function TemplatePicker({ aspectId, onChange }) {
           >
             <span
               className="template-swatch"
-              style={{ width: a.ratio >= 1 ? 32 : 32 * a.ratio, height: a.ratio >= 1 ? 32 / a.ratio : 32 }}
+              style={{
+                width: a.ratio >= 1 ? 32 : 32 * a.ratio,
+                height: a.ratio >= 1 ? 32 / a.ratio : 32,
+              }}
             />
             {t(a.labelKey)}
           </button>

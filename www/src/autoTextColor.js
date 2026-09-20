@@ -108,10 +108,23 @@ export function sampleFrameColor(img, crop, cssFilter, areaRect, view) {
   // source-rect `drawImage` it replaced.
   const rotation = view?.rotation ?? 0;
   const bounds = view?.bounds ?? { w: img.naturalWidth, h: img.naturalHeight };
-  ctx.setTransform(SIZE / crop.w, 0, 0, SIZE / crop.h, (-crop.x * SIZE) / crop.w, (-crop.y * SIZE) / crop.h);
+  ctx.setTransform(
+    SIZE / crop.w,
+    0,
+    0,
+    SIZE / crop.h,
+    (-crop.x * SIZE) / crop.w,
+    (-crop.y * SIZE) / crop.h,
+  );
   ctx.translate(bounds.w / 2, bounds.h / 2);
   ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2, img.naturalWidth, img.naturalHeight);
+  ctx.drawImage(
+    img,
+    -img.naturalWidth / 2,
+    -img.naturalHeight / 2,
+    img.naturalWidth,
+    img.naturalHeight,
+  );
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   const x = Math.min(SIZE - 1, Math.round(areaRect.x * SIZE));

@@ -11,7 +11,13 @@ import { wrapText } from './wordwrap';
  * one the same way `wordwrap.test.js` fakes `measureText` -- no DOM or
  * wasm required.
  */
-export function fitFontSize(ctx, text, boxWidth, boxHeight, { min = 10, max = 160, lineHeightRatio = 1.3, fontFamily } = {}) {
+export function fitFontSize(
+  ctx,
+  text,
+  boxWidth,
+  boxHeight,
+  { min = 10, max = 160, lineHeightRatio = 1.3, fontFamily } = {},
+) {
   if (!text?.trim() || boxWidth <= 0 || boxHeight <= 0) return min;
 
   const fits = (size) => {

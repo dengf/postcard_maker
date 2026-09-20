@@ -1,5 +1,5 @@
-import { toneAdjustments } from "./exposureSuggestion";
-import { FILL_COLORS, buildFillStyle } from "./fillTreatments";
+import { toneAdjustments } from './exposureSuggestion';
+import { FILL_COLORS, buildFillStyle } from './fillTreatments';
 
 /**
  * What to recommend for each `Vibe` the classifier can return -- which
@@ -36,39 +36,39 @@ import { FILL_COLORS, buildFillStyle } from "./fillTreatments";
 // `system`, the safest default for outdoor scenic shots.
 export const VIBE_LOOKS = {
   beach: {
-    filters: ["vintage", "sepia", "grayscale", "none"],
-    stickers: [null, "wave", "palm", "sun", "star"],
-    fontChoice: "system",
+    filters: ['vintage', 'sepia', 'grayscale', 'none'],
+    stickers: [null, 'wave', 'palm', 'sun', 'star'],
+    fontChoice: 'system',
   },
   mountain: {
-    filters: ["none", "grayscale", "sepia", "vintage"],
-    stickers: [null, "sun", "cloud", "star", "arrow"],
-    fontChoice: "system",
+    filters: ['none', 'grayscale', 'sepia', 'vintage'],
+    stickers: [null, 'sun', 'cloud', 'star', 'arrow'],
+    fontChoice: 'system',
   },
   water: {
-    filters: ["none", "vintage", "grayscale", "sepia"],
-    stickers: [null, "wave", "cloud", "star"],
-    fontChoice: "system",
+    filters: ['none', 'vintage', 'grayscale', 'sepia'],
+    stickers: [null, 'wave', 'cloud', 'star'],
+    fontChoice: 'system',
   },
   architecture: {
-    filters: ["grayscale", "sepia", "none", "vintage"],
-    stickers: [null, "arrow", "star", "stamp", "washi"],
-    fontChoice: "serif",
+    filters: ['grayscale', 'sepia', 'none', 'vintage'],
+    stickers: [null, 'arrow', 'star', 'stamp', 'washi'],
+    fontChoice: 'serif',
   },
   winter: {
-    filters: ["grayscale", "none", "sepia", "vintage"],
-    stickers: [null, "cloud", "star", "blossom"],
-    fontChoice: "serif",
+    filters: ['grayscale', 'none', 'sepia', 'vintage'],
+    stickers: [null, 'cloud', 'star', 'blossom'],
+    fontChoice: 'serif',
   },
   food: {
-    filters: ["vintage", "sepia", "none", "grayscale"],
-    stickers: [null, "heart", "star", "washi"],
-    fontChoice: "decorative",
+    filters: ['vintage', 'sepia', 'none', 'grayscale'],
+    stickers: [null, 'heart', 'star', 'washi'],
+    fontChoice: 'decorative',
   },
   pet: {
-    filters: ["none", "vintage", "sepia", "grayscale"],
-    stickers: [null, "heart", "star", "confetti"],
-    fontChoice: "decorative",
+    filters: ['none', 'vintage', 'sepia', 'grayscale'],
+    stickers: [null, 'heart', 'star', 'confetti'],
+    fontChoice: 'decorative',
   },
 };
 
@@ -93,12 +93,12 @@ const LAYOUT_VARIETY_STRIDE = 3;
 // unconditionally here is harmless on the majority of looks that stay
 // full-bleed.
 const FILL_LOOKS = [
-  buildFillStyle("solid"),
-  buildFillStyle("gradient", "diagonal"),
-  buildFillStyle("dots", "medium"),
-  buildFillStyle("radial", "center"),
-  buildFillStyle("stripes", "diagonal"),
-  buildFillStyle("lines", "medium"),
+  buildFillStyle('solid'),
+  buildFillStyle('gradient', 'diagonal'),
+  buildFillStyle('dots', 'medium'),
+  buildFillStyle('radial', 'center'),
+  buildFillStyle('stripes', 'diagonal'),
+  buildFillStyle('lines', 'medium'),
 ];
 
 const OPENER_COUNT = 10;
@@ -136,16 +136,21 @@ export function looksFor(vibe) {
           ? `vibe.closer.withSticker.${(index * 3 + 1) % CLOSER_COUNT}`
           : `vibe.closer.noSticker.${(index * 3 + 1) % CLOSER_COUNT}`,
         fontChoice: spec.fontChoice,
-        textColor: "auto",
+        textColor: 'auto',
         // Occasional "Larger" variant, same low-stakes variety as the
         // font choice above -- not a legibility fix (fitText.js's own
         // auto-fit already handles that), just a stylistic option to
         // start from.
         fontScale: index % 4 === 0 ? 1.3 : 1,
-        photoCoverage: index % LAYOUT_VARIETY_STRIDE === 0 ? (index % (LAYOUT_VARIETY_STRIDE * 2) === 0 ? "half" : "bigSmall") : "full",
-        photoSide: index % 2 === 0 ? "first" : "second",
+        photoCoverage:
+          index % LAYOUT_VARIETY_STRIDE === 0
+            ? index % (LAYOUT_VARIETY_STRIDE * 2) === 0
+              ? 'half'
+              : 'bigSmall'
+            : 'full',
+        photoSide: index % 2 === 0 ? 'first' : 'second',
         fillStyle: FILL_LOOKS[index % FILL_LOOKS.length],
-        fillColor: index % 2 === 0 ? "auto" : FILL_COLORS[index % FILL_COLORS.length],
+        fillColor: index % 2 === 0 ? 'auto' : FILL_COLORS[index % FILL_COLORS.length],
       });
     });
   });
@@ -169,13 +174,13 @@ export function looksFor(vibe) {
  */
 function scoreForTone(filter, { brightness, saturation }) {
   switch (filter) {
-    case "grayscale":
+    case 'grayscale':
       return brightness * 0.6 + saturation * 0.4;
-    case "vintage":
+    case 'vintage':
       return brightness * 0.4 + saturation * 0.6;
-    case "sepia":
+    case 'sepia':
       return (1 - brightness) * 0.5 + (1 - saturation) * 0.5;
-    case "none":
+    case 'none':
     default:
       return 1 - Math.abs(brightness - 0.5) * 2;
   }
