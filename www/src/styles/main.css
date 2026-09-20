@@ -29,6 +29,16 @@
      device gets a light dropdown. */
   color-scheme: dark;
 
+  /* One page width across the three tools. The three had drifted to three
+     different answers (960px here and in mortgage_calculator, 1240px in
+     budget_planner), which is visible the moment two of them are open in
+     adjacent tabs: the header, the brand lockup and the theme/language
+     controls sit at different distances from the window edge. 1240px is
+     budget_planner's, the widest of the three and the one already proven
+     against its densest screen. It is not a colour, so unlike the tokens
+     below it is declared once and not repeated in the two light blocks. */
+  --content-max: 1240px;
+
   --bg: #0f1720;
   --panel: #131c26;
   --panel-alt: #161e2b;
@@ -161,7 +171,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  max-width: 960px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -230,7 +240,14 @@ body {
   gap: 6px;
   min-height: 44px;
   border: none;
-  border-radius: 8px;
+  /* 14px, matching budget_planner's `.btn`. These two files carry the
+     same button primitive -- same padding, min-height, font size and
+     weight, same secondary/ghost/danger variants -- and had drifted on
+     this one value: budget_planner moved off 8px deliberately, to echo
+     the blossom mark's own curvature rather than the generic "SaaS card
+     kit" radius, and this copy never followed. A shared primitive that
+     is the same everywhere except its corners is the worst of both. */
+  border-radius: 14px;
   padding: 10px 16px;
   font-size: 0.9rem;
   font-weight: 600;
@@ -253,8 +270,20 @@ label.btn { cursor: pointer; }
 }
 .btn.outline:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn.danger { background: transparent; color: var(--negative); padding: 6px 12px; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-/* Same shape as .btn (8px radius, solid accent), just smaller. Currently
+/* Flat muted colours, not opacity -- the other half of the `.btn` drift
+   above. budget_planner worked this out and recorded the reasoning: in
+   dark mode the backdrop is near-black, so fading a mid-tone accent
+   background and a light accent-ink label toward it drags the two toward
+   each other faster than either moves toward the page, and the result
+   reads as washed-out pink-on-pink rather than "disabled".
+   `--panel-alt`/`--muted` already clear AA against each other in both
+   themes, so this stays legible whatever is behind it. */
+.btn:disabled {
+  background: var(--panel-alt);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+/* Same shape as .btn (14px radius, solid accent), just smaller. Currently
    unused directly but kept as the general "smaller than .btn, same
    shape" variant for anywhere that isn't a plain-word link. */
 .btn.small { min-height: 44px; min-width: 44px; padding: 6px 12px; font-size: 0.82rem; }
@@ -361,6 +390,16 @@ label.btn { cursor: pointer; }
   .editor-preview-col { flex: 1.1; top: 16px; }
   .editor-controls-col { flex: 1; display: flex; flex-direction: column; gap: 16px; }
 }
+/* Past this width the room `--content-max` added goes to the card, not to
+   both columns in proportion. The controls column is sliders, chips and a
+   textarea; none of them read better past ~420px, and a 600px-wide row of
+   colour swatches just spaces itself out. The preview is the thing being
+   made, so it takes whatever is left -- ~750px of card at the full
+   1240px, against ~470px before this. */
+@media (min-width: 960px) {
+  .editor-preview-col { flex: 1; }
+  .editor-controls-col { flex: 0 0 420px; }
+}
 
 /* Start Over (left) / Finish (right) -- both terminal top-level actions,
    kept reachable right under the preview instead of only at opposite
@@ -394,6 +433,21 @@ label.btn { cursor: pointer; }
      already fit under it today and are untouched. */
   .postcard-frame {
     width: min(100%, calc(38vh * var(--card-ratio, 1)));
+    margin: 0 auto;
+  }
+}
+@media (min-width: 960px) {
+  /* The same cap, for the same reason, at the width where the preview
+     column stopped sharing the extra room with the controls. A ~750px-wide
+     Portrait (5:7) card is ~1050px tall -- taller than the window, in a
+     column that is `position: sticky`, so its Start Over / Finish row
+     would sit permanently below the fold. 72vh leaves room for that row
+     and the page's own padding. Expressed via `width` for the same reason
+     as above: the aspect-ratio box has to keep deriving its own height or
+     the crop/pan pixel math stops matching the card. Landscape and Square
+     are wider than tall and stay at the full column width. */
+  .postcard-frame {
+    width: min(100%, calc(72vh * var(--card-ratio, 1)));
     margin: 0 auto;
   }
 }
