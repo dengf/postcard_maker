@@ -55,7 +55,7 @@ function loadModel(onProgress) {
       const chunks = [];
       let received = 0;
       for (;;) {
-        // eslint-disable-next-line no-await-in-loop -- inherently
+        // inherently
         // sequential: each chunk depends on the stream position left by
         // the last.
         const { done, value } = await reader.read();

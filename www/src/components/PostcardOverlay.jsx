@@ -368,7 +368,7 @@ function useAutoTextColor(
       cancelled = true;
       if (raf !== null) cancelAnimationFrame(raf);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
+    // crop's own
     // fields are the real dependency, not its object identity, which
     // changes on every pan/zoom dispatch.
   }, [

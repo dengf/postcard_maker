@@ -56,6 +56,10 @@ export default function usePhotoGestures({
   // crop the pinch just produced -- so they read the live values here
   // rather than closing over a render's copy.
   const live = useRef(null);
+  // The sanctioned half of the latest-ref pattern: written during render,
+  // read only from pointer handlers. Nothing renders off `live.current`, so
+  // there is no render the rule could be protecting from a stale value.
+  // eslint-disable-next-line react-hooks/refs
   live.current = { crop, baseCrop, zoom, rotation, cropMath };
 
   const startDrag = useCallback((point, startCrop, time, tappable) => {

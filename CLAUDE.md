@@ -906,13 +906,24 @@ shapes; keep it that way rather than trusting that it still works.
   undecodable photo showed a blank toast and left the user on the intro
   with nothing to act on. Prefer giving a new failure a **code** so it
   translates; the raw-message rung is a safety net, not a destination.
-- **`prettier --check` does not pass on this repo and is not a CI gate**
-  — `.github/workflows/ci.yml`'s `www-test` job runs `npm test` only.
-  ~75 files under `www/src` are already non-conformant on `main`. Match
-  the surrounding style by hand; do **not** run `prettier --write` across
-  the tree as part of an unrelated change, or the real diff disappears
-  into a reformat. (This differs from `budget_planner`, where
-  `format:check` *is* enforced — don't carry the habit across.)
+- **`npm run lint` and `npm run format:check` are CI gates now**, the same
+  three the sibling tools run. This entry used to say the opposite, and
+  the reason it did is worth keeping: `format:check` had been in
+  `package.json` since the start with **no `.prettierrc` to check
+  against**, so it measured the source against Prettier's defaults (80
+  columns, double quotes) while the code was written in the house style
+  the other two repos configure. Every file "failed", which read as "this
+  repo does not do Prettier" rather than "this repo is missing five lines
+  of config". A script that has never been wired into CI is worth
+  distrusting before the code it reports on.
+- **ESLint's `react-hooks/exhaustive-deps` reports on the hook's opening
+  line, not the dependency array.** Plugin v7 moved it. Nine
+  `eslint-disable-next-line` comments in this repo sat above the dep
+  array, where v4 used to report, and every one of them had quietly
+  stopped suppressing anything — `reportUnusedDisableDirectives` is what
+  surfaced them. The reasoning in those comments was kept as prose; the
+  warnings they used to hide are now visible in every run, deliberately,
+  same call `budget_planner` made.
 
 ## Landing changes
 

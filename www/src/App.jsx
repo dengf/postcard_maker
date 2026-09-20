@@ -27,12 +27,7 @@ import { saveDraft, loadDraft, clearDraft, draftThumbBlob, isCollageDraft } from
 import { detectLocation } from './location';
 import { useMomentCaption } from './useMomentCaption';
 import { renderPostcard } from './export';
-import {
-  postcardReducer,
-  initialState,
-  DEFAULT_ADJUSTMENTS,
-  nextStickerKey,
-} from './postcardReducer';
+import { postcardReducer, initialState, nextStickerKey } from './postcardReducer';
 import { templateGeometry, suggestCropForLayout, photoAreaRatio } from './photoLayout';
 import LayoutPanel from './components/LayoutPanel';
 
@@ -563,7 +558,7 @@ function AppShell({ wasmModule }) {
       saveDraft(postcardDraft(state)).catch(() => {});
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the saved
+    // the saved
     // fields are the real dependency, not every field `state` carries
     // (drawMode and the stroke tools aren't part of the card).
   }, [

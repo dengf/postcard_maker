@@ -1,5 +1,3 @@
-import { hexToRgb } from './autoTextColor';
-
 /**
  * The blank-area "fill" (see `LayoutPanel.jsx`) is built from three small,
  * independently-picked dimensions crossed together, the same trick

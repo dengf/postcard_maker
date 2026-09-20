@@ -410,7 +410,7 @@ export async function renderCollage({
     });
     const url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
     try {
-      // eslint-disable-next-line no-await-in-loop -- slots draw in order
+      // slots draw in order
       // so a later one can legitimately overlap an earlier one's edge
       // (anti-aliasing seams), same reasoning as stickers below.
       const img = await loadImage(url);
@@ -687,7 +687,7 @@ async function drawStickers(ctx, canvas, stickers) {
   for (const sticker of stickers ?? []) {
     const def = stickerById(sticker.id);
     if (!def) continue;
-    // eslint-disable-next-line no-await-in-loop -- stickers must draw in
+    // stickers must draw in
     // placement order, since later ones are meant to sit on top.
     const img = await loadImage(stickerDataUrl(def));
     const size = Math.min(canvas.width, canvas.height) * 0.22 * (sticker.scale ?? 1);

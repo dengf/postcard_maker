@@ -63,7 +63,7 @@ function useAutoFillColor(photoUrl, crop, cssFilter, view, active) {
       cancelled = true;
       if (raf !== null) cancelAnimationFrame(raf);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- crop's own
+    // crop's own
     // fields are the real dependency, not its object identity.
   }, [photoUrl, crop?.x, crop?.y, crop?.w, crop?.h, cssFilter, view.rotation, active]);
 

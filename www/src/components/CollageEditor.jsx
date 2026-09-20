@@ -150,6 +150,9 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
   // it is moving onto the new layout without being rebuilt (and
   // re-running the effect below) every time one of them changes.
   const stateRef = useRef(state);
+  // Same latest-ref pattern as `usePhotoGestures.js`: written during render,
+  // read only from `selectLayout`. Nothing renders off `stateRef.current`.
+  // eslint-disable-next-line react-hooks/refs
   stateRef.current = state;
 
   /**
@@ -224,7 +227,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     } catch (err) {
       onError(err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectLayout changes
+    // selectLayout changes
     // with aspectId, which is already a dep; adding it would re-run on nothing else.
   }, [aspectId, wasmModule]);
 
@@ -372,7 +375,7 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when
+    // runs once, when
     // the saved layout arrives; `state.slots` is the empty set SET_LAYOUT just made.
   }, [layout]);
 
@@ -540,6 +543,12 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
           style={{ aspectRatio: aspectRatio(aspectId), '--card-ratio': aspectRatio(aspectId) }}
         >
           {state.slots.map((slot, index) => (
+            // A known gap, recorded rather than papered over: tapping a
+            // filled slot selects it and there is no keyboard equivalent. The
+            // obvious fix -- role="button" plus a key handler on this div --
+            // would nest ReplacePhotoButton inside a button, so this wants its
+            // own round and a real decision about where the tab stop belongs.
+            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
             <div
               key={index}
               className={[

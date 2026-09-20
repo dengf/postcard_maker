@@ -188,6 +188,18 @@ jobs:
       - run: npm ci
         working-directory: www
 
+      # Fails on errors only; the config's remaining findings are
+      # deliberately warnings (see eslint.config.mjs), so they stay visible
+      # in the log without blocking unrelated work.
+      - run: npm run lint
+        working-directory: www
+
+      # `format:check` shipped with this repo and nothing ever ran it -- and
+      # with no `.prettierrc` beside it, it was checking against Prettier's
+      # defaults rather than the style the other two tools configure.
+      - run: npm run format:check
+        working-directory: www
+
       - run: npm test
         working-directory: www
 
