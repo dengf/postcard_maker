@@ -11,7 +11,7 @@ export default {
   "app.themeSystem": "System",
   "app.themeLight": "Light",
   "app.themeDark": "Dark",
-  "app.updateAvailable": "A new version is ready.",
+  "app.updateAvailable": "A new version of Postcard Maker is ready.",
   "app.reload": "Reload",
 
   "intro.heading": "Make a postcard",

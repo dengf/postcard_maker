@@ -11,7 +11,7 @@ export default {
   "app.themeSystem": "跟随系统",
   "app.themeLight": "浅色",
   "app.themeDark": "深色",
-  "app.updateAvailable": "有新版本可用。",
+  "app.updateAvailable": "明信片制作已有新版本。",
   "app.reload": "刷新",
 
   "intro.heading": "制作明信片",
