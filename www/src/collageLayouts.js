@@ -90,3 +90,61 @@ export function carrySlots(wasmModule, slots, layout, cardRatio, emptySlot) {
     return { ...prev, baseCrop: base, crop: base, zoom: 1 };
   });
 }
+
+/**
+ * The slot an arrow key should move to, or `null` when there is none in
+ * that direction.
+ *
+ * Ordinal order (slot 0, 1, 2…) is the wrong answer here: the layouts are
+ * generated, so slot 2 of a three-up can sit below slot 1 in one
+ * arrangement and beside it in the next, and a keyboard user would be
+ * navigating an order they cannot see. `dx`/`dy` are a unit step in card
+ * space, and the answer is the nearest slot that actually shares an edge
+ * that way -- which is the arrangement the eye reads.
+ *
+ * "Shares an edge" and not "lies roughly that way": a candidate has to
+ * overlap the slot being left across the axis pressed. Down out of a tall
+ * left-hand slot therefore does nothing rather than jumping to the
+ * bottom-right corner, and Up from wherever Down landed comes back to
+ * where it started. Nothing is stranded by the stricter rule, because the
+ * slots tile the card -- every one of them touches another on some side.
+ */
+const EPSILON = 1e-6;
+
+export function slotInDirection(layout, fromIndex, dx, dy) {
+  const slots = layout?.slots;
+  const origin = slots?.[fromIndex]?.area;
+  if (!origin) return null;
+
+  // The pressed axis ("along") and the one at right angles to it
+  // ("across"), each as the interval the rectangle occupies.
+  const along = (a) => (dx ? [a.x, a.x + a.w] : [a.y, a.y + a.h]);
+  const across = (a) => (dx ? [a.y, a.y + a.h] : [a.x, a.x + a.w]);
+  const sign = dx || dy;
+  const [originLo, originHi] = across(origin);
+  const originEdge = sign > 0 ? along(origin)[1] : along(origin)[0];
+  const originMid = (originLo + originHi) / 2;
+
+  let best = null;
+  let bestScore = null;
+  slots.forEach(({ area }, index) => {
+    if (index === fromIndex) return;
+    const [lo, hi] = across(area);
+    if (Math.min(originHi, hi) - Math.max(originLo, lo) <= EPSILON) return;
+    const [aLo, aHi] = along(area);
+    const gap = sign > 0 ? aLo - originEdge : originEdge - aHi;
+    if (gap < -EPSILON) return;
+    // Nearest in the direction pressed; a tie (two slots stacked against
+    // the same edge) goes to whichever lines up better, and a tie there
+    // to reading order.
+    const score = [gap, Math.abs((lo + hi) / 2 - originMid)];
+    if (bestScore === null || score[0] < bestScore[0] - EPSILON) {
+      bestScore = score;
+      best = index;
+    } else if (score[0] < bestScore[0] + EPSILON && score[1] < bestScore[1] - EPSILON) {
+      bestScore = score;
+      best = index;
+    }
+  });
+  return best;
+}
