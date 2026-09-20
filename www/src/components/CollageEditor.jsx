@@ -519,7 +519,15 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
           past, so they belong in the controls column, which is where the
           single-photo editor has always kept the same two (App.jsx). */}
       <div className="editor-preview-col">
-        <div ref={frameRef} className="postcard-frame collage-frame" style={{ aspectRatio: aspectRatio(aspectId) }}>
+        {/* `--card-ratio` feeds main.css's two height caps on the frame (the
+            phone one and the desktop one); without it a collage fell back to
+            the `1` default and a portrait card was capped as though it were
+            square. PostcardCanvas has always passed it. */}
+        <div
+          ref={frameRef}
+          className="postcard-frame collage-frame"
+          style={{ aspectRatio: aspectRatio(aspectId), '--card-ratio': aspectRatio(aspectId) }}
+        >
           {state.slots.map((slot, index) => (
             <div
               key={index}
