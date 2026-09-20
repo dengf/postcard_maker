@@ -916,7 +916,14 @@ shapes; keep it that way rather than trusting that it still works.
 
 ## Landing changes
 
-**Never push to a remote, or run `gh repo create`, without the user asking
-in that exact moment** — see the other two tools' CLAUDE.md for why this
-is a standing rule, not a one-time caution. Build, commit and test
-locally; ask before the first push.
+One branch per round of work, focused commits, then a PR with a Summary
+and Test plan — same as the other two tools. **Pushing the branch and
+opening the PR is routine: do it when a round is ready, without asking
+first.** What still needs the user is the *merge*: **do not self-merge**,
+wait for approval, and verify `state == "MERGED"` before deleting any
+branch — deleting the head branch of an open PR closes it.
+
+(This section used to say the opposite — never push without being asked
+in that exact moment. That predates the repo being public and deployed,
+and had become a question asked at the end of every round with the same
+answer each time. Removed at the user's instruction on 2026-09-20.)
