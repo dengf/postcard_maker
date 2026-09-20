@@ -1160,10 +1160,27 @@ label.btn { cursor: pointer; }
   position: absolute;
   overflow: hidden;
   cursor: pointer;
-  outline: 2px solid transparent;
-  outline-offset: -2px;
 }
-.collage-slot.active { outline-color: var(--accent); }
+/* The selected and focused rings, as an overlay child rather than the
+   element's own `outline`.
+
+   `outline` with a negative offset is drawn inside the box, in the
+   element's own painting step -- which happens *before* its descendants.
+   The photo fills the slot, so it painted straight over the ring: the
+   selection ring this file has carried since collages shipped was visible
+   on an empty slot and invisible on every filled one, which is exactly
+   the slot you need it on. A positioned pseudo-element paints with the
+   children instead, and a z-index puts it above them. */
+.collage-slot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px solid transparent;
+  border-radius: inherit;
+}
+.collage-slot.active::after { border-color: var(--accent); }
 /* An unfilled slot paints above the shared message/sticker/doodle overlay,
    which is otherwise drawn over it by DOM order (the overlay comes after
    the slots and nothing here sets a z-index). A greeting drawn across an
@@ -1174,6 +1191,74 @@ label.btn { cursor: pointer; }
    the only state you can Share from -- nothing is raised and the overlay
    is exactly as it was. */
 .collage-slot.empty { z-index: 1; }
+/* The keyboard's own ring. `outline-offset: -2px` above draws it inside
+   the slot rather than around it, which matters here more than usual: the
+   slots tile the card edge to edge, so an outline drawn outside one would
+   be painted over by its neighbour on two sides and clipped by the frame
+   on the others. Heavier than the 2px `.active` selection ring underneath
+   it, because focus has to be findable on a photograph. */
+/* Focus is heavier than selection, and carries a dark inner edge as well
+   as the accent one: the ring sits on a photograph, and an accent line
+   alone can land on a patch of the same colour. `outline: none` because
+   the ring is the `::after` above -- the browser's own outline would be
+   painted under the photo (see the note there) and so would not be a
+   substitute for it. */
+.collage-slot:focus-visible {
+  outline: none;
+}
+.collage-slot:focus-visible::after {
+  border-width: 3px;
+  border-color: var(--accent);
+  /* Inset only: the slot clips its overflow, so an outer shadow on a
+     child that fills it is drawn and then thrown away. */
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.45);
+}
+/* The replace chip's rectangle -- the selected slot's own, so the chip
+   inside it lands exactly where it did when it was a child of that slot.
+   Transparent to the pointer everywhere except on the chip itself, or it
+   would take the drags meant for the photo underneath. */
+.collage-slot-chip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.collage-slot-chip > * { pointer-events: auto; }
+/* What the arrow keys do, shown only once a slot has been focused *from
+   the keyboard* -- `:focus-visible`, so a tap on a phone never puts a
+   line about Shift and arrow keys over the photo. It stays in the
+   accessibility tree either way: every slot points `aria-describedby` at
+   it, and a description that was `display: none` would be a coin flip
+   across screen readers. */
+.collage-key-hint {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 4;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgb(36 26 30 / 0.88);
+  color: #ffffff;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+/* Shown on the wider layout only. The line is for a sighted keyboard
+   user, and on the 375px-wide phone layout it wraps to three lines and
+   blankets a third of the card -- over the very slot being arrowed onto,
+   in a bottom-row layout. Screen readers are unaffected either way: they
+   read it from `aria-describedby`, which does not care whether it is
+   painted. */
+@media (min-width: 720px) {
+  .collage-slot:focus-visible ~ .collage-key-hint { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .collage-key-hint { transition: none; }
+}
 .collage-photo-slot {
   position: relative;
   width: 100%;

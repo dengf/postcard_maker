@@ -344,6 +344,17 @@ export default {
   'collage.layoutOf': 'Layout with {n} photos',
   'collage.layoutHint': 'Shuffle deals a different set. Your photos stay where they are.',
   'collage.addPhoto': 'Add photo',
+  // The slots are a picture of an arrangement, so their accessible names
+  // have to supply the position the eye gets for free. `{n}` is the
+  // slot's place in reading order, `{total}` how many the layout has.
+  'collage.slotFilled': 'Photo {n} of {total}',
+  'collage.slotEmpty': 'Empty slot {n} of {total}',
+  // Read out as every slot's description and shown under the card once a
+  // slot is focused from the keyboard. Enter is deliberately the same
+  // action on a full slot as on an empty one: choose the photo that goes
+  // here.
+  'collage.slotKeys':
+    'Arrow keys move between photos. Shift with an arrow moves the photo inside its slot. Enter changes it.',
   'collage.fillAllSlots': 'Add a photo to every slot to finish.',
 
   'text.heading': 'Message',

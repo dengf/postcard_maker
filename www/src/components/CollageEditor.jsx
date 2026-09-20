@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { ASPECTS, aspectRatio } from '../aspect';
-import { clampZoom, rebaseCrop, zoomedCrop } from '../cropGesture';
+import { clampZoom, panCrop, rebaseCrop, zoomedCrop } from '../cropGesture';
 import { fitZoom, photoFit } from '../letterbox';
 import { cropMathFor, rotatedBounds, suggestRotatedCrop } from '../rotateGeometry';
 import { effectiveFont } from '../fonts';
@@ -13,7 +13,13 @@ import { useMomentCaption } from '../useMomentCaption';
 import { unreadablePhotoError } from '../photoFormat';
 import { COLLAGE_KIND, saveDraft } from '../draftStore';
 import { collageReducer, emptySlot, initialCollageState } from '../collageReducer';
-import { carrySlots, randomSeed, slotPixelRatio, withSelected } from '../collageLayouts';
+import {
+  carrySlots,
+  randomSeed,
+  slotInDirection,
+  slotPixelRatio,
+  withSelected,
+} from '../collageLayouts';
 import { DEFAULT_ADJUSTMENTS, nextStickerKey } from '../postcardReducer';
 import TemplatePicker from './TemplatePicker';
 import FilterPanel from './FilterPanel';
@@ -30,6 +36,24 @@ import { BackIcon, DiceIcon, ImageIcon } from './icons';
 
 /** Matches the single-photo flow's own debounce -- see `App.jsx`. */
 const AUTOSAVE_DELAY_MS = 800;
+
+/**
+ * How far one Shift+arrow nudges a slot's photo, as a fraction of what
+ * that slot is currently showing of it. A fraction rather than a pixel
+ * count because the crop shrinks as the photo is zoomed in: a fixed step
+ * would crawl across a wide shot and fly across a tight one. 4% is small
+ * enough to place a horizon and large enough to cross the photo in about
+ * two dozen presses.
+ */
+const KEY_PAN_STEP = 0.04;
+
+/** The arrow keys, as a unit step in card space. */
+const ARROW_STEPS = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
 
 function loadImageDimensions(url) {
   return new Promise((resolve, reject) => {
@@ -470,6 +494,81 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
     });
   };
 
+  /**
+   * Keyboard operation of the slots -- the half of this editor that used
+   * to exist only under a finger or a mouse.
+   *
+   * One tab stop for the whole card (`tabIndex` is 0 on the selected slot
+   * and -1 on the rest, moved along by the arrow keys), because a
+   * four-photo collage that spends four tab stops before the Shape panel
+   * makes every control below it further away for the people who need it
+   * closest. Inside the card the arrows are the navigation, and they move
+   * by where the slots actually are rather than by index -- the layouts
+   * are generated, so slot 2 sits below slot 1 in one arrangement and
+   * beside it in the next (`slotInDirection`).
+   *
+   * Shift+arrow pans the photo inside the slot it is on. That is the one
+   * thing a drag does that no panel offers: Shape, Layout, zoom, rotate,
+   * filter and the adjustments all reach the selected slot through
+   * `FilterPanel`, so selection alone hands a keyboard most of the
+   * editor, and the framing was all that was left behind.
+   */
+  const slotRefs = useRef([]);
+
+  const focusSlot = (index) => {
+    dispatch({ type: 'SET_ACTIVE_SLOT', index });
+    slotRefs.current[index]?.focus();
+  };
+
+  /** Slides the framing of one slot's photo, in the direction pressed:
+   * Right moves the view right across the photo, which is the photo
+   * moving left under the slot -- the same sign a drag has, which is why
+   * `panCrop`'s delta is negated here. */
+  const nudgeSlotPhoto = (index, dx, dy) => {
+    const slot = state.slots[index];
+    if (!slot?.photo) return;
+    const math = slotCropMath(index, slot);
+    const bounds = math.bounds(slot.rotation);
+    const panned = panCrop(
+      slot.crop,
+      -dx * slot.crop.w * KEY_PAN_STEP,
+      -dy * slot.crop.h * KEY_PAN_STEP,
+      bounds.w,
+      bounds.h,
+    );
+    dispatch({ type: 'SET_SLOT_CROP', index, crop: math.fit(panned, slot.rotation) });
+  };
+
+  const onSlotKeyDown = (e, index) => {
+    // Enter and Space are the slot's own action, and it is the same one
+    // whether the slot is empty or full: choose the photo that goes
+    // here. `preventDefault` on Space is what stops the card scrolling
+    // out from under the picker it just opened.
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      requestReplace(index);
+      return;
+    }
+    if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      focusSlot(e.key === 'Home' ? 0 : state.slots.length - 1);
+      return;
+    }
+    const step = ARROW_STEPS[e.key];
+    if (!step) return;
+    const [dx, dy] = step;
+    // The arrows scroll the page by default, and on a phone-sized window
+    // the card is usually mid-scroll -- so the slot would move and the
+    // view would jump at the same time.
+    e.preventDefault();
+    if (e.shiftKey) {
+      nudgeSlotPhoto(index, dx, dy);
+      return;
+    }
+    const next = slotInDirection(layout, index, dx, dy);
+    if (next !== null) focusSlot(next);
+  };
+
   const addSticker = (id) => {
     const n = state.stickers.length;
     dispatch({
@@ -543,14 +642,35 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
           style={{ aspectRatio: aspectRatio(aspectId), '--card-ratio': aspectRatio(aspectId) }}
         >
           {state.slots.map((slot, index) => (
-            // A known gap, recorded rather than papered over: tapping a
-            // filled slot selects it and there is no keyboard equivalent. The
-            // obvious fix -- role="button" plus a key handler on this div --
-            // would nest ReplacePhotoButton inside a button, so this wants its
-            // own round and a real decision about where the tab stop belongs.
-            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
             <div
               key={index}
+              // A div and not a <button>: the photo inside it is a
+              // pan/pinch surface, and a button that swallows pointer
+              // gestures on some platforms is the wrong element to hang
+              // them on. The role and the key handling below are what a
+              // button would have given, and the chip that used to sit
+              // in here is now a sibling -- nesting a control inside a
+              // control was the thing that kept this undone.
+              role="button"
+              ref={(el) => {
+                slotRefs.current[index] = el;
+              }}
+              tabIndex={index === state.activeSlotIndex ? 0 : -1}
+              // Not aria-pressed: this is not a toggle. One of the slots
+              // is the one the panels are pointed at, which is what
+              // `aria-current` says, and pressing the slot opens the
+              // picker rather than flipping a state.
+              aria-current={index === state.activeSlotIndex ? 'true' : undefined}
+              aria-label={(slot.photo ? t('collage.slotFilled') : t('collage.slotEmpty'))
+                .replace('{n}', index + 1)
+                .replace('{total}', state.slots.length)}
+              aria-describedby="collage-slot-keys"
+              onKeyDown={(e) => onSlotKeyDown(e, index)}
+              // Selection follows focus, so arrowing across the card
+              // re-points FilterPanel as it goes -- without it a
+              // keyboard user would arrow to a slot and then have no way
+              // to say "this one".
+              onFocus={() => dispatch({ type: 'SET_ACTIVE_SLOT', index })}
               className={[
                 'collage-slot',
                 index === state.activeSlotIndex && 'active',
@@ -569,7 +689,14 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                 width: `${layout.slots[index].area.w * 100}%`,
                 height: `${layout.slots[index].area.h * 100}%`,
               }}
-              onClick={() => dispatch({ type: 'SET_ACTIVE_SLOT', index })}
+              // An empty slot used to be a `<label>` wrapping its own file
+              // input, so tapping anywhere on it opened the picker. It is
+              // the slot itself that does that now -- same target, same
+              // result, one control instead of one nested in another.
+              onClick={() => {
+                dispatch({ type: 'SET_ACTIVE_SLOT', index });
+                if (!slot.photo) requestReplace(index);
+              }}
             >
               {slot.photo ? (
                 <>
@@ -596,25 +723,52 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
                     filter={slot.filter}
                     onDoubleTap={() => requestReplace(index)}
                   />
-                  {/* On the selected slot only. Showing it on all of them
-                      would put up to three chips over the live preview of
-                      the card; following the selection keeps one. It is
-                      still seen without hunting, because filling a slot
-                      selects it (`openSlotPhoto` dispatches
-                      SET_ACTIVE_SLOT) -- so the chip appears on each photo
-                      right as it is added, and tapping a photo to change
-                      it is the same tap that selects it. A double-tap
-                      works on any filled slot regardless, chip or no
-                      chip. */}
-                  {index === state.activeSlotIndex && (
-                    <ReplacePhotoButton onRequest={() => requestReplace(index)} />
-                  )}
                 </>
               ) : (
-                <EmptySlot onPick={(file) => openSlotPhoto(index, file)} />
+                <EmptySlotFace />
               )}
             </div>
           ))}
+
+          {/* The replace chip, over the selected slot but no longer
+              inside it. The slot is a control now, and a control inside a
+              control is unreachable in some screen readers and ambiguous
+              in the rest -- it is also exactly why the keyboard gap here
+              went unclosed for so long. Positioned on the slot's own
+              rectangle so it lands where it always did (top left of the
+              photo, clear of the stamp guide -- see main.css).
+
+              On the selected slot only. Showing it on all of them would
+              put up to three chips over the live preview of the card;
+              following the selection keeps one. It is still seen without
+              hunting, because filling a slot selects it (`openSlotPhoto`
+              dispatches SET_ACTIVE_SLOT) -- so the chip appears on each
+              photo right as it is added, and tapping a photo to change it
+              is the same tap that selects it. A double-tap, and now Enter,
+              work on any filled slot regardless, chip or no chip. */}
+          {activeSlot?.photo && (
+            <div
+              className="collage-slot-chip"
+              style={{
+                left: `${layout.slots[state.activeSlotIndex].area.x * 100}%`,
+                top: `${layout.slots[state.activeSlotIndex].area.y * 100}%`,
+                width: `${layout.slots[state.activeSlotIndex].area.w * 100}%`,
+                height: `${layout.slots[state.activeSlotIndex].area.h * 100}%`,
+              }}
+            >
+              <ReplacePhotoButton onRequest={() => requestReplace(state.activeSlotIndex)} />
+            </div>
+          )}
+
+          {/* What the keys do, in two places at once: `aria-describedby`
+              on every slot reads it out, and the chip below the card
+              shows it the moment a slot takes focus from the keyboard.
+              `:focus-visible` and not `:focus-within`, so tapping a slot
+              on a phone doesn't put a line of desktop instructions over
+              the photo. */}
+          <p id="collage-slot-keys" className="collage-key-hint">
+            {t('collage.slotKeys')}
+          </p>
 
           <PostcardOverlay
             frameRef={frameRef}
@@ -843,22 +997,22 @@ export default function CollageEditor({ wasmModule, onError, onExit, onBack, dra
 }
 
 /**
- * The empty slot's own picker -- still a `<label>` wrapping its input,
- * because here the whole slot is the target and there is no photo
- * underneath to protect from the tap.
+ * What an empty slot shows. Just the face: the slot around it is the
+ * control, and opening the picker goes through the one hidden input the
+ * whole editor shares (`requestReplace`).
+ *
+ * It used to be a `<label>` wrapping its own file input, which was the
+ * shortest way to a tappable placeholder but left the collage with two
+ * kinds of slot -- one whose control was inside it and one with no
+ * control at all. Anything reading the card, a keyboard included, had to
+ * tell them apart. Now they are the same thing with different contents.
  */
-function EmptySlot({ onPick }) {
+function EmptySlotFace() {
   const { t } = useI18n();
-  const onChange = (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (file) onPick(file);
-  };
   return (
-    <label className="collage-empty-slot">
+    <span className="collage-empty-slot">
       <ImageIcon />
       <span>{t('collage.addPhoto')}</span>
-      <input type="file" accept="image/*" onChange={onChange} className="visually-hidden" />
-    </label>
+    </span>
   );
 }

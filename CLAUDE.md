@@ -753,6 +753,40 @@ toast was blank. Treat that as the standing warning about this section:
 flow now has browser coverage exercising all three layouts and all three
 shapes; keep it that way rather than trusting that it still works.
 
+## The collage slots are one control each, and one tab stop for the set
+
+Each slot is a `div` carrying `role="button"`, its own `aria-label`
+("Photo 2 of 3") and a roving `tabIndex` — 0 on the selected slot, -1 on
+the rest. Tab therefore spends one stop on the whole card and the arrow
+keys move inside it, which is what keeps a four-photo collage from
+pushing every panel below it four stops further away. Three things about
+that are easy to undo by accident:
+
+- **Nothing focusable may live inside a slot.** The replace chip used to,
+  and a control nested in a control is why the keyboard gap here went
+  unclosed through two rounds. It is now a sibling of the slots
+  (`.collage-slot-chip`), positioned on the selected slot's own
+  rectangle. The empty slot's `<label>`-wrapped file input went the same
+  way: the slot itself opens the shared picker (`requestReplace`), and
+  `EmptySlotFace` is just the face.
+- **The arrows move by geometry, not by index** (`slotInDirection` in
+  `collageLayouts.js`). The layouts are generated, so slot 2 is below
+  slot 1 in one arrangement and beside it in the next; index order would
+  be an order the user cannot see. A candidate has to *share an edge* --
+  no diagonal jumps -- which is also what makes the move reversible.
+- **Selection follows focus.** `FilterPanel` (zoom, rotate, filter,
+  adjustments) is pointed at `state.activeSlotIndex`, so arrowing onto a
+  slot has to select it, or the keyboard could reach a photo and then do
+  nothing to it. Shift+arrow pans the framing, which is the one thing a
+  drag does that no panel offers.
+
+**An `outline` with a negative offset on a slot is invisible on a filled
+one.** Outlines paint in the element's own step, *before* its
+descendants, and the photo fills the slot -- so the selection ring this
+file has drawn since collages shipped was only ever visible on an empty
+slot. Both rings (selected, focused) are a `.collage-slot::after` overlay
+with a `z-index` now. Do not "simplify" them back to `outline`.
+
 ## Verification traps specific to this repo
 
 - **The browser and `image` (Rust) can disagree about a photo's own

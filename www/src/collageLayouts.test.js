@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { carrySlots, randomSeed, slotPixelRatio, withSelected } from './collageLayouts';
+import {
+  carrySlots,
+  randomSeed,
+  slotInDirection,
+  slotPixelRatio,
+  withSelected,
+} from './collageLayouts';
 import { emptySlot } from './collageReducer';
 
 const layout = (id, areas) => ({ id, slots: areas.map((area) => ({ area })) });
@@ -157,5 +163,91 @@ describe('carrySlots', () => {
     const carried = carrySlots(fakeWasm(), [], layout('g1-2', HALVES), 1.5, emptySlot);
     expect(carried).toHaveLength(2);
     expect(carried.every((s) => s.photo === null)).toBe(true);
+  });
+});
+
+describe('slotInDirection', () => {
+  // The three-up: one tall photo down the left, two stacked on the right.
+  const THREE_UP = layout('three', [
+    { x: 0, y: 0, w: 0.5, h: 1 },
+    { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+    { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+  ]);
+
+  it('moves to the slot that lies that way, not the next index', () => {
+    expect(slotInDirection(THREE_UP, 0, 1, 0)).toBe(1);
+    expect(slotInDirection(THREE_UP, 1, 0, 1)).toBe(2);
+    expect(slotInDirection(THREE_UP, 2, 0, -1)).toBe(1);
+    expect(slotInDirection(THREE_UP, 1, -1, 0)).toBe(0);
+  });
+
+  // Index order would have answered 1 here, and 1 is on the right.
+  it('stays put when nothing lies that way', () => {
+    expect(slotInDirection(THREE_UP, 0, -1, 0)).toBeNull();
+    expect(slotInDirection(THREE_UP, 0, 0, 1)).toBeNull();
+    expect(slotInDirection(THREE_UP, 2, 0, 1)).toBeNull();
+  });
+
+  // Right out of the tall left slot meets both of the stacked pair
+  // equally: same edge, and its centre sits exactly on the line between
+  // them. Reading order settles it, and settles it the same way every
+  // time -- an arrow key that picked differently on different renders
+  // would be worse than one that did nothing.
+  it('breaks an exact tie by reading order, every time', () => {
+    for (let i = 0; i < 5; i += 1) expect(slotInDirection(THREE_UP, 0, 1, 0)).toBe(1);
+  });
+
+  // Ordinal navigation would answer 1 both times here, and 1 is neither
+  // to the right of 0 nor below it.
+  it('takes the slot it shares an edge with, not the nearest centre', () => {
+    const CORNERS = layout('corners', [
+      { x: 0, y: 0, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+      { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+    ]);
+    expect(slotInDirection(CORNERS, 0, 1, 0)).toBe(2);
+    expect(slotInDirection(CORNERS, 0, 0, 1)).toBe(3);
+  });
+
+  // The other half of the edge rule: where the pairing is one-to-one, the
+  // opposite arrow comes straight back. A rule that allowed diagonals
+  // would fail this -- Up out of the bottom-right of a four-up would land
+  // somewhere Down did not come from.
+  it('is reversible wherever the slots pair off', () => {
+    const FOUR_UP = layout('four', [
+      { x: 0, y: 0, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+      { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+    ]);
+    const DIRECTIONS = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ];
+    for (let from = 0; from < 4; from += 1) {
+      for (const [dx, dy] of DIRECTIONS) {
+        const to = slotInDirection(FOUR_UP, from, dx, dy);
+        if (to === null) continue;
+        expect(slotInDirection(FOUR_UP, to, -dx, -dy)).toBe(from);
+      }
+    }
+  });
+
+  // Where they don't, they can't be: one tall slot faces two stacked
+  // ones, so Right has to pick one of them and only that one comes back.
+  // Worth pinning down rather than leaving as a surprise -- the slot you
+  // left is still one Up or Down away from the slot you land on.
+  it('cannot come back to a slot that faces two', () => {
+    expect(slotInDirection(THREE_UP, 2, -1, 0)).toBe(0);
+    expect(slotInDirection(THREE_UP, 0, 1, 0)).toBe(1);
+    expect(slotInDirection(THREE_UP, 1, 0, 1)).toBe(2);
+  });
+
+  it('has no answer for a layout it was handed nothing of', () => {
+    expect(slotInDirection(null, 0, 1, 0)).toBeNull();
+    expect(slotInDirection(THREE_UP, 9, 1, 0)).toBeNull();
   });
 });

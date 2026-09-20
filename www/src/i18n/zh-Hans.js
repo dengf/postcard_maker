@@ -311,6 +311,9 @@ export default {
   'collage.layoutOf': '{n} 张照片的版式',
   'collage.layoutHint': '点「换一批」会出现另一组排列，已放好的照片不会丢失。',
   'collage.addPhoto': '添加照片',
+  'collage.slotFilled': '第 {n} 张照片，共 {total} 张',
+  'collage.slotEmpty': '第 {n} 个空位，共 {total} 个',
+  'collage.slotKeys': '方向键在照片之间移动，Shift + 方向键移动格子里的照片，回车键更换照片。',
   'collage.fillAllSlots': '为每个位置添加照片即可完成。',
 
   'text.heading': '祝福语',
