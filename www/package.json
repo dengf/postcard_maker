@@ -14,8 +14,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{js,jsx}\"",
-    "format:check": "prettier --check \"src/**/*.{js,jsx}\""
+    "format": "prettier --write \"src/**/*.{js,jsx,mjs}\" \"*.{js,mjs}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,mjs}\" \"*.{js,mjs}\""
   },
   "dependencies": {
     "react": "^18.2.0",
