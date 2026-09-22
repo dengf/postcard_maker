@@ -739,9 +739,13 @@ geometry, `rotateGeometry.js` is its only caller in the host layer.
 - **One in-progress draft, no multi-draft gallery.** `draftStore.js`'s
   schema (one fixed key) would need to change first.
 - **Simplified/Traditional Chinese copy is mine, not a native speaker's**
-  (same caveat `mortgage_calculator`'s CLAUDE.md carries for its
-  regulatory copy) — wants a native-speaker pass before this ships
-  broadly.
+  (same caveat the rest of the meifio line carries) — an editing pass went
+  over it on 2026-09-22, but it still wants a native-speaker read before
+  this ships broadly. Conventions that pass settled, for new strings:
+  second person is 你 and never 您; Simplified quotes are “ ” and
+  Traditional 「」, never ASCII `"`; and an option's name has to match
+  what it actually draws — `layout.fill.variant.mono` was labelled
+  双色/雙色 while `fillTreatments.js` gives it one colour plus white.
   (Collage drafts *were* listed here as not autosaved, a scope cut that
   turned out to be one someone hits — see the persistence section above.)
 
