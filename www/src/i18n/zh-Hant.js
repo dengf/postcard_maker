@@ -73,9 +73,9 @@ export default {
   'layout.fill.variant.wide': '寬',
   'layout.fill.variant.classic': '經典',
   'layout.fill.variant.tonal': '同色調',
-  'layout.fill.variant.mono': '雙色',
+  'layout.fill.variant.mono': '單色',
 
-  'editor.cropHint': '拖曳以調整位置，雙指捏合可縮放、旋轉可轉動照片。雙擊照片可更換。',
+  'editor.cropHint': '拖曳可調整位置，雙指捏合可縮放，雙指旋轉可轉動照片。雙擊照片可更換。',
   'editor.replacePhoto': '換一張照片',
   'editor.back': '返回',
   'editor.rotate': '旋轉',
@@ -117,7 +117,7 @@ export default {
   'solo.caption.7': '今天一個人，但從沒有一刻不在想你。',
   'solo.caption.8': '這次是一個人，但你一直在我心裡同行。',
   'solo.caption.9': '今天沒人可以一起看風景，所以把它寄給你。',
-  'solo.caption.10': '原來一個人旅行，心裡想的還是一直是某個人。',
+  'solo.caption.10': '原來一個人旅行，心裡惦記的還是同一個人。',
   'solo.caption.11': '今天只有一串腳印，腦子裡的陪伴卻不少。',
   'solo.caption.12':
     '「黃色樹林裡分出兩條路，我選了人跡更少的那條。」——佛洛斯特，一個人，但也沒那麼孤單。',
