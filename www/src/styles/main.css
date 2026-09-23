@@ -45,6 +45,12 @@
   --surface: #0f1720;
   --ink: #e6edf3;
   --muted: #9fb0c3;
+  /* The two header <select>s draw their own arrow now -- see `.app-select`
+     for why. A token per palette tier rather than one `currentColor` glyph
+     because a data URI cannot read a custom property, so the ink is baked
+     into each copy. Keep it in step with --muted above: same grey. Matches
+     mortgage_calculator's and budget_planner's copies of this token. */
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%239fb0c3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   /* Was #5c6b7d -- 3.15:1 on `--panel`, under WCAG AA's 4.5:1 floor for
      the normal-size text this token actually carries (`.text-option-note`
      at 0.76rem is text, not decoration). #7a8ca0 measures 4.85-5.23:1,
@@ -94,6 +100,7 @@
     --surface: #ffffff;
     --ink: #241a1e;
     --muted: #6b5860;
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%236b5860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     /* Was #9c8a91 (3.02:1 on `--bg`, 3.25:1 on white) and #8a747d
        (4.00:1 on `--bg`) -- both under AA for normal-size text, the same
        failure as the dark tier above but needing to move darker rather
@@ -136,6 +143,7 @@
   --surface: #ffffff;
   --ink: #241a1e;
   --muted: #6b5860;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%236b5860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   /* See the media-query block above for the measurements. */
   --muted-2: #7b656d;
   --byline: #746069;
@@ -214,13 +222,38 @@ body {
    `title` a touch screen can't reach; a <select> shows it in the list and
    in the closed control, and adding theme as a second control of the same
    shape costs no header width. `min-height` (not `height`) keeps the 44px
-   tap target while letting the control grow with its own text. */
+   tap target while letting the control grow with its own text.
+
+   That last sentence was false in Safari until `appearance: none` was
+   added below. A <select> left at `appearance: auto` renders as a native
+   menulist, and WebKit sizes a menulist from its own metrics: it ignores
+   author `min-height` and `padding` outright, and the computed min-height
+   even reads back as 18px. Measured on this header at iPhone 13 size:
+
+     control              WebKit   Chromium
+     language picker      84x19     91x44
+     theme picker         81x19     85x44
+
+   Neither sits in a <label>, so there was no larger box behind them to
+   catch the tap. `height` is the other declaration WebKit honours and is
+   not the fix, for the reason the sentence above already gives.
+   `appearance: none` is what makes the floor real in both engines, and it
+   costs the native arrow -- drawn back as `--select-arrow`. Found first in
+   mortgage_calculator (#99); all three tools carried the identical dead
+   rule. */
 .app-switches { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .app-select {
-  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 6px center;
   color: var(--muted);
   border: none;
-  padding: 6px 8px;
+  /* Right padding clears the arrow we now draw; the rest is the 6px 8px
+     this rule always had. */
+  padding: 6px 24px 6px 8px;
   min-height: 44px;
   border-radius: 8px;
   cursor: pointer;
